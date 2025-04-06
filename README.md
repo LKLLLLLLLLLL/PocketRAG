@@ -1,6 +1,6 @@
 ## 从源码构建
 ```shell
-git clone
+git clone https://github.com/LKLLLLLLLLLL/PocketRAG
 ```
 ### 1. kernel
 获取依赖
@@ -15,5 +15,5 @@ cd kernel
 mkdir build
 cd build
 cmake .. --preset=ninja
-cmake --build . --config Release
+cmake --build . 
 ```
