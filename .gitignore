@@ -1,0 +1,37 @@
+# VS Code directory
+.vscode/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# CMake build files
+build/
+cmake-build*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+Makefile
+*.cmake
+
+# Compiled object files
+*.o
+*.obj
+
+# Compiled libraries
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+
+# vcpkg compiled files
+vcpkg_installed/
+
+# temp db files
+*.db

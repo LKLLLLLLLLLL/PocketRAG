@@ -1,0 +1,6 @@
+{
+  "dependencies": [
+    "faiss",
+    "sqlite3"
+  ]
+}
