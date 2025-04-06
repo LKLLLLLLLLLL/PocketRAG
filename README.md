@@ -7,6 +7,7 @@ git clone https://github.com/LKLLLLLLLLLL/PocketRAG
 ```shell
 cd PocketRAG
 git submodule update --init --recursive
+./vcpkg/bootstrap-vcpkg.bat # 在windows上执行
 cd kernel
 ../vcpkg/vcpkg install
 ```
@@ -14,6 +15,6 @@ cd kernel
 ```shell
 mkdir build
 cd build
-cmake .. --preset=ninja
+cmake .. 
 cmake --build . 
 ```

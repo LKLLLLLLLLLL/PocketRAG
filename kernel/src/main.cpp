@@ -1,81 +1,103 @@
-﻿#include <iostream>
-#include <vector>
+﻿/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+#include <cstdio>
+#include <cstdlib>
+#include <random>
+
 #include <faiss/IndexFlat.h>
-#include <sqlite3.h>
+#include <faiss/IndexIVFPQ.h>    
+#include <faiss/index_io.h>
 
-int main() {
-    // FAISS 测试
-    int dimension = 128;
-    int database_size = 1000;
-    int query_size = 5;
+using idx_t = faiss::idx_t;
 
-    // 创建一个 Flat 索引
-    faiss::IndexFlatL2 index(dimension);
+int main()
+{
+    int d = 128;      // dimension
+    int nb = 100000; // database size
+    int nq = 2;  // nb of queries
 
-    // 生成一些随机向量作为数据库
-    std::vector<float> database(dimension * database_size);
-    for (int i = 0; i < dimension * database_size; ++i) {
-        database[i] = float(rand()) / float(RAND_MAX);
+    std::mt19937 rng;
+    std::uniform_real_distribution<> distrib;
+
+    float *xb = new float[d * nb];
+    float *xq = new float[d * nq];
+
+    for (int i = 0; i < nb; i++)
+    {
+        for (int j = 0; j < d; j++)
+            xb[d * i + j] = distrib(rng);
+        xb[d * i] += i / 1000.;
     }
 
-    // 将向量添加到索引中
-    index.add(static_cast<faiss::idx_t>(database_size), database.data());
-
-    // 生成一些随机查询向量
-    std::vector<float> queries(dimension * query_size);
-    for (int i = 0; i < dimension * query_size; ++i) {
-        queries[i] = float(rand()) / float(RAND_MAX);
+    for (int i = 0; i < nq; i++)
+    {
+        for (int j = 0; j < d; j++)
+            xq[d * i + j] = distrib(rng);
+        xq[d * i] += i / 1000.;
     }
 
-    // 搜索最近邻
-    int top_k = 5;
-    std::vector<float> distances(query_size * top_k);
-    std::vector<faiss::idx_t> labels(query_size * top_k);
+    int nlist = 100;
+    int k = 25;
+    int m = 32;                       // bytes per vector
+    faiss::IndexFlatL2 quantizer(d); // the other index
+    faiss::IndexIVFPQ index(&quantizer, d, nlist, m, 8);
 
-    index.search(query_size, queries.data(), top_k, distances.data(), labels.data());
+    index.train(nb, xb);
+    index.add(nb, xb);
 
-    std::cout << "FAISS 测试完成，找到了 " << query_size * top_k << " 个最近邻。" << std::endl;
+    { // sanity check
+        idx_t *I = new idx_t[k * 5];
+        float *D = new float[k * 5];
 
-    // SQLite3 测试
-    sqlite3 *db;
-    int rc = sqlite3_open("test.db", &db);
+        index.search(5, xb, k, D, I);
 
-    if (rc) {
-        std::cerr << "无法打开数据库: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_close(db);
-        return 1;
+        printf("I=\n");
+        for (int i = 0; i < 5; i++)
+        {
+            for (int j = 0; j < k; j++)
+                printf("%5zd ", I[i * k + j]);
+            printf("\n");
+        }
+
+        printf("D=\n");
+        for (int i = 0; i < 5; i++)
+        {
+            for (int j = 0; j < k; j++)
+                printf("%7g ", D[i * k + j]);
+            printf("\n");
+        }
+
+        delete[] I;
+        delete[] D;
     }
 
-    std::cout << "成功打开 SQLite3 数据库。" << std::endl;
+    { // search xq
+        idx_t *I = new idx_t[k * nq];
+        float *D = new float[k * nq];
 
-    // 创建表
-    const char *sql_create = "CREATE TABLE IF NOT EXISTS test_table (id INTEGER PRIMARY KEY, value TEXT);";
-    rc = sqlite3_exec(db, sql_create, 0, 0, 0);
+        index.nprobe = 10;
+        index.search(nq, xq, k, D, I);
 
-    if (rc != SQLITE_OK) {
-        std::cerr << "创建表失败: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_close(db);
-        return 1;
+        printf("I=\n");
+        for (int i = nq - 5; i < nq; i++)
+        {
+            for (int j = 0; j < k; j++)
+                printf("%5zd ", I[i * k + j]);
+            printf("\n");
+        }
+
+        delete[] I;
+        delete[] D;
     }
+    write_index(&index, "index.cache");
 
-    std::cout << "成功创建 SQLite3 表。" << std::endl;
-
-    // 插入数据
-    const char *sql_insert = "INSERT INTO test_table (value) VALUES ('test_value');";
-    rc = sqlite3_exec(db, sql_insert, 0, 0, 0);
-
-    if (rc != SQLITE_OK) {
-        std::cerr << "插入数据失败: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_close(db);
-        return 1;
-    }
-
-    std::cout << "成功插入数据到 SQLite3 表。" << std::endl;
-
-    // 关闭数据库
-    sqlite3_close(db);
-
-    std::cout << "SQLite3 测试完成。" << std::endl;
+    delete[] xb;
+    delete[] xq;
 
     return 0;
 }
