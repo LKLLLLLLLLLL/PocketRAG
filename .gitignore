@@ -35,3 +35,6 @@ vcpkg_installed/
 
 # temp db files
 *.db
+
+# node_modules
+node_modules/
