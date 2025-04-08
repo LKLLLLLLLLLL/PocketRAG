@@ -1,103 +1,54 @@
-﻿/*
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
-
+﻿#include "VectorTable.h"
+#include <iostream>
+#include <cassert>
 #include <cstdio>
-#include <cstdlib>
-#include <random>
 
-#include <faiss/IndexFlat.h>
-#include <faiss/IndexIVFPQ.h>    
-#include <faiss/index_io.h>
-
-using idx_t = faiss::idx_t;
-
-int main()
-{
-    int d = 128;      // dimension
-    int nb = 100000; // database size
-    int nq = 2;  // nb of queries
-
-    std::mt19937 rng;
-    std::uniform_real_distribution<> distrib;
-
-    float *xb = new float[d * nb];
-    float *xq = new float[d * nq];
-
-    for (int i = 0; i < nb; i++)
-    {
-        for (int j = 0; j < d; j++)
-            xb[d * i + j] = distrib(rng);
-        xb[d * i] += i / 1000.;
+// Helper function to delete a file (cross-platform)
+void deleteFile(const char* filename) {
+    if (std::remove(filename) != 0) {
+        perror("Error deleting file");
     }
+}
 
-    for (int i = 0; i < nq; i++)
-    {
-        for (int j = 0; j < d; j++)
-            xq[d * i + j] = distrib(rng);
-        xq[d * i] += i / 1000.;
-    }
+int main() {
+    // Test database path and table name
+    const std::string dbPath = "./test";
+    const std::string tableName = "test_table";
+    const int dimension = 512;
 
-    int nlist = 100;
-    int k = 25;
-    int m = 32;                       // bytes per vector
-    faiss::IndexFlatL2 quantizer(d); // the other index
-    faiss::IndexIVFPQ index(&quantizer, d, nlist, m, 8);
+    // // Delete the database file if it exists
+    // deleteFile(dbPath.c_str());
 
-    index.train(nb, xb);
-    index.add(nb, xb);
+    // 1. Create a VectorTable
+    VectorTable& vt = VectorTable::getInstance();
 
-    { // sanity check
-        idx_t *I = new idx_t[k * 5];
-        float *D = new float[k * 5];
+    // 2. Create a new table
+    vt.createTable(dbPath, tableName, dimension);
+    std::cout << "Table created successfully." << std::endl;
+    vt.close();
 
-        index.search(5, xb, k, D, I);
+    // 3. Open the table
+    vt.open(dbPath, tableName);
+    std::cout << "Table opened successfully." << std::endl;
 
-        printf("I=\n");
-        for (int i = 0; i < 5; i++)
-        {
-            for (int j = 0; j < k; j++)
-                printf("%5zd ", I[i * k + j]);
-            printf("\n");
-        }
+    // 4. Basic check:  Verify dimension is set (no direct access, so rely on addVector not crashing)
+    std::vector<float> testVector(dimension, 0.0f);
+    vt.addVector(testVector);
+    std::cout << "Vector added successfully." << std::endl;
 
-        printf("D=\n");
-        for (int i = 0; i < 5; i++)
-        {
-            for (int j = 0; j < k; j++)
-                printf("%7g ", D[i * k + j]);
-            printf("\n");
-        }
+    // 5. Close the table
+    vt.close();
+    std::cout << "Table closed successfully." << std::endl;
 
-        delete[] I;
-        delete[] D;
-    }
+    // 6. Re-open the table and verify it still works
+    vt.open(dbPath, tableName);
+    std::cout << "Table re-opened successfully." << std::endl;
+    vt.close();
 
-    { // search xq
-        idx_t *I = new idx_t[k * nq];
-        float *D = new float[k * nq];
+    // // Clean up: Delete the database file
+    // deleteFile(dbPath.c_str());
 
-        index.nprobe = 10;
-        index.search(nq, xq, k, D, I);
-
-        printf("I=\n");
-        for (int i = nq - 5; i < nq; i++)
-        {
-            for (int j = 0; j < k; j++)
-                printf("%5zd ", I[i * k + j]);
-            printf("\n");
-        }
-
-        delete[] I;
-        delete[] D;
-    }
-    write_index(&index, "index.cache");
-
-    delete[] xb;
-    delete[] xq;
+    std::cout << "All tests completed." << std::endl;
 
     return 0;
 }

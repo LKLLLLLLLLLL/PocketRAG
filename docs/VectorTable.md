@@ -1,0 +1,25 @@
+﻿# VectorTable设计文档
+VectorTable是一个封装了一个sql表格和Faiss向量索引的类，尽量保证两者的一致性。
+
+## 实现原理
+VectorTable中的SQL表结构如下
+``` SQL
+CREATE TABLE IF NOT EXISTS
+Vector(
+    id INTEGER PRIMARY KEY AUTOINCREMENT, --主键，自动递增 
+    valid BOOLEAN NOT NULL DEFAULT 0, --布尔值，默认值为 false(0), 说明向量是否已写入内存中的Faiss数据库 
+    writeback BOOLEAN NOT NULL DEFAULT 0, --布尔值，默认值为 false(0), 说明向量是否已写入磁盘中的Faiss数据库
+    deleted BOOLEAN NOT NULL DEFAULT 0, --布尔值，默认值为 false(0), 说明向量是否已删除
+);
+```
+
+faiss索引的结构大致如下
+``` cpp
+faiss::idx_t idx; // 向量的id
+vector<float> vec; // 向量的值
+```
+
+VectorTable会保证，只要SQL中的Valid为true，Faiss索引中就一定会有对应的向量。
+反之，如果Faiss索引中有向量，SQL中的Valid则不一定为true，甚至可能不存在SQL的记录中
+
+在查询时会自动过滤掉deleted = true或者valid = false的向量
