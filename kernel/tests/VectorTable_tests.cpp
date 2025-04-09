@@ -1,6 +1,4 @@
-﻿// copy from ./tests/VectorTable_tests.cpp
-// temporary test
-#include "VectorTable.h"
+﻿#include "VectorTable.h"
 #include <iostream>
 #include <chrono>
 #include <vector>

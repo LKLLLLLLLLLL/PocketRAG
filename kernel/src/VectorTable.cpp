@@ -433,7 +433,12 @@ VectorTable::idx_t VectorTable::removeVector(idx_t id)
         if(stmt) sqlite3_finalize(stmt);
         throw;
     }
-    
+
+    // check if the vector exists in SQLite table
+    int changes = sqlite3_changes(sqliteDB.get());
+    if (changes == 0)
+        throw std::runtime_error("Vector with ID " + std::to_string(id) + " does not exist.");
+
     // check if need to reconstruct Faiss index
     deleteCount++;
     if (deleteCount >= maxDeleteCount)
