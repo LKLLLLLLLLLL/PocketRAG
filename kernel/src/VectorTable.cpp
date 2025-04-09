@@ -151,7 +151,7 @@ std::pair<std::vector<faiss::idx_t>, std::vector<float>> VectorTable::querySimla
     std::string idList;
     for (auto& i : resultIndex)
     {
-        if (i > 0)
+        if (i != resultIndex[0]) // avoid duplicate ids
             idList += ",";
         idList += std::to_string(i);
     }
@@ -169,13 +169,14 @@ std::pair<std::vector<faiss::idx_t>, std::vector<float>> VectorTable::querySimla
             auto deleted = sqlite3_column_int(stmt, 2);
             idToFlagMap[id] = {valid != 0, deleted != 0};
         }
-        for(auto& id : resultIndex) // filter unexpected results
+        for(int i = 0; i < resultIndex.size(); i++) // filter unexpected results
         {
+            auto id = resultIndex[i];
             auto flagPair = idToFlagMap[id];
             if(flagPair.first && !flagPair.second) // only keep ids with valid = true and deleted = false 
             {
                 validResultIndex.push_back(id);
-                validResultDistance.push_back(resultDistance[id]);
+                validResultDistance.push_back(resultDistance[i]);
             }
         }
     } catch (...) {
@@ -189,12 +190,33 @@ std::vector<float> VectorTable::getVectorFromId(faiss::idx_t id) const
 {
     if(faissIndex == nullptr)
         throw std::runtime_error("VectorTable is not initialized.");
-    if(id < 0 || id >= faissIndex->ntotal)
+    if(id < 0)
         throw std::runtime_error("Id is out of range.");
 
     // get vector from index
     auto vector = std::vector<float>(dimension);
     faissIndex->reconstruct(id, vector.data());
+
+    // check if the vector's valid flag and deleted flag in SQLite table
+    const char *querySQL = "SELECT valid, deleted FROM Vector WHERE id = ?;";
+    sqlite3_stmt *stmt = nullptr;
+    auto returnCode = sqlite3_prepare_v2(sqliteDB.get(), querySQL, -1, &stmt, nullptr);
+    if (returnCode != SQLITE_OK)
+        throw std::runtime_error("Failed to prepare SQLite statement: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+    try{
+        sqlite3_bind_int64(stmt, 1, id);
+        returnCode = sqlite3_step(stmt);
+        if (returnCode != SQLITE_ROW)
+            throw std::runtime_error("Failed to query SQLite table: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+        auto valid = sqlite3_column_int(stmt, 0);
+        auto deleted = sqlite3_column_int(stmt, 1);
+        if(valid == 0 || deleted != 0) // check if the vector is valid and not deleted
+            throw std::runtime_error("Vector is invalid or deleted.");
+    } catch (...) {
+        if(stmt) sqlite3_finalize(stmt);
+        throw;
+    }
+    if(stmt) sqlite3_finalize(stmt);
 
     return vector;
 }
@@ -272,6 +294,120 @@ VectorTable::idx_t VectorTable::addVector(const std::vector<float> &vector)
     return id;
 }
 
+std::vector<VectorTable::idx_t> VectorTable::addVector(const std::vector<std::vector<float>> &vectors)
+{
+    if (faissIndex == nullptr)
+        throw std::runtime_error("FaissIndex is not initialized.");
+    if (sqliteDB == nullptr)
+        throw std::runtime_error("SQLite database is not initialized.");
+    if(vectors.empty())
+        throw std::runtime_error("Vectors are empty.");
+    if (vectors[0].size() != dimension)
+        throw std::runtime_error("Vector dimension does not match the VectorTable dimension.");
+
+    auto resultIds = std::vector<idx_t>(vectors.size());
+
+    // add vectors to SQLite table, but set flag invalid
+    // begin transaction_1
+    const char *beginSQL = "BEGIN TRANSACTION;";
+    auto returnCode = sqlite3_exec(sqliteDB.get(), beginSQL, nullptr, nullptr, nullptr);
+    if (returnCode != SQLITE_OK)
+        throw std::runtime_error("Failed to begin SQLite transaction: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+    sqlite3_stmt *stmt = nullptr;
+    try{
+        const char *insertSQL = "INSERT INTO Vector (valid) VALUES (0);";
+        returnCode = sqlite3_prepare_v2(sqliteDB.get(), insertSQL, -1, &stmt, nullptr); // precompile the statement for high speed
+        if (returnCode != SQLITE_OK)
+            throw std::runtime_error("Failed to prepare SQLite statement: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+        // insert vectors into SQLite table
+        for (size_t i = 0; i < vectors.size(); i++)
+        {
+            returnCode = sqlite3_step(stmt);
+            if (returnCode != SQLITE_DONE)
+                throw std::runtime_error("Failed to insert into SQLite table: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+            resultIds[i] = static_cast<idx_t>(sqlite3_last_insert_rowid(sqliteDB.get()));
+            sqlite3_reset(stmt); // reset the statement for the next bind
+        }
+    }
+    catch (...)
+    {
+        // rollback transaction_1
+        const char *rollbackSQL = "ROLLBACK;";
+        sqlite3_exec(sqliteDB.get(), rollbackSQL, nullptr, nullptr, nullptr);
+        if(stmt) sqlite3_finalize(stmt);
+        throw;
+    }
+    if(stmt) sqlite3_finalize(stmt);
+    // commit transaction_1
+    const char *commitSQL = "COMMIT;";
+    returnCode = sqlite3_exec(sqliteDB.get(), commitSQL, nullptr, nullptr, nullptr);
+    if (returnCode != SQLITE_OK)
+        throw std::runtime_error("Failed to commit SQLite transaction: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+
+    // convert std::vector<std::vector<float>> &vectors to std::vector<float> &vectors, may slow down
+    auto flatVectors = std::vector<float>(vectors.size() * dimension);
+    for (size_t i = 0; i < vectors.size(); i++)
+    {
+        // std::copy(vectors[i].begin(), vectors[i].end(), flatVectors.begin() + i * dimension);
+        if (vectors[i].size() != dimension)
+        {
+            throw std::runtime_error("Vector at index " + std::to_string(i) + " has incorrect dimension " + std::to_string(vectors[i].size()) + " (expected " + std::to_string(dimension) + ")");
+        }
+        std::memcpy(flatVectors.data() + i * dimension, vectors[i].data(), dimension * sizeof(float)); // faster than std::copy
+    }
+
+    // add vectors to Faiss index
+    faissIndex->add_with_ids(vectors.size(), flatVectors.data(), resultIds.data());
+
+    // add successfully, change flag in SQLite table
+    // begin transaction_2
+    beginSQL = "BEGIN TRANSACTION;";
+    returnCode = sqlite3_exec(sqliteDB.get(), beginSQL, nullptr, nullptr, nullptr);
+    if (returnCode != SQLITE_OK)
+        throw std::runtime_error("Failed to begin SQLite transaction: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+    stmt = nullptr;
+    try
+    {
+
+        const char *updateSQL = "UPDATE Vector SET valid = 1 WHERE id = ?;";
+        returnCode = sqlite3_prepare_v2(sqliteDB.get(), updateSQL, -1, &stmt, nullptr); // precompile the statement for high speed
+        if (returnCode != SQLITE_OK)
+            throw std::runtime_error("Failed to prepare SQLite statement: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+        // update valid flag in SQLite table
+        for (size_t i = 0; i < resultIds.size(); i++)
+        {
+            sqlite3_bind_int64(stmt, 1, resultIds[i]);
+            returnCode = sqlite3_step(stmt);
+            if (returnCode != SQLITE_DONE)
+                throw std::runtime_error("Failed to update SQLite table: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+            sqlite3_reset(stmt); // reset the statement for the next bind
+        }
+    }
+    catch (...)
+    {
+        // rollback transaction_2
+        const char *rollbackSQL = "ROLLBACK;";
+        sqlite3_exec(sqliteDB.get(), rollbackSQL, nullptr, nullptr, nullptr);
+        if (stmt)
+            sqlite3_finalize(stmt);
+        throw;
+    }
+    if (stmt)
+        sqlite3_finalize(stmt);
+    // commit transaction_2
+    commitSQL = "COMMIT;";
+    returnCode = sqlite3_exec(sqliteDB.get(), commitSQL, nullptr, nullptr, nullptr);
+    if (returnCode != SQLITE_OK)
+        throw std::runtime_error("Failed to commit SQLite transaction: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+
+    // 增加计数器并检查是否需要写入磁盘
+    addCount += vectors.size();
+    if (addCount >= maxAddCoune)
+        writeToDisk();
+
+    return resultIds;
+}
+
 // this function will only mark the vector as invalid in SQLite table, cannot remove it from Faiss index
 VectorTable::idx_t VectorTable::removeVector(idx_t id)
 {
@@ -279,7 +415,7 @@ VectorTable::idx_t VectorTable::removeVector(idx_t id)
         throw std::runtime_error("FaissIndex is not initialized.");
     if (sqliteDB == nullptr)
         throw std::runtime_error("SQLite database is not initialized.");
-    if (id < 0 || id >= faissIndex->ntotal)
+    if (id < 0)
         throw std::runtime_error("Id is out of range.");
     
     // sign the vector by valid = false in SQLite table
@@ -333,16 +469,20 @@ int VectorTable::reconstructFaissIndex()
         if(stmt) sqlite3_finalize(stmt);
         throw;
     }
-
-    // get valid vectors by valid ids from faiss index
-    auto validVectors = std::vector<float>(validIdList.size() * dimension);
-    faissIndex->reconstruct_batch(validIdList.size(), validIdList.data(), validVectors.data());
+    if(stmt) sqlite3_finalize(stmt);
 
     // create new Faiss index in memory
     faiss::Index *newFaissIndex = faiss::index_factory(dimension, faissIndexType.c_str(), metricType);
     if (newFaissIndex == nullptr)
         throw std::runtime_error("Failed to create new Faiss index in memory.");
-    newFaissIndex->add(validIdList.size(), validVectors.data()); // add all valid vectors to new Faiss index
+    if(!validIdList.empty())
+    {
+        // get valid vectors by valid ids from faiss index
+        auto validVectors = std::vector<float>(validIdList.size() * dimension);
+        faissIndex->reconstruct_batch(validIdList.size(), validIdList.data(), validVectors.data());
+        // add all valid vectors to new Faiss index
+        newFaissIndex->add_with_ids(validIdList.size(), validVectors.data(), validIdList.data());
+    }
 
     // update SQL table, remove the droped vectors
     const char *deleteSQL = R"(
@@ -352,7 +492,7 @@ int VectorTable::reconstructFaissIndex()
     returnCode = sqlite3_exec(sqliteDB.get(), deleteSQL, nullptr, nullptr, nullptr);
     if (returnCode != SQLITE_OK)
         throw std::runtime_error("Failed to delete from SQLite table: " + std::string(sqlite3_errmsg(sqliteDB.get())));
-    int deletedCount = sqlite3_changes(sqliteDB.get());
+    int deletedNum = sqlite3_changes(sqliteDB.get());
 
     // save new Faiss index
     faissIndex = newFaissIndex;
@@ -360,7 +500,7 @@ int VectorTable::reconstructFaissIndex()
 
     deleteCount = 0; // reset delete count
 
-    return deletedCount;
+    return deletedNum;
 }
 
 std::vector<VectorTable::idx_t> VectorTable::getInvalidIds() const

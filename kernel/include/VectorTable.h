@@ -16,10 +16,13 @@ class VectorTable
 {
 private:
 
-    VectorTable() = default; 
+    VectorTable() = default;
 
-    const std::string faissIndexType = "HNSW32,Flat,IDMap"; // Faiss index type, can be changed for best performance
-    const enum faiss::MetricType metricType = faiss::METRIC_L2; // Faiss metric type, can be changed for best performance
+    // Faiss index type, can be changed for best performance
+    // MUST use IDMAP2 for reconstruct supporting
+    const std::string faissIndexType = "HNSW32,Flat,IDMap2";
+    // Faiss metric type, can be changed for best performance
+    const enum faiss::MetricType metricType = faiss::METRIC_L2;
 
     struct SQLiteDeleter // to delete sqlite3 pointer safely
     {
@@ -79,10 +82,15 @@ public:
     std::pair<std::vector<faiss::idx_t>, std::vector<float>> querySimlar(const std::vector<float> &queryVector, int maxrRsultCount) const;
 
     // return the vector of given id
+    // if the id is not in the table, throw std::runtime_error("Vector is invalid or deleted."), you can catch it for checking
     std::vector<float> getVectorFromId(faiss::idx_t id) const;
     
     // add a vector to the table, return it's id in VectorTable
+    // low speed, do not use if unnecessary
     idx_t addVector(const std::vector<float> &vector); 
+    // add batch of vectors to the table, return their ids in VectorTable
+    // highspeed, recommond to use
+    std::vector<idx_t> addVector(const std::vector<std::vector<float>> &vectors);
 
     // remove a vector from the table, return it's id in VectorTable
     idx_t removeVector(idx_t id); 
