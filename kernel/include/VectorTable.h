@@ -49,8 +49,14 @@ private:
     // initialize SQLite table, should only be called when creating a new table
     void initializeSQLiteTable();
 
-    // // reconstruct Faiss index from SQLite database, may take a long time; can save memory and disk usage; return the number of vectors delete from sql table
-    // int reconstructFaissIndex(); 
+    // check if the SQLite database and Faiss index are initialized
+    inline void checkInitialized() const
+    {
+        if (sqliteDB.get() == nullptr)
+            throw std::runtime_error("SQLite database is not initialized.");
+        if (faissIndex == nullptr)
+            throw std::runtime_error("Faiss index is not initialized.");
+    }
 
 public:
     using idx_t = faiss::idx_t; // Faiss index type
@@ -86,14 +92,18 @@ public:
     std::vector<float> getVectorFromId(faiss::idx_t id) const;
     
     // add a vector to the table, return it's id in VectorTable
+    // if try to add same vector, it will be add successfully, with defferent id, DO NOT DO THAT
     // low speed, do not use if unnecessary
-    idx_t addVector(const std::vector<float> &vector); 
+    idx_t addVector(const std::vector<float> &vector);
     // add batch of vectors to the table, return their ids in VectorTable
+    // if try to add same vector, it will be add successfully, with defferent id, DO NOT DO THAT
     // highspeed, recommond to use
     std::vector<idx_t> addVector(const std::vector<std::vector<float>> &vectors);
 
     // remove a vector from the table, return it's id in VectorTable
     idx_t removeVector(idx_t id); 
+    // remove batch of vectors from table, return their ids in VectorTable
+    std::vector<idx_t> removeVector(const std::vector<idx_t> &ids);
 
     // write the Faiss index to disk, return the number of vectors written to disk successfully
     int writeToDisk();
