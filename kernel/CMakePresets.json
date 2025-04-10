@@ -14,9 +14,9 @@
             }
         },
         {
-            "name": "visual studio",
-            "displayName": "Visual Studio Community 2022 Release - amd64",
-            "description": "将编译器用于 Visual Studio 17 2022 (x64 体系结构)",
+            "name": "vs-debug",
+            "displayName": "Visual Studio Debug",
+            "description": "使用Visual Studio的Debug配置",
             "generator": "Visual Studio 17 2022",
             "toolset": "host=x64",
             "architecture": "x64",
@@ -24,8 +24,38 @@
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
                 "CMAKE_C_COMPILER": "cl.exe",
-                "CMAKE_CXX_COMPILER": "cl.exe"
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_BUILD_TYPE": "Debug"
             }
+        },
+        {
+            "name": "vs-release",
+            "displayName": "Visual Studio Release",
+            "description": "使用Visual Studio的Release配置",
+            "generator": "Visual Studio 17 2022",
+            "toolset": "host=x64",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }
+    ], 
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "vs-debug",
+            "displayName": "Debug Build",
+            "description": "Debug构建"
+        },
+        {
+            "name": "release",
+            "configurePreset": "vs-release",
+            "displayName": "Release Build",
+            "description": "Release构建"
         }
     ]
 }

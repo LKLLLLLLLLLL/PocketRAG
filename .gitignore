@@ -18,6 +18,10 @@ compile_commands.json
 Makefile
 *.cmake
 
+# binary files
+bin/
+lib/
+
 # Compiled object files
 *.o
 *.obj
@@ -39,7 +43,13 @@ vcpkg_installed/
 # temp db files
 *.db
 
-# node.ignore
+# model files
+models/
+
+# onnx_runtime precompiled files
+**/onnxruntime*/
+
+# ------------- node.ignore --------------------
 # Logs
 logs
 *.log

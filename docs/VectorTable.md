@@ -23,3 +23,5 @@ VectorTable会保证，只要SQL中的Valid为true，Faiss索引中就一定会�
 反之，如果Faiss索引中有向量，SQL中的Valid则不一定为true，甚至可能不存在SQL的记录中
 
 在查询时会自动过滤掉deleted = true或者valid = false的向量
+
+由于faiss的一些Index不支持删除，因此，在删除时，会使用将sql数据表中的deleted标记为true，实现软删除；当删除数量达到设定值时，重新构造索引以提高查找效率、释放内存。
