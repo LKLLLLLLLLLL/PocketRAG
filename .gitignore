@@ -48,6 +48,8 @@ models/
 
 # onnx_runtime precompiled files
 **/onnxruntime*/
+# cudnn precompiled files
+**/cudnn*/
 
 # ------------- node.ignore --------------------
 # Logs

@@ -10,6 +10,7 @@
 vcpkg主要管理依赖如下：
 + **sqlite3**：用于提供轻量化数据库支持
 + **faiss**：用于提供高性能的向量搜索
++ **sentencepiece**：用于提供分词支持
 
 通过如下命令获取vcpkg源码并构建可执行文件`vcpkg`:
 ```shell
@@ -23,14 +24,14 @@ cd kernel
 ## 2. source code
 通过源码添加依赖如下：
 
-该部分已经集成在git中，不需要手动下载。
+该部分已经集成在本项目的git仓库中，不需要手动下载。
 
 ## 3. precompiled binary
 需要手动下载以下依赖的预编译二进制文件，并放置在`/kernel/external`目录下：
 
 ### ONNX runtime
-用途：提供本地模型推理能力，支持GPU加速
-版本：v1.21.0
+用途：提供本地模型推理能力，支持GPU加速  
+版本：v1.21.0  
 https://github.com/microsoft/onnxruntime/releases/tag/v1.21.0
 
 建议：使用`onnxruntime-win-x64-gpu-1.21.0.zip`版本。
@@ -38,3 +39,9 @@ https://github.com/microsoft/onnxruntime/releases/tag/v1.21.0
 1. 下载`onnxruntime-win-x64-gpu-1.21.0.zip`文件
 2. 解压缩到`/kernel/external`目录下
 3. 验证cmake是否能找到onnxruntime
+
+### cuDNN
+用途：提供GPU加速  
+版本：9.8.0.87_cuda12  
+https://developer.nvidia.com/cudnn-downloads
+
