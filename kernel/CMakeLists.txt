@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 3.15)
+﻿cmake_minimum_required(VERSION 3.15)
+
+# set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake" 
+#     CACHE STRING "Vcpkg toolchain file")
+
 project(PocketRAG_kernel VERSION 0.0.1)
 
 # 设置输出目录
@@ -10,25 +14,30 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib) # 静态库输出目
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# --------------导入依赖项---------------
-# 导入FAISS
-set(_IMPORT_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows")
-include("${_IMPORT_PREFIX}/share/faiss/faiss-targets.cmake")
+include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
 
-# 导入unofficial-sqlite3 
-include("${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/share/unofficial-sqlite3/unofficial-sqlite3-targets.cmake")
+# --------------导入依赖项---------------
+# 导入sqlite3
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
+
+# 导入faiss
+include(CMakeFindDependencyMacro)
+find_package(faiss CONFIG REQUIRED)
 
 # 导入sentencepiece
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/include")
-add_library(sentencepiece SHARED IMPORTED)
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(SENTENCEPIECE_LIB "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/debug/lib/sentencepiece.lib")
-else()
-    set(SENTENCEPIECE_LIB "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/lib/sentencepiece.lib")
-endif()
-set_target_properties(sentencepiece PROPERTIES
-    IMPORTED_IMPLIB "${SENTENCEPIECE_LIB}"
-)
+# 设置SentencePiece选项
+set(SPM_ENABLE_SHARED OFF CACHE BOOL "Build shared libary")
+set(SPM_ENABLE_TCMALLOC OFF CACHE BOOL "Enable TCMalloc if available")
+set(SPM_ENABLE_NFKC_NORMALIZATION OFF CACHE BOOL "Enable NFKC normalization")
+set(SPM_ENABLE_SAMPLING OFF CACHE BOOL "Enable subword sampling")
+set(SPM_USE_BUILTIN_PROTOBUF ON CACHE BOOL "Use built-in protobuf")
+set(SPM_USE_EXTERNAL_ABSL OFF CACHE BOOL "Use external abseil")
+# 如果不需要测试和示例程序
+set(SPM_BUILD_TEST OFF CACHE BOOL "Build test")
+set(SPM_ENABLE_TENSORFLOW_SHARED OFF CACHE BOOL "Link against TensorFlow shared lib")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/sentencepiece/src)
+# 添加SentencePiece作为子目录
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/sentencepiece)
 
 # 导入ONNXruntime
 set(ONNXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime-win-x64-gpu-1.21.0")
