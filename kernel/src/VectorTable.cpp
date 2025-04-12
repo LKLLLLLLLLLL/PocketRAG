@@ -1,4 +1,4 @@
-﻿#include <VectorTable.h>
+#include <VectorTable.h>
 #include <string>
 #include <vector>
 #include <filesystem>
