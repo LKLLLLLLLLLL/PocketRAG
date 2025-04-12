@@ -98,6 +98,16 @@ void VectorTable::open(const std::string &dbPath_, const std::string &tableName_
     if (faissIndex == nullptr)
         throw std::runtime_error("Failed to open Faiss index: " + dbFullPath + ".faiss");
     dimension = faissIndex->d;
+
+    // change non writeback vector to invalid vector in SQLite table
+    const char *updateSQL = R"(
+        UPDATE Vector
+        SET valid = 0, writeback = 0
+        WHERE valid = 1 AND writeback = 0;
+    )";
+    auto returnCode = sqlite3_exec(sqliteDB.get(), updateSQL, nullptr, nullptr, nullptr);
+    if (returnCode != SQLITE_OK)
+        throw std::runtime_error("Failed to update SQLite table: " + std::string(sqlite3_errmsg(sqliteDB.get())));
 }
 
 void VectorTable::close()
