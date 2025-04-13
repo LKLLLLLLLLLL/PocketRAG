@@ -5,6 +5,7 @@
 - Windows 10/11 x64
 - Visual Studio 2022 with C++工具链
 - CMake 3.15+
+- Ninja
 
 ## 1. vcpkg
 vcpkg主要管理依赖如下：
