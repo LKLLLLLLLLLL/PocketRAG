@@ -172,6 +172,9 @@ EmbeddingModel::EmbeddingModel(const std::wstring &targetModelDirPath, device de
 
 std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> EmbeddingModel::tokenize(const std::string &text) const
 {
+    if(text.empty())
+        throw std::runtime_error("Input text is empty.");
+    
     // tokenize text to ids
     std::vector<int> tempTokenIds;
     tokenizer.Encode(text, &tempTokenIds); // tokenize text to ids
@@ -195,7 +198,7 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
     // generate attention mask
     std::vector<int64_t> attentionMask(maxLength, 1); // all tokens are valid tokens
     // generate shape
-    std::vector<int64_t> shape = {1, static_cast<int64_t>(tokenIds.size())};
+    std::vector<int64_t> shape = {1, maxLength}; // 1 * max length
 
     return {std::move(tokenIds), std::move(attentionMask), std::move(shape)}; // return token ids and attention mask and shape
 }
@@ -204,6 +207,9 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
 // untested version
 std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> EmbeddingModel::tokenize(const std::vector<std::string> &texts) const
 {
+    if(texts.empty())
+        throw std::runtime_error("Input texts are empty.");
+    
     // tokenize batch of texts to ids, and compute max length
     int maxLength = 0;
     std::vector<std::vector<int>> tempTokenIds;
@@ -237,12 +243,7 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
                   attentionMask.begin() + i * maxLength + sequenceLength + 2, 1); // set attention mask to 1 for real tokens
     }
     // generate shape
-    std::vector<int64_t> shape = {static_cast<int64_t>(tempTokenIds.size()), static_cast<int64_t>(maxLength)}; // batch size and max length
-
-    // // convert to Ort tensor
-    // std::vector<int64_t> shape = {static_cast<int64_t>(tempTokenIds.size()), static_cast<int64_t>(maxLength)}; // batch size and max length
-    // Ort::Value token_ids_tensor = Ort::Value::CreateTensor<int64_t>(memoryInfo, tokenIds.data(), tokenIds.size(), shape.data(), shape.size());
-    // Ort::Value attention_mask_tensor = Ort::Value::CreateTensor<int64_t>(memoryInfo, attentionMask.data(), attentionMask.size(), shape.data(), shape.size());
+    std::vector<int64_t> shape = {static_cast<int64_t>(tempTokenIds.size()), static_cast<int64_t>(maxLength)}; // batch size * max length
 
     return {std::move(tokenIds), std::move(attentionMask),std::move(shape)}; // return token ids and attention mask
 }
@@ -254,11 +255,9 @@ std::vector<float> EmbeddingModel::embed(const std::string &text) const
     auto [input_ids_vector, input_attention_mask_vector, shape] = tokenize(text);
 
     // convert to Ort tensor
+    // ort tensor only save pointer to data, make sure the data has not been deallocated
     Ort::Value input_ids = Ort::Value::CreateTensor<int64_t>(memoryInfo, input_ids_vector.data(), input_ids_vector.size(), shape.data(), shape.size());
     Ort::Value input_attention_mask = Ort::Value::CreateTensor<int64_t>(memoryInfo, input_attention_mask_vector.data(), input_attention_mask_vector.size(), shape.data(), shape.size());
-
-    printTensorData(input_ids, "input_ids"); // debug
-    printTensorData(input_attention_mask, "input_attention_mask"); // debug
 
     // prepare input tensors
     std::vector<Ort::Value> input_tensors;
@@ -278,3 +277,34 @@ std::vector<float> EmbeddingModel::embed(const std::string &text) const
     return embeddingVector; // return the embedding vector
 }
 
+std::vector<std::vector<float>> EmbeddingModel::embed(const std::vector<std::string> &texts) const
+{
+    // tokenize input texts
+    auto [input_id_vectors, input_attention_mask_vectors, shape] = tokenize(texts);
+
+    // convert to Ort tensor
+    Ort::Value input_ids = Ort::Value::CreateTensor<int64_t>(memoryInfo, input_id_vectors.data(), input_id_vectors.size(), shape.data(), shape.size());
+    Ort::Value input_attention_mask = Ort::Value::CreateTensor<int64_t>(memoryInfo, input_attention_mask_vectors.data(), input_attention_mask_vectors.size(), shape.data(), shape.size());
+
+    // prepare input tensors
+    std::vector<Ort::Value> input_tensors;
+    input_tensors.push_back(std::move(input_ids));
+    input_tensors.push_back(std::move(input_attention_mask));
+
+    // prepare input names and output names
+    std::vector<const char *> inputNamesPtr = {inputNames[0].c_str(), inputNames[1].c_str()}; // assume that the first input is input_ids and the second is attention_mask
+    std::vector<const char *> outputNamesPtr = {outputNames[1].c_str()}; // assume that the second output is the embedding output, only compute the embedding output to save time
+
+    // run inference
+    auto output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesPtr.data(), input_tensors.data(), input_tensors.size(), outputNamesPtr.data(), outputNamesPtr.size());
+
+    auto embeddingVectorPtr = output_tensors[0].GetTensorMutableData<float>(); // get the output tensor data
+    std::vector<std::vector<float>> embeddingVectors; // create a vector of vectors to store the embedding vectors
+    for(size_t i = 0; i < texts.size(); i++)
+    {
+        std::vector<float> embeddingVector(embeddingVectorPtr + i * embeddingDimension, embeddingVectorPtr + (i + 1) * embeddingDimension); // copy the output tensor data to a vector
+        embeddingVectors.push_back(std::move(embeddingVector)); // add the embedding vector to the vector of vectors
+    }
+
+    return embeddingVectors; // return the vector of embedding vectors
+}
