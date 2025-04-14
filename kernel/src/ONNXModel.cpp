@@ -79,20 +79,22 @@ void printTensorData(const Ort::Value &tensor, const std::string &name, int maxS
 
 // ------------------------ ONNXModel ------------------------
 bool ONNXModel::is_initialized = false;
-Ort::Env ONNXModel::env{nullptr}; 
+std::shared_ptr<Ort::Env> ONNXModel::env;
 std::unordered_set<std::wstring> ONNXModel::instancesModel;
+std::shared_ptr<Ort::AllocatorWithDefaultOptions> ONNXModel::allocator;
+std::shared_ptr<Ort::MemoryInfo> ONNXModel::memoryInfo;
 
 void ONNXModel::initialize()
 {
     if(is_initialized)
         throw std::runtime_error("ONNX environment has been initialized already.");
-    env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelEnv"); // ONNX runtime will log warnings and errors
+    env.reset(new Ort::Env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelEnv")); // ONNX runtime will log warnings and errors
+    allocator.reset(new Ort::AllocatorWithDefaultOptions()); // default allocator
+    memoryInfo.reset(new Ort::MemoryInfo(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault))); // default memory info in cpu
     is_initialized = true;
 }
 
 ONNXModel::ONNXModel(const std::wstring &targetModelDirPath, device dev, perfSetting perf): 
-    allocator(),
-    memoryInfo(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault)),
     modelDirPath(targetModelDirPath)
 {
     // check if the model has been instantiated
@@ -121,7 +123,7 @@ ONNXModel::ONNXModel(const std::wstring &targetModelDirPath, device dev, perfSet
     }
 
     // open session
-    session.reset(new Ort::Session(env, (targetModelDirPath + L"model.onnx").c_str(), sessionOptions));
+    session.reset(new Ort::Session(*env, (targetModelDirPath + L"model.onnx").c_str(), sessionOptions));
     if(!session)
         throw std::runtime_error("Failed to load ONNX model: " + std::string(targetModelDirPath.begin(), targetModelDirPath.end()));
 
@@ -135,12 +137,12 @@ ONNXModel::ONNXModel(const std::wstring &targetModelDirPath, device dev, perfSet
     outputNames.resize(numOutputs);
     for (size_t i = 0; i < numInputs; ++i)
     {
-        Ort::AllocatedStringPtr inputNamePtr = session->GetInputNameAllocated(i, allocator);
+        Ort::AllocatedStringPtr inputNamePtr = session->GetInputNameAllocated(i, *allocator);
         inputNames[i] = inputNamePtr.get();
     }
     for (size_t i = 0; i < numOutputs; ++i)
     {
-        Ort::AllocatedStringPtr outputNamePtr = session->GetOutputNameAllocated(i, allocator);
+        Ort::AllocatedStringPtr outputNamePtr = session->GetOutputNameAllocated(i, *allocator);
         outputNames[i] = outputNamePtr.get();
     }
 }
@@ -256,8 +258,8 @@ std::vector<float> EmbeddingModel::embed(const std::string &text) const
 
     // convert to Ort tensor
     // ort tensor only save pointer to data, make sure the data has not been deallocated
-    Ort::Value input_ids = Ort::Value::CreateTensor<int64_t>(memoryInfo, input_ids_vector.data(), input_ids_vector.size(), shape.data(), shape.size());
-    Ort::Value input_attention_mask = Ort::Value::CreateTensor<int64_t>(memoryInfo, input_attention_mask_vector.data(), input_attention_mask_vector.size(), shape.data(), shape.size());
+    Ort::Value input_ids = Ort::Value::CreateTensor<int64_t>(*memoryInfo, input_ids_vector.data(), input_ids_vector.size(), shape.data(), shape.size());
+    Ort::Value input_attention_mask = Ort::Value::CreateTensor<int64_t>(*memoryInfo, input_attention_mask_vector.data(), input_attention_mask_vector.size(), shape.data(), shape.size());
 
     // prepare input tensors
     std::vector<Ort::Value> input_tensors;
@@ -283,8 +285,8 @@ std::vector<std::vector<float>> EmbeddingModel::embed(const std::vector<std::str
     auto [input_id_vectors, input_attention_mask_vectors, shape] = tokenize(texts);
 
     // convert to Ort tensor
-    Ort::Value input_ids = Ort::Value::CreateTensor<int64_t>(memoryInfo, input_id_vectors.data(), input_id_vectors.size(), shape.data(), shape.size());
-    Ort::Value input_attention_mask = Ort::Value::CreateTensor<int64_t>(memoryInfo, input_attention_mask_vectors.data(), input_attention_mask_vectors.size(), shape.data(), shape.size());
+    Ort::Value input_ids = Ort::Value::CreateTensor<int64_t>(*memoryInfo, input_id_vectors.data(), input_id_vectors.size(), shape.data(), shape.size());
+    Ort::Value input_attention_mask = Ort::Value::CreateTensor<int64_t>(*memoryInfo, input_attention_mask_vectors.data(), input_attention_mask_vectors.size(), shape.data(), shape.size());
 
     // prepare input tensors
     std::vector<Ort::Value> input_tensors;

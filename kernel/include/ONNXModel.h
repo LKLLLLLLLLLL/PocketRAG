@@ -13,15 +13,16 @@ void setup_utf8_console();
 // Convert wstring to string
 std::string wstring_to_string(const std::wstring &wstr);
 
-enum class device{cpu, cuda}; // only support cpu or cuda now
-enum class perfSetting{low, high}; // set performance exepect, only have effect on cpu
-
 /*
 This class is a base class of all ONNX models.
 Can't be instantiated directly.
+this is a single threaded class.
 */
 class ONNXModel
 {
+public:
+    enum class device{cpu, cuda}; // only support cpu or cuda now
+    enum class perfSetting{low, high}; // set performance exepect, only have effect on cpu
 private:
     static bool is_initialized; // flag the initialization of ONNX environment 
 
@@ -30,11 +31,12 @@ private:
 
     std::wstring modelDirPath; // the path of the model directory
 protected:
-    static Ort::Env env; // manage ONNX environment, only initialized once
+    static std::shared_ptr<Ort::Env> env; // manage ONNX environment, only initialized once
+    static std::shared_ptr<Ort::AllocatorWithDefaultOptions> allocator; // allocator
+    static std::shared_ptr<Ort::MemoryInfo> memoryInfo; // memory info for tensor creation
     std::shared_ptr<Ort::Session> session = nullptr; // ONNX session, loaded with model
     Ort::SessionOptions sessionOptions; // session options, can be customized for each model
-    Ort::AllocatorWithDefaultOptions allocator; // allocator
-    Ort::MemoryInfo memoryInfo; // memory info for tensor creation
+
 
     // ONNXRuntime is a graph-based runtime, when running, need to specify the input and output names of the model
     std::vector<std::string> inputNames; // storage input names of the model
