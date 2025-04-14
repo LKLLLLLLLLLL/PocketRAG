@@ -107,7 +107,8 @@ void VectorTable::open(const std::string &dbPath_, const std::string &tableName_
     )";
     returnCode = sqlite3_exec(sqliteDB.get(), updateSQL, nullptr, nullptr, nullptr);
     if (returnCode != SQLITE_OK)
-        throw std::runtime_error("Failed to update SQLite table: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+        throw std::runtime_error("Failed to update SQLite table: " + std::string(sqlite3_errmsg(sqliteDB.get()))
+                                 + "\n  FATAL ERROR: May cause unexpected inconsistency in SQLite table and Faiss index.");
 }
 
 void VectorTable::close()
