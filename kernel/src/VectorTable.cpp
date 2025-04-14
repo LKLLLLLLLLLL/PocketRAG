@@ -454,54 +454,40 @@ std::vector<VectorTable::idx_t> VectorTable::removeVector(const std::vector<Vect
         throw std::runtime_error("Ids are empty.");
 
     // sign the vector by valid = false in SQLite table
-    // begin transaction_1
+    // begin transaction
     const char *beginSQL = "BEGIN TRANSACTION;";
     auto returnCode = sqlite3_exec(sqliteDB.get(), beginSQL, nullptr, nullptr, nullptr);
     if (returnCode != SQLITE_OK)
         throw std::runtime_error("Failed to begin SQLite transaction: " + std::string(sqlite3_errmsg(sqliteDB.get())));
-    sqlite3_stmt *stmt_query = nullptr;
     sqlite3_stmt *stmt_update = nullptr;
     try{
-        // initialize query statement
-        const char *checkSQL = "SELECT id FROM Vector WHERE id = ? AND deleted = 0;";
-        returnCode = sqlite3_prepare_v2(sqliteDB.get(), checkSQL, -1, &stmt_query, nullptr);
-        if (returnCode != SQLITE_OK)
-            throw std::runtime_error("Failed to prepare SQLite check statement: " + std::string(sqlite3_errmsg(sqliteDB.get())));
         const char *updateSQL = "UPDATE Vector SET deleted = 1 WHERE id = ?;";
-        // initialize update statement
-        auto returnCode = sqlite3_prepare_v2(sqliteDB.get(), updateSQL, -1, &stmt_update, nullptr);
+        returnCode = sqlite3_prepare_v2(sqliteDB.get(), updateSQL, -1, &stmt_update, nullptr);
         if (returnCode != SQLITE_OK)
             throw std::runtime_error("Failed to prepare SQLite statement: " + std::string(sqlite3_errmsg(sqliteDB.get())));
         for (const auto &id : ids)
         {
-            // query if id exists
-            sqlite3_bind_int64(stmt_query, 1, id);
-            returnCode = sqlite3_step(stmt_query);
-            if (returnCode != SQLITE_ROW)
-            {
-                throw std::runtime_error("Vector with ID " + std::to_string(id) + " does not exist, the remove operation do not happen.");
-            }
-            sqlite3_reset(stmt_query); 
             // update deleted flag
             sqlite3_bind_int64(stmt_update, 1, id);
             returnCode = sqlite3_step(stmt_update);
             if (returnCode != SQLITE_DONE)
                 throw std::runtime_error("Failed to update SQLite table: " + std::string(sqlite3_errmsg(sqliteDB.get())));
+            int changes = sqlite3_changes(sqliteDB.get());
+            if (changes == 0)
+                throw std::runtime_error("Vector with ID " + std::to_string(id) + " does not exist, the remove operation do not happen.");
             sqlite3_reset(stmt_update); // reset the statement for the next bind
         }
     }
     catch (...)
     {
-        if (stmt_query) sqlite3_finalize(stmt_query);
         if (stmt_update) sqlite3_finalize(stmt_update);
-        // rollback transaction_1
+        // rollback transaction
         const char *rollbackSQL = "ROLLBACK;";
         sqlite3_exec(sqliteDB.get(), rollbackSQL, nullptr, nullptr, nullptr);
         throw;
     }
-    if (stmt_query) sqlite3_finalize(stmt_query);
     if (stmt_update) sqlite3_finalize(stmt_update);
-    // commit transaction_1
+    // commit transaction
     const char *commitSQL = "COMMIT;";
     returnCode = sqlite3_exec(sqliteDB.get(), commitSQL, nullptr, nullptr, nullptr);
     if (returnCode != SQLITE_OK)
