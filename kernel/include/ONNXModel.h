@@ -51,7 +51,7 @@ public:
     // initialize the ONNX environment for all ONNX models
     static void initialize();
     // destructor
-    ~ONNXModel();
+    virtual ~ONNXModel();
 
 };
 
