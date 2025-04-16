@@ -14,9 +14,10 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib) # 静态库输出目
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 设置MSVC编译器使用UTF-8编码
+
 if(MSVC)
-  add_compile_options(/utf-8)
+  add_compile_options(/utf-8) # 设置MSVC编译器使用UTF-8编码
+  add_compile_definitions(NOMINMAX) # 禁用windows.h中的min/max宏，避免与std::min/max冲突
 endif()
 
 # 设置vcpkg工具链文件
@@ -29,6 +30,12 @@ find_package(unofficial-sqlite3 CONFIG REQUIRED)
 # 导入faiss
 include(CMakeFindDependencyMacro)
 find_package(faiss CONFIG REQUIRED)
+
+# 导入curl
+find_package(CURL CONFIG REQUIRED)
+
+# 导入nlohmann-json
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # 导入sentencepiece
 # 设置SentencePiece选项
@@ -80,7 +87,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     unofficial::sqlite3::sqlite3
     onnxruntime
     sentencepiece
-)
+    CURL::libcurl
+    nlohmann_json::nlohmann_json
+)    
 
 # -------------拷贝动态链接库--------------
 # 拷贝dll到输出目录，解决依赖问题

@@ -1,6 +1,8 @@
 {
   "dependencies": [
     "faiss",
-    "sqlite3"
+    "sqlite3",
+    "curl",
+    "nlohmann-json"
   ]
 }
