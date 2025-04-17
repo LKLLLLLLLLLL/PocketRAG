@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 // #include <ONNXModel.h>
 
+
 /*
 This class handles a conversation to LLMmodel.
 */
@@ -91,11 +92,32 @@ private:
     nlohmann::json request; // share request comtent except "messages"
     nlohmann::json history_json; // the conversation history in json format
 
+    // let openAIConv instance can only be created by LLMConv::createConv
     OpenAIConv(const std::string &modelName, const std::map<std::string, std::string> &config, bool stream); // private constructor to prevent direct instantiation
     friend class LLMConv; // allow LLMConv to access private members
 
-public:
-    ~OpenAIConv();
+    // send request and handle error in uniform way
+    void curlRequst(std::function<size_t(void*, size_t, size_t, void*)> callback, void* buffer); 
+
+    // wrap std::function to be used as a function ptr
+    // used in curlRequst
+    struct CallbackWrapper;
+
+    // helper function to write response to string, only valid in LLMConc.cpp
+    // used in OpenAIConv::getResponse()
+    static size_t curlCallBack(void *ptr, size_t size, size_t nmemb, void *in_buffer);
+
+    /*
+    handle stream response with streamCallback function
+    can be used like:
+    ```
+    auto streamdata = streamData(&buffer, &complete_response, &callBack);
+    curlRequst(streamData::streamCallback, &streamdata)
+    ```
+    */
+    struct streamData;
+
+    public : ~OpenAIConv();
 
     // overloading function to save history both in vector and json
     void setMessage(const std::string &role, const std::string &content);
