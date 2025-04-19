@@ -248,8 +248,9 @@ public:
     // this method has no check, make sure the key and value are valid to the api
     void setOptions(const std::string& key, const std::vector<std::string>& values) override;
 
-    // overloading function to save history both in vector and json
     void setMessage(const std::string &role, const std::string &content);
+    
+    // overloading function to save history both in vector and json
     void importHistory(const std::vector<Message> &history);
 
     // will return the response message whether stream is true or false
