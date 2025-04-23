@@ -10,6 +10,8 @@
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
+static CurlInitializer curlInitializer; // make sure curl is initialized before any other code
+
 //---------------------------HttpClient---------------------------//
 size_t HttpClient::curlCallBack(void *ptr, size_t size, size_t nmemb, void *in_buffer)
 {
