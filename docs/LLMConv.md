@@ -1,5 +1,5 @@
 # LLMConv类设计文档
-LLMConv类极其子类封装了对LLM的调用。
+LLMConv类及其子类封装了对LLM的调用。
 
 ## 关于openai api
 openai api基于http协议，使用json文件来交换数据。 

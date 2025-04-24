@@ -10,6 +10,15 @@
 // #include <ONNXModel.h>
 
 /*
+This class is used to initialize and cleanup curl library.
+*/
+class CurlInitializer {
+public:
+    CurlInitializer() { curl_global_init(CURL_GLOBAL_ALL); }
+    ~CurlInitializer() { curl_global_cleanup(); }
+};
+
+/*
 This class handles http sessions to openai api.
 */
 class HttpClient
@@ -248,8 +257,9 @@ public:
     // this method has no check, make sure the key and value are valid to the api
     void setOptions(const std::string& key, const std::vector<std::string>& values) override;
 
-    // overloading function to save history both in vector and json
     void setMessage(const std::string &role, const std::string &content);
+    
+    // overloading function to save history both in vector and json
     void importHistory(const std::vector<Message> &history);
 
     // will return the response message whether stream is true or false
