@@ -37,6 +37,30 @@ find_package(CURL CONFIG REQUIRED)
 # 导入nlohmann-json
 find_package(nlohmann_json CONFIG REQUIRED)
 
+# # 导入xapian
+# find_package(Xapian CONFIG REQUIRED)
+# set(XAPIAN_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/lib/xapian.lib)
+
+# # 导入wcdb
+# set(WCDB_CPP ON CACHE BOOL "Build WCDB with cpp interface") # 使用C++接口
+# set(WCDB_ZSTD ON CACHE BOOL "Build WCDB with zstd") # 使用zstd压缩
+# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/wcdb/src)
+
+# 导入 cppjieba (纯头文件库)
+set(CPPJIEBA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/cppjieba)
+include_directories(
+    ${CPPJIEBA_DIR}/include
+    ${CPPJIEBA_DIR}/deps/limonp/include
+)
+# 设置cppjieba字典文件路径
+add_compile_definitions(
+    DICT_PATH="${CPPJIEBA_DIR}/dict/jieba.dict.utf8"
+    HMM_PATH="${CPPJIEBA_DIR}/dict/hmm_model.utf8"
+    USER_DICT_PATH="${CPPJIEBA_DIR}/dict/user.dict.utf8"
+    IDF_PATH="${CPPJIEBA_DIR}/dict/idf.utf8"
+    STOP_WORD_PATH="${CPPJIEBA_DIR}/dict/stop_words.utf8"
+)
+
 # 导入sentencepiece
 # 设置SentencePiece选项
 set(SPM_ENABLE_SHARED OFF CACHE BOOL "Build shared libary")
@@ -89,6 +113,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     sentencepiece
     CURL::libcurl
     nlohmann_json::nlohmann_json
+    # ${XAPIAN_LIBRARIES}
+    # WCDB
 )    
 
 # -------------拷贝动态链接库--------------

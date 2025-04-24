@@ -82,12 +82,6 @@ data: [DONE]\n\n
 
 由于网络包分包的不确定性，一个网络包可能只包含上面相应的一个片段，而curl又会在每接收到一个包的时候就调用回调函数，因此回调函数需要对于结果拼接，才能解析出完整的回答。
 
-## 关于curl的使用
-根据curl文档规定，必须保证在程序开始前调用`curl_global_init()`，在程序结束后调用`curl_global_cleanup()`。
-在多线程环境下，`curl_global_init()`和`curl_global_cleanup()`只能在主线程中调用。
-
-**应确保在使用LLMConv类之前已经调用过curl_global_init()**。
-
 ## 基本架构
 LLMConv库包含以下主要类：
 
