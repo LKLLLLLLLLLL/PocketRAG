@@ -14,6 +14,7 @@
 This class manages a SQLite database connection.
 Gurantee that every database path is unique.
 DO NOT CALL METHODS IN MULTIPLE THREADS.
+if set addTokenizer = true, it will register a jieba tokenizer to the SQLite database.
 */
 class SqliteConnection
 {
@@ -44,7 +45,7 @@ private:
     std::stack<std::string> transactionStack; // stack to manage transactions, only store activate transactions
 
 public:
-    SqliteConnection(const std::string &dbPath, const std::string &tableName);
+    SqliteConnection(const std::string &dbPath, const std::string &tableName, bool addTokenizer = false);
     ~SqliteConnection();
 
     SqliteConnection(const SqliteConnection&) = delete; // disable copy constructor
@@ -103,9 +104,14 @@ public:
         else
             static_assert(std::is_same_v<T, void>, "Unsupported type for SQLite binding.");
     }
+    // bind a pointer to the statement, requires a name to identify the pointer
+    void bind(int index, void* ptr, const char* name)
+    {
+        sqlite3_bind_pointer(stmt, index, ptr, name, nullptr);
+    }
 
     // execute the statement and return the result
-    // return true if statement is done, false if there are more rows to fetch
+    // return false if statement is done, true if there are more rows to fetch
     bool step();
     
     // return the number of changes made by the last executed statement

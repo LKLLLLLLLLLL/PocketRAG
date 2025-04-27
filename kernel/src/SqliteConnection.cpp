@@ -6,15 +6,104 @@
 #include <iostream>
 #include <stdexcept>
 #include <stack>
+#include <memory>
+#include <mutex>
 
 #include <sqlite3.h>
+#include <cppjieba/Jieba.hpp>
 
 // ---------------------SqliteConnection---------------------
 
 std::set<std::filesystem::path> SqliteConnection::dbPathSet;
 std::mutex SqliteConnection::dbPathSetMutex;
 
-SqliteConnection::SqliteConnection(const std::string &dbPath, const std::string &tableName) : dbPath(dbPath), tableName(tableName)
+// helper function to register the jieba tokenizer to SQLite database
+namespace
+{
+    cppjieba::Jieba *jieba = nullptr; // Global Jieba tokenizer instance
+    std::mutex jiebaMutex; // to protect jieba pointer
+
+    // FTS5 tokenizer interface functions
+    int jieba_tokenizer_create(void *sqlite3_api, const char **azArg, int nArg, Fts5Tokenizer **ppOut)
+    {
+        *ppOut = (Fts5Tokenizer *)jieba;
+        return SQLITE_OK;
+    }
+    void jieba_tokenizer_delete(Fts5Tokenizer *pTokenizer)
+    {
+        // no need to free here
+    }
+    int jieba_tokenizer_tokenize(Fts5Tokenizer *pTokenizer, void *pCtx, int flags, const char *pText, int nText, int (*xToken)(void *, int, const char *, int, int, int))
+    {
+        cppjieba::Jieba *jieba = (cppjieba::Jieba *)pTokenizer;
+        std::string text(pText, nText);
+        std::vector<std::string> words;
+
+        // use search engine mode to tokenize
+        jieba->CutForSearch(text, words);
+
+        // output each token result
+        int offset = 0;
+        for (const auto &word : words)
+        {
+            size_t pos = text.find(word, offset);
+            if (pos != std::string::npos)
+            {
+                offset = pos + word.length();
+                int rc = xToken(pCtx, 0, word.c_str(), word.length(), pos, pos + word.length());
+                if (rc != SQLITE_OK)
+                    return rc;
+            }
+        }
+
+        return SQLITE_OK;
+    }
+
+    // register jieba tokenizer to specified SQLite database
+    void register_jieba_tokenizer(SqliteConnection &db)
+    {
+        {
+            std::lock_guard<std::mutex> lock(jiebaMutex);
+            if(jieba == nullptr)// initialize jieba object
+            {
+                jieba = new cppjieba::Jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH); // PATH has been defined in the cmakefile
+            }
+        }
+        
+        static fts5_tokenizer tokenizer = {
+            jieba_tokenizer_create,
+            jieba_tokenizer_delete,
+            jieba_tokenizer_tokenize};
+
+        fts5_api *fts5api = nullptr;
+        sqlite3_stmt *stmt = nullptr;
+
+        try{        
+            auto statement = db.getStatement("SELECT fts5(?)");
+            statement.bind(1, (void *)&fts5api, "fts5_api_ptr"); // bind the fts5_api pointer to the statement
+            statement.step(); 
+
+            statement.reset(); // reset the statement for reuse
+            if (fts5api == nullptr)
+            {
+                throw SqliteConnection::SqliteException{SqliteConnection::SqliteException::Type::unknownError, "Failed to get FTS5 API pointer"};
+            }
+
+            // register the tokenizer to the SQLite database
+            auto rc = fts5api->xCreateTokenizer(fts5api, "jieba", (void *)jieba, &tokenizer, nullptr);
+            if(rc != SQLITE_OK)
+            {
+                throw SqliteConnection::SqliteException{SqliteConnection::SqliteException::Type::unknownError, "Failed to register jieba tokenizer"};
+            }
+        } 
+        catch(const SqliteConnection::SqliteException &e)
+        {
+            throw SqliteConnection::SqliteException{SqliteConnection::SqliteException::Type::unknownError, "Failed to register jieba tokenizer: " + std::string(e.what())};
+        }
+    }
+}
+
+SqliteConnection::SqliteConnection(const std::string &dbPath, const std::string &tableName, bool addTokenizer) : dbPath(dbPath), tableName(tableName)
 {
     dbFullPath = std::filesystem::path(dbPath) / (tableName + ".db");
 
@@ -40,6 +129,12 @@ SqliteConnection::SqliteConnection(const std::string &dbPath, const std::string 
         std::lock_guard<std::mutex> lock(dbPathSetMutex); // lock the mutex to protect dbPathSet
         dbPathSet.erase(dbFullPath); // remove the database path from the set
         throw SqliteException{SqliteException::Type::openError, "Failed to create SQLite database: " + dbFullPath.string() + "\n    sqlite error " + sqlite3_errmsg(sqliteDB)};
+    }
+
+    // register the jieba tokenizer if needed
+    if(addTokenizer)
+    {
+        register_jieba_tokenizer(*this); // register the tokenizer to the SQLite database
     }
 }
 
@@ -131,11 +226,11 @@ bool SqliteConnection::Statement::step()
     auto returnCode = sqlite3_step(stmt);
     if (returnCode == SQLITE_ROW) 
     {
-        return false;
+        return true;
     }
     else if (returnCode == SQLITE_DONE) 
     {
-        return true;
+        return false;
     }
     else
     {
