@@ -25,7 +25,22 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
 
 # --------------导入依赖项---------------
 # 导入sqlite3
-find_package(unofficial-sqlite3 CONFIG REQUIRED)
+# find_package(unofficial-sqlite3 CONFIG REQUIRED)
+# 添加自定义 SQLite 构建
+add_library(sqlite3 STATIC ${CMAKE_CURRENT_SOURCE_DIR}/external/sqlite3/sqlite3.c)
+# 启用SQLite编译选项
+target_compile_definitions(sqlite3 PRIVATE
+    SQLITE_ENABLE_FTS4
+    SQLITE_ENABLE_FTS5
+    SQLITE_ENABLE_JSON1
+    SQLITE_ENABLE_RTREE
+    SQLITE_ENABLE_EXPLAIN_COMMENTS
+    HAVE_READLINE
+)
+# 设置包含目录
+target_include_directories(sqlite3 PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/sqlite3
+)
 
 # 导入faiss
 include(CMakeFindDependencyMacro)
@@ -108,7 +123,8 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # 链接依赖库 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     faiss
-    unofficial::sqlite3::sqlite3
+    # unofficial::sqlite3::sqlite3
+    sqlite3
     onnxruntime
     sentencepiece
     CURL::libcurl
