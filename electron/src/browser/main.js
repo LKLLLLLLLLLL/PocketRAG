@@ -1,3 +1,4 @@
+console.log(__dirname)
 const {app, BrowserWindow, ipcMain} = require('electron/main')
 const path = require('path')
 

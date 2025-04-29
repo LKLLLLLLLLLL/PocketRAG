@@ -2,7 +2,7 @@
   "name": "pocketrag",
   "version": "0.0.1",
   "description": "",
-  "main": "electron/main.js",
+  "main": "electron/lib/browser/main.js",
   "directories": {
     "doc": "docs"
   },
