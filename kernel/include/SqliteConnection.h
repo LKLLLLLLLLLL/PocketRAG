@@ -19,13 +19,13 @@ if set addTokenizer = true, it will register a jieba tokenizer to the SQLite dat
 class SqliteConnection
 {
 public:
-    struct SqliteException: std::exception
+    struct Exception: std::exception
     {
         enum class Type{openError, executeError, transactionError, fatalError, unknownError};
         Type type;
         std::string message; 
 
-        SqliteException(Type type, const std::string &message): type(type), message(message) {}
+        Exception(Type type, const std::string &message): type(type), message(message) {}
         const char* what() const noexcept override { return message.c_str(); } // override what() method
     };
 
@@ -45,7 +45,7 @@ private:
     std::stack<std::string> transactionStack; // stack to manage transactions, only store activate transactions
 
 public:
-    SqliteConnection(const std::string &dbPath, const std::string &tableName, bool addTokenizer = false);
+    SqliteConnection(const std::string &dbPath, const std::string &tableName);
     ~SqliteConnection();
 
     SqliteConnection(const SqliteConnection&) = delete; // disable copy constructor
@@ -180,6 +180,8 @@ public:
 
     Transaction(const Transaction&) = delete; // disable copy constructor
     Transaction& operator=(const Transaction&) = delete; // disable copy assignment operator
+    Transaction(Transaction &&other) = delete; // disable move constructor
+    Transaction &operator=(Transaction &&other) = delete; // disable move assignment operator
 
     bool checkActive() const { return isActive; } // check if transaction is active
     void commit(); // commit the transaction
