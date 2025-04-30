@@ -25,7 +25,7 @@ public:
         static const std::string HIGHLIGHT_BEGINS;
         static const std::string HIGHLIGHT_ENDS;
 
-        double similarity; // similarity score, higher is similar
+        double similarity; // similarity score, higher is similar, equals 1.0 - (1.0 / (1.0 - bm25Score))
 
         int64_t chunkId; // chunk id
         int64_t embeddingId; // embedding id

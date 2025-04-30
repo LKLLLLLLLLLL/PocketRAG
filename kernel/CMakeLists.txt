@@ -24,8 +24,6 @@ endif()
 include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
 
 # --------------导入依赖项---------------
-# 导入sqlite3
-# find_package(unofficial-sqlite3 CONFIG REQUIRED)
 # 添加自定义 SQLite 构建
 add_library(sqlite3 STATIC ${CMAKE_CURRENT_SOURCE_DIR}/external/sqlite3/sqlite3.c)
 # 启用SQLite编译选项
@@ -52,14 +50,8 @@ find_package(CURL CONFIG REQUIRED)
 # 导入nlohmann-json
 find_package(nlohmann_json CONFIG REQUIRED)
 
-# # 导入xapian
-# find_package(Xapian CONFIG REQUIRED)
-# set(XAPIAN_LIBRARIES ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/lib/xapian.lib)
-
-# # 导入wcdb
-# set(WCDB_CPP ON CACHE BOOL "Build WCDB with cpp interface") # 使用C++接口
-# set(WCDB_ZSTD ON CACHE BOOL "Build WCDB with zstd") # 使用zstd压缩
-# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/wcdb/src)
+# 导入cmark
+find_package(cmark CONFIG REQUIRED)
 
 # 导入 cppjieba (纯头文件库)
 set(CPPJIEBA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/cppjieba)
@@ -123,14 +115,12 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # 链接依赖库 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     faiss
-    # unofficial::sqlite3::sqlite3
     sqlite3
     onnxruntime
     sentencepiece
     CURL::libcurl
     nlohmann_json::nlohmann_json
-    # ${XAPIAN_LIBRARIES}
-    # WCDB
+    cmark::cmark
 )    
 
 # -------------拷贝动态链接库--------------

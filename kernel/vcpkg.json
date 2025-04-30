@@ -3,6 +3,6 @@
     "curl",
     "faiss",
     "nlohmann-json",
-    "sqlite3"
+    "cmark"
   ]
 }

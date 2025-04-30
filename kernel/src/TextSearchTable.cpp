@@ -183,7 +183,8 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
     std::string queryStr;
     for (size_t i = 0; i < keywords.size(); ++i)
     {
-        if (keywords[i] == " ") continue; // skip empty keywords
+        if (keywords[i] == " " || keywords[i].empty() || keywords[i] == "\n" || keywords[i] == "\r\n" 
+        ) continue; // skip empty keywords
         if (i > 0) queryStr += " OR ";
         queryStr += keywords[i];
     }
@@ -213,7 +214,7 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
         chunk.chunkId = queryStmt.get<int64_t>(2);
         chunk.embeddingId = queryStmt.get<int64_t>(3);
         auto bm25Score = queryStmt.get<double>(4);
-        chunk.similarity = 1.0 / (1.0 - bm25Score); // convert bm25 score to similarity score
+        chunk.similarity = 1.0 - (1.0 / (1.0 - bm25Score)); // convert bm25 score to similarity score
         
         resultChunks.push_back(chunk);
     }
