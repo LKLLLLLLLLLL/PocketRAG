@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <title>Hello World!</title>
+  </head>
+  <body>
+    Title: <input id="title"/>
+    <button id="btn1" type="button">Set</button>
+    <p>
+      <button type="button" id="btn2">Open a File</button>
+      File path: <strong id="filePath"></strong>
+    </p>
+    <p>Current value: <strong id="counter">0</strong></p>
+    
+    <script src="./index.js"></script>
+  </body>
+</html>

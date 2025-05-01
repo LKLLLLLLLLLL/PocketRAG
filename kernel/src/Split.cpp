@@ -276,7 +276,7 @@ bool markdownSplit::isSeparatorLine(const std::string& line){
     return hasSeparator;
 }
 
-markdownSplit::markdownSplit(const std::string& filename, int& len){
+markdownSplit::markdownSplit(const std::string& filename,const int& len){
     this->length = len;
     root = new node(nul);
     std::ifstream fin(filename);
