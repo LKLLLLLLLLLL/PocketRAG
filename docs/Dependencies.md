@@ -9,8 +9,10 @@
 
 ## 1. vcpkg
 vcpkg主要管理依赖如下：
-+ **sqlite3**：用于提供轻量化数据库支持
 + **faiss**：用于提供高性能的向量搜索
++ **curl**：用于提供http请求能力
++ **nlohmann_json**：用于提供json解析能力
++ **cmark**：用于提供markdown解析能力
 
 通过如下命令获取vcpkg源码并构建可执行文件`vcpkg`:
 ```shell
@@ -23,14 +25,21 @@ cd kernel
 
 ## 2. source code
 通过源码添加依赖如下：
++ **sqlite3**：用于提供轻量化数据库支持
+
+该部分已经通过git管理，无需单独添加。
+  
+## 3. submodule
+通过git submodule管理依赖如下：
 + **sentencepiece**：用于提供分词能力
++ **cppjieba**：用于提供中文分词能力
 
 该部分已经通过git submodule添加到项目中，在根目录执行以下命令即可完成添加：
 ```shell
 git submodule update --init --recursive
 ```
 
-## 3. precompiled binary
+## 4. precompiled binary
 需要手动下载以下依赖的预编译二进制文件，并放置在`/kernel/external`目录下：
 
 ### ONNX runtime

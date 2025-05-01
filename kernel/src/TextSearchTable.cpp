@@ -126,6 +126,7 @@ TextSearchTable::TextSearchTable(SqliteConnection &sqlite, const std::string &ta
     );
 }
 
+// search in fts5 table before adding a new chunk, may be slow
 void TextSearchTable::addChunk(const Chunk &chunk)
 {
     auto query = sqlite.getStatement("SELECT COUNT(*) FROM " + tableName + " WHERE chunkId = ? AND embeddingId = ?");
