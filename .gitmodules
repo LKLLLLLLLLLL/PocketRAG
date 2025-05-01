@@ -4,3 +4,6 @@
 [submodule "kernel/external/sentencepiece"]
 	path = kernel/external/sentencepiece
 	url = https://github.com/google/sentencepiece.git
+[submodule "kernel/external/cppjieba"]
+	path = kernel/external/cppjieba
+	url = https://github.com/yanyiwu/cppjieba.git
