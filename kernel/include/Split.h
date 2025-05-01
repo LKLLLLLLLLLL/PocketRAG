@@ -103,7 +103,7 @@ private:
     void finalDeepProcess(std::string, std::string);//to deeply generate the final result following the criterion if necessary
 
 public:
-    markdownSplit(const std::string&, int&); //the process begins in the construction function
+    markdownSplit(const std::string&, const int&); //the process begins in the construction function
     ~markdownSplit();//the deconstruction function
     std::vector<chunk> getchunk(){return chk;}//to get the final result
 };
