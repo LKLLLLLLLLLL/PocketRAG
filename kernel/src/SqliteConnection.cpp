@@ -76,6 +76,11 @@ int SqliteConnection::execute(const std::string &sql)
     return sqlite3_changes(sqliteDB); // return the number of changes made by the SQL statement
 }
 
+int64_t SqliteConnection::getLastInsertId() const
+{
+    return sqlite3_last_insert_rowid(sqliteDB); // get the last insert id from the database handle
+}
+
 auto SqliteConnection::getStatement(const std::string &sql) -> Statement
 {
     return Statement{sqliteDB, sql}; // create a new statement object

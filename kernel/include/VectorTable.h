@@ -5,6 +5,9 @@
 #include <memory>
 #include <faiss/Index.h>
 #include <iostream>
+#include <filesystem>
+
+#include "SqliteConnection.h"
 
 /*
 This class manages a SQLite database and several vector tables.
@@ -15,81 +18,61 @@ Todo: support multiple Faiss subTable.
 */
 class VectorTable
 {
+public:
+    using idx_t = faiss::idx_t; // Faiss index type
+
+    struct Exception : public std::exception
+    {
+        enum class Type {openError, fatalError, wrongArg, unknownError};
+        Type type;
+        std::string message;
+
+        Exception(Type type, const std::string &message) : type(type), message(message) {}
+        const char* what() const noexcept override { return message.c_str(); } // override what() method
+    };
+
 private:
-
-    VectorTable() = default;
-
     // Faiss index type, can be changed for best performance
     // MUST use IDMAP2 for reconstruct supporting
     const std::string faissIndexType = "HNSW32,Flat,IDMap2";
     // Faiss metric type, can be changed for best performance
     const enum faiss::MetricType metricType = faiss::METRIC_L2;
 
-    struct SQLiteDeleter // to delete sqlite3 pointer safely
-    {
-        void operator()(sqlite3 *db) const
-        {
-            sqlite3_close_v2(db);
-        }
-    };
-
-    std::string dbPath; // path to store databases
+    std::filesystem::path dbFullPath; // path to store faiss db, ending with "/tableName.faiss"
     std::string tableName;
     int dimension = 0; // dimension of the vectors
 
-    std::shared_ptr<sqlite3>sqliteDB = std::shared_ptr<sqlite3>(nullptr, SQLiteDeleter()); // SQLite database pointer
-    // be caregul, everytime when use sqliteDB.reset(), need to give SQLiteDeleter(), because reset() method whill change the deleter
+    SqliteConnection& sqlite; // SQLite database connection
+
     faiss::Index* faissIndex = nullptr; // Faiss index pointer
 
-    const int maxAddCoune = 1000;
+    static std::set<std::filesystem::path> pathSet; // set to make sure each VectorTable have no more than 1 user
+    static std::mutex faissMutex;
+
+    const static int maxAddCoune = 1000;
     int addCount = 0; // number of vectors changed to the Faiss index, if more than maxAddCount, write to disk
 
-    const int maxDeleteCount = 1000;
+    const static int maxDeleteCount = 1000;
     int deleteCount = 0; // number of vectors changed to the Faiss index, if more than maxDeleteCount, call reconstructFaissIndex
 
     // initialize SQLite table, should only be called when creating a new table
     void initializeSQLiteTable();
 
-    // check if the SQLite database and Faiss index are initialized
-    inline void checkInitialized() const
-    {
-        if (sqliteDB.get() == nullptr)
-            throw std::runtime_error("SQLite database is not initialized.");
-        if (faissIndex == nullptr)
-            throw std::runtime_error("Faiss index is not initialized.");
-    }
-
 public:
-    using idx_t = faiss::idx_t; // Faiss index type
+    // constructor will open faiss index from given path, if not exist, create a new one
+    VectorTable(const std::string &dbPath, const std::string &tableName, SqliteConnection &sqliteConnection, int dimension = -1);
+    // the table will be written to the disk when the object is destroyed automatically
+    ~VectorTable();
 
     // prevent copy and assignment
     VectorTable(const VectorTable &) = delete;
     VectorTable &operator=(const VectorTable &) = delete;
 
-    // get a object of VectorTable, prevent multiple instances
-    static VectorTable &getInstance()
-    {
-        static VectorTable instance;
-        return instance;
-    }
-
-    // open SQLite database and Faiss index from given path
-    void open(const std::string& dbPath, const std::string& tableName);
-
-    // close SQLite database and Faiss index, prepare for next open
-    void close();
-
-    // create a new table in given path
-    void createTable(const std::string& dbPath, const std::string& tableName, int dimension);
-
-    // the table will be written to the disk when the object is destroyed automatically
-    ~VectorTable();
-
     // query the most similar vectors, return a pair with the top-x ids in vector and their distances in vector, x may smaller than maxResultCount
     std::pair<std::vector<faiss::idx_t>, std::vector<float>> querySimlar(const std::vector<float> &queryVector, int maxrRsultCount) const;
 
     // return the vector of given id
-    // if the id is not in the table, throw std::runtime_error("Vector is invalid or deleted."), you can catch it for checking
+    // if the id is not in the table, return empty vector
     std::vector<float> getVectorFromId(faiss::idx_t id) const;
     
     // add a vector to the table, return it's id in VectorTable
@@ -102,8 +85,10 @@ public:
     std::vector<idx_t> addVector(const std::vector<std::vector<float>> &vectors);
 
     // remove a vector from the table, return it's id in VectorTable
+    // if the id is not in the table, throw an exception
     idx_t removeVector(idx_t id); 
     // remove batch of vectors from table, return their ids in VectorTable
+    // if the id is not in the table, throw an exception
     std::vector<idx_t> removeVector(const std::vector<idx_t> &ids);
 
     // write the Faiss index to disk, return the number of vectors written to disk successfully

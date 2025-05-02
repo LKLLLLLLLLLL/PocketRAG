@@ -1,3 +1,4 @@
+# pragma once
 #include <string>
 #include <vector>
 #include <filesystem>
@@ -53,6 +54,10 @@ public:
 
     // execute a sample SQL statement, return changes count
     int execute(const std::string &sql);
+
+    // get the last insert id from the database
+    int64_t getLastInsertId() const;
+
     // prepare a statement for execution
     Statement getStatement(const std::string &sql);
 

@@ -1,3 +1,4 @@
+# pragma once
 #include <string>
 #include <vector>
 #include <iostream>
@@ -69,14 +70,4 @@ public:
     // get chunks
     std::vector<Chunk> getChunks();
 
-    // for debugging
-    void printNodeInfos() const
-    {
-        for (const auto& chunk : basic_chunks)
-        {
-            std::cout << "Content: " << chunk.content << std::endl;
-            std::cout << "Metadata: " << chunk.metadata << std::endl;
-            std::cout << "----------------------------------------" << std::endl;
-        }
-    }
 };
