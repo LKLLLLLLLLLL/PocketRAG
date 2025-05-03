@@ -7,7 +7,7 @@
 #include <memory>
 #include <unordered_set>
 #include <codecvt>
-
+#include <filesystem>
 #include <algorithm>
 #include <numeric>
 
@@ -19,6 +19,13 @@ std::string wstring_to_string(const std::wstring &wstr)
 {
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
     return converter.to_bytes(wstr);
+}
+
+// Convert string to wstring
+std::wstring string_to_wstring(const std::string &str) 
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+    return converter.from_bytes(str);
 }
 
 // set console to UTF-8 to avoid garbled characters
@@ -59,12 +66,12 @@ void printTensorData(const Ort::Value &tensor, const std::string &name, int maxS
     if (elemType == ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64)
     {
         auto data = tensor.GetTensorData<int64_t>();
-        // 修复 accumulate - 确保初始值类型匹配
+        
         int64_t size = 1;
         for (auto dim : shape)
-            size *= dim; // 手动计算替代 std::accumulate
+            size *= dim; 
 
-        // 修复 std::min 调用 - 确保类型匹配
+        
         int sampleCount = (size < maxSamples) ? static_cast<int>(size) : maxSamples;
 
         std::cout << "Values (first " << sampleCount << "): ";
@@ -74,13 +81,12 @@ void printTensorData(const Ort::Value &tensor, const std::string &name, int maxS
         }
         std::cout << std::endl;
     }
-    // 可以添加其他类型的处理...
 }
 
 // ------------------------ ONNXModel ------------------------
 bool ONNXModel::is_initialized = false;
 std::shared_ptr<Ort::Env> ONNXModel::env;
-std::unordered_set<std::wstring> ONNXModel::instancesModel;
+std::unordered_set<std::filesystem::path> ONNXModel::instancesModel;
 std::shared_ptr<Ort::AllocatorWithDefaultOptions> ONNXModel::allocator;
 std::shared_ptr<Ort::MemoryInfo> ONNXModel::memoryInfo;
 
@@ -94,12 +100,12 @@ void ONNXModel::initialize()
     is_initialized = true;
 }
 
-ONNXModel::ONNXModel(const std::wstring &targetModelDirPath, device dev, perfSetting perf): 
+ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf): 
     modelDirPath(targetModelDirPath)
 {
     // check if the model has been instantiated
     if (instancesModel.find(targetModelDirPath) != instancesModel.end())
-        throw std::runtime_error("The model has been instantiated already: " + std::string(targetModelDirPath.begin(), targetModelDirPath.end()));
+        throw std::runtime_error("The model has been instantiated already: " + targetModelDirPath.string());
 
     // initialize 
     if(!is_initialized)
@@ -124,9 +130,13 @@ ONNXModel::ONNXModel(const std::wstring &targetModelDirPath, device dev, perfSet
     }
 
     // open session
-    session.reset(new Ort::Session(*env, (targetModelDirPath + L"model.onnx").c_str(), sessionOptions));
+    auto modelPath = targetModelDirPath / "model.onnx";
+    if(!std::filesystem::exists(modelPath))
+        throw std::runtime_error("Model file not found: " + modelPath.string());
+    auto modelPathwString = string_to_wstring(modelPath.string());
+    session.reset(new Ort::Session(*env, modelPathwString.c_str(), sessionOptions));
     if(!session)
-        throw std::runtime_error("Failed to load ONNX model: " + std::string(targetModelDirPath.begin(), targetModelDirPath.end()));
+        throw std::runtime_error("Failed to load ONNX model: " + targetModelDirPath.string());
 
     // regist targetModelDirPath
     instancesModel.insert(targetModelDirPath);
@@ -156,11 +166,11 @@ ONNXModel::~ONNXModel()
 }
 
 // ------------------------ EmbeddingModel ------------------------
-EmbeddingModel::EmbeddingModel(int embeddingId, int maxInputLength, const std::wstring &targetModelDirPath, device dev, perfSetting perf) : embeddingId(embeddingId), maxInputLength(maxInputLength), ONNXModel(targetModelDirPath, dev, perf)
+EmbeddingModel::EmbeddingModel(int embeddingId, int maxInputLength, std::filesystem::path targetModelDirPath, device dev, perfSetting perf) : embeddingId(embeddingId), maxInputLength(maxInputLength), ONNXModel(targetModelDirPath, dev, perf)
 {
     // load tokenizer
     tokenizer = std::make_unique<sentencepiece::SentencePieceProcessor>();
-    std::string modelPath = wstring_to_string(targetModelDirPath) + "sentencepiece.bpe.model";
+    std::string modelPath = (targetModelDirPath / "sentencepiece.bpe.model").string();
     auto status = tokenizer->Load(modelPath.c_str());
     if (!status.ok())
     {

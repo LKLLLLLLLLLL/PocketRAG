@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <memory>
 #include <unordered_set>
+#include <filesystem>
 
 #include <onnxruntime_cxx_api.h>
 #include <sentencepiece_processor.h>
@@ -27,9 +28,9 @@ private:
     static bool is_initialized; // flag the initialization of ONNX environment 
 
     // storage all instances' modelDirPath, make sure no two instances have the same modelDirPath, for saving memory
-    static std::unordered_set<std::wstring> instancesModel;
+    static std::unordered_set<std::filesystem::path> instancesModel;
 
-    std::wstring modelDirPath; // the path of the model directory
+    std::filesystem::path modelDirPath; // the path of the model directory
 protected:
     static std::shared_ptr<Ort::Env> env; // manage ONNX environment, only initialized once
     static std::shared_ptr<Ort::AllocatorWithDefaultOptions> allocator; // allocator
@@ -43,9 +44,8 @@ protected:
     std::vector<std::string> outputNames; // stroage output names of the model
 
     // instantiate the ONNX model, 
-    //will find `model.onnx` & `model.onnx_data` in the modelDirPath, 
-    //modelDirPath should end with `/`
-    ONNXModel(const std::wstring& targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+    // will find `model.onnx` & `model.onnx_data` in the modelDirPath, 
+    ONNXModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
 
 public:
     // initialize the ONNX environment for all ONNX models
@@ -80,7 +80,7 @@ public:
     // instantiate the ONNX model,
     // will find `model.onnx` & `model.onnx_data` & `sentencepiece.bpe.model` in the modelDirPath,
     // modelDirPath should end with `/`
-    EmbeddingModel(int embeddingId, int maxInputLength,  const std::wstring &targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+    EmbeddingModel(int embeddingId, int maxInputLength,  std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
 
     // get embedding dimension
     inline int getDimension() const { return embeddingDimension; }

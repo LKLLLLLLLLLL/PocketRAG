@@ -250,14 +250,15 @@ void DocPipe::updateSqlite(std::string hash) const
     {
         auto trans = sqlite.beginTransaction();
         auto sql = 
-            "INSERT OR REPLACE INTO documents (doc_name, last_modified, file_size, content_hash, last_checked) "
-            "VALUES (?, ?, ?, ?, ?);";
+            "UPDATE documents SET doc_name = ?, last_modified = ?, file_size = ?, content_hash = ?, last_checked = ? "
+            "WHERE id = ?;"; // use REPLACE to update or insert
         auto stmt = sqlite.getStatement(sql);
         stmt.bind(1, docName);
         stmt.bind(2, lastModifiedTimeInt);
         stmt.bind(3, fileSize);
         stmt.bind(4, hash);
         stmt.bind(5, last_checked);
+        stmt.bind(6, docId); // bind docId
         stmt.step();
         if(stmt.changes() == 0)
             throw Exception(Exception::Type::sqlError, "Failed to update document in database: " + docName);
@@ -333,8 +334,10 @@ void DocPipe::updateOneEmbedding(const std::string &content, EmbeddingModel &mod
         if (it != existingChunks.end())   // finded, update chunk
         {
             if(it->second.chunkIndex == index) // same index, no need to update
+            {
+                existingChunks.erase(it); // remove from existing chunks
                 continue; 
-            
+            }
             // update chunks table
             auto chunkid = it->second.chunkId; // get chunk id
             auto sql = "UPDATE chunks SET chunk_index = ? WHERE chunk_id = ?;";
@@ -391,8 +394,6 @@ void DocPipe::updateOneEmbedding(const std::string &content, EmbeddingModel &mod
         tTable.deleteChunk(chunkid); // delete text from text table
     }
     trans.commit(); // commit transaction
-
-    vectortable.reconstructFaissIndex();
 
     return;
 }
