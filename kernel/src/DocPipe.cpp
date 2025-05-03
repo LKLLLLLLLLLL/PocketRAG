@@ -126,6 +126,14 @@ void DocPipe::delDoc()
     }
 
     auto trans = sqlite.beginTransaction();
+
+    // delete from chunks table
+    sql = "DELETE FROM chunks WHERE doc_id = ?;"; // delete all chunks for this document
+    auto chunkDelStmt = sqlite.getStatement(sql);
+    chunkDelStmt.bind(1, docId);
+    chunkDelStmt.step();
+    if (chunkDelStmt.changes() == 0)
+        throw Exception(Exception::Type::sqlError, "Failed to delete chunks from database: " + docName);
     
     // delete from documents table
     sql = "DELETE FROM documents WHERE id = ?;";

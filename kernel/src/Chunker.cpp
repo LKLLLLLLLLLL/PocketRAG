@@ -170,7 +170,7 @@ void Chunker::splitChunk(const Chunk& chunk, int split_table_index)
             pos = chunk.content.find(flag, pos);
             while(pos != std::string::npos)
             {
-                split_pos.push_back(pos);
+                split_pos.push_back(pos + flag.length()); // add split pos
                 pos += flag.length();
                 pos = chunk.content.find(flag, pos);
             }
