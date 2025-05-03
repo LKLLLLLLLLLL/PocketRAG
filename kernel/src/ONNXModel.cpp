@@ -106,6 +106,7 @@ ONNXModel::ONNXModel(const std::wstring &targetModelDirPath, device dev, perfSet
         initialize();
 
     // configure device and perf setting
+    Ort::SessionOptions sessionOptions;
     sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
     if(dev == device::cuda)
     {
@@ -155,12 +156,12 @@ ONNXModel::~ONNXModel()
 }
 
 // ------------------------ EmbeddingModel ------------------------
-EmbeddingModel::EmbeddingModel(const std::wstring &targetModelDirPath, device dev, perfSetting perf) : 
-    ONNXModel(targetModelDirPath, dev, perf)
+EmbeddingModel::EmbeddingModel(int embeddingId, int maxInputLength, const std::wstring &targetModelDirPath, device dev, perfSetting perf) : embeddingId(embeddingId), maxInputLength(maxInputLength), ONNXModel(targetModelDirPath, dev, perf)
 {
     // load tokenizer
+    tokenizer = std::make_unique<sentencepiece::SentencePieceProcessor>();
     std::string modelPath = wstring_to_string(targetModelDirPath) + "sentencepiece.bpe.model";
-    auto status = tokenizer.Load(modelPath.c_str());
+    auto status = tokenizer->Load(modelPath.c_str());
     if (!status.ok())
     {
         throw std::runtime_error("Failed to load tokenizer model: " + modelPath);
@@ -179,7 +180,7 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
     
     // tokenize text to ids
     std::vector<int> tempTokenIds;
-    tokenizer.Encode(text, &tempTokenIds); // tokenize text to ids
+    tokenizer->Encode(text, &tempTokenIds); // tokenize text to ids
 
     // get max length
     int64_t maxLength = tempTokenIds.size() + 2; // +2 for [BOS] and [EOS]
@@ -195,8 +196,8 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
     std::copy(tempTokenIds.begin(),
               tempTokenIds.begin() + copySize,
               tokenIds.begin() + 1);
-    tokenIds[0] = tokenizer.bos_id(); // [BOS] token id
-    tokenIds[maxLength - 1] = tokenizer.eos_id(); // [EOS] token id
+    tokenIds[0] = tokenizer->bos_id(); // [BOS] token id
+    tokenIds[maxLength - 1] = tokenizer->eos_id(); // [EOS] token id
     // generate attention mask
     std::vector<int64_t> attentionMask(maxLength, 1); // all tokens are valid tokens
     // generate shape
@@ -218,7 +219,7 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
     for (const auto &text : texts)
     {
         std::vector<int> tempTokenId;
-        tokenizer.Encode(text, &tempTokenId);
+        tokenizer->Encode(text, &tempTokenId);
         maxLength = std::max(maxLength, static_cast<int>(tempTokenId.size()) + 2);
         tempTokenIds.push_back(std::move(tempTokenId));
     }
@@ -231,7 +232,7 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
     }
 
     // move token ids to tokenIds and add [BOS] and [EOS] tokens, and generate attention mask
-    std::vector<int64_t> tokenIds(maxLength * tempTokenIds.size(), tokenizer.pad_id()); // all tokens are padding tokens
+    std::vector<int64_t> tokenIds(maxLength * tempTokenIds.size(), tokenizer->pad_id()); // all tokens are padding tokens
     std::vector<int64_t> attentionMask(maxLength * tempTokenIds.size(), 0); // all tokens are padding tokens
     for(int i = 0; i < tempTokenIds.size(); i++)
     {
@@ -239,8 +240,8 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
         std::copy(tempTokenIds[i].begin(),
                   tempTokenIds[i].begin() + sequenceLength,
                   tokenIds.begin() + i * maxLength + 1);
-        tokenIds[i * maxLength] = tokenizer.bos_id(); // [BOS] token id
-        tokenIds[i * maxLength + sequenceLength + 1] = tokenizer.eos_id(); // [EOS] token id
+        tokenIds[i * maxLength] = tokenizer->bos_id(); // [BOS] token id
+        tokenIds[i * maxLength + sequenceLength + 1] = tokenizer->eos_id(); // [EOS] token id
         std::fill(attentionMask.begin() + i * maxLength,
                   attentionMask.begin() + i * maxLength + sequenceLength + 2, 1); // set attention mask to 1 for real tokens
     }

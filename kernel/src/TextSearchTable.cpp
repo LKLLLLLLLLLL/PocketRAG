@@ -120,52 +120,47 @@ TextSearchTable::TextSearchTable(SqliteConnection &sqlite, const std::string &ta
     sqlite.execute("CREATE VIRTUAL TABLE IF NOT EXISTS " + tableName + " USING fts5("
         "content, "
         "metadata, "
-        "embeddingId UNINDEXED,"
-        "chunkId UNINDEXED, "
-        "tokenize='jieba')"
+        "chunkId UNINDEXED,"
+        "tokenize='jieba');"
     );
 }
 
 // search in fts5 table before adding a new chunk, may be slow
 void TextSearchTable::addChunk(const Chunk &chunk)
 {
-    auto query = sqlite.getStatement("SELECT COUNT(*) FROM " + tableName + " WHERE chunkId = ? AND embeddingId = ?");
+    auto query = sqlite.getStatement("SELECT COUNT(*) FROM " + tableName + " WHERE chunkId = ?");
     query.bind(1, chunk.chunkId);
-    query.bind(2, chunk.embeddingId);
     query.step();
     int count = query.get<int>(0);
 
-    assert(count <= 1); // should not have more than one chunk with the same chunkId and embeddingId
+    assert(count <= 1); // should not have more than one chunk with the same chunkId 
     if(count == 1) // existint chunk, update it
     {
-        auto update = sqlite.getStatement("UPDATE " + tableName + " SET content = ?, metadata = ? WHERE chunkId = ? AND embeddingId = ?");
+        auto update = sqlite.getStatement("UPDATE " + tableName + " SET content = ?, metadata = ? WHERE chunkId = ?");
         update.bind(1, chunk.content);
         update.bind(2, chunk.metadata);
         update.bind(3, chunk.chunkId);
-        update.bind(4, chunk.embeddingId);
         update.step();
     }
     else // new chunk, insert it
     {
-        auto insert = sqlite.getStatement("INSERT INTO " + tableName + " (content, metadata, embeddingId, chunkId) VALUES (?, ?, ?, ?)");
+        auto insert = sqlite.getStatement("INSERT INTO " + tableName + " (content, metadata, chunkId) VALUES (?, ?, ?)");
         insert.bind(1, chunk.content);
         insert.bind(2, chunk.metadata);
-        insert.bind(3, chunk.embeddingId);
-        insert.bind(4, chunk.chunkId);
+        insert.bind(3, chunk.chunkId);
         insert.step();
     }
 }
 
-void TextSearchTable::deleteChunk(int64_t chunkId, int64_t embeddingId)
+void TextSearchTable::deleteChunk(int64_t chunkId)
 {
-    auto deleteStmt = sqlite.getStatement("DELETE FROM " + tableName + " WHERE chunkId = ? AND embeddingId = ?");
+    auto deleteStmt = sqlite.getStatement("DELETE FROM " + tableName + " WHERE chunkId = ?");
     deleteStmt.bind(1, chunkId);
-    deleteStmt.bind(2, embeddingId);
     deleteStmt.step();
     
     if(deleteStmt.changes() == 0)
     {
-        throw Exception{Exception::Type::notFound, "No chunk found with chunkId: " + std::to_string(chunkId) + " and embeddingId: " + std::to_string(embeddingId)};
+        throw Exception{Exception::Type::notFound, "No chunk found with chunkId: " + std::to_string(chunkId)};
     }
 }
 
@@ -197,7 +192,7 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
     auto queryStmt = sqlite.getStatement(
         "SELECT highlight(" + tableName + ", 0, '" + begin + "', '" + end + "') AS highlighted_content, "
                "highlight(" + tableName + ", 1, '" + begin + "', '" + end + "') AS highlighted_metadata, "
-               "chunkId, embeddingId, bm25(" + tableName + ") AS score "
+               "chunkId, bm25(" + tableName + ") AS score "
         "FROM " + tableName + " "
         "WHERE " + tableName + " MATCH ? "
         "ORDER BY score "  
@@ -213,8 +208,7 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
         chunk.content = queryStmt.get<std::string>(0);
         chunk.metadata = queryStmt.get<std::string>(1);
         chunk.chunkId = queryStmt.get<int64_t>(2);
-        chunk.embeddingId = queryStmt.get<int64_t>(3);
-        auto bm25Score = queryStmt.get<double>(4);
+        auto bm25Score = queryStmt.get<double>(3);
         chunk.similarity = 1.0 - (1.0 / (1.0 - bm25Score)); // convert bm25 score to similarity score
         
         resultChunks.push_back(chunk);
@@ -223,15 +217,14 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
     return resultChunks;
 }
 
-std::pair<std::string, std::string> TextSearchTable::getContent(int64_t chunkId, int64_t embeddingId)
+std::pair<std::string, std::string> TextSearchTable::getContent(int64_t chunkId)
 {
-    auto queryStmt = sqlite.getStatement("SELECT content, metadata FROM " + tableName + " WHERE chunkId = ? AND embeddingId = ?");
+    auto queryStmt = sqlite.getStatement("SELECT content, metadata FROM " + tableName + " WHERE chunkId = ?");
     queryStmt.bind(1, chunkId);
-    queryStmt.bind(2, embeddingId);
 
     if(!queryStmt.step())
     {
-        throw Exception{Exception::Type::notFound, "No chunk found with chunkId: " + std::to_string(chunkId) + " and embeddingId: " + std::to_string(embeddingId)};
+        throw Exception{Exception::Type::notFound, "No chunk found with chunkId: " + std::to_string(chunkId)};
     }
 
     return {queryStmt.get<std::string>(0), queryStmt.get<std::string>(1)};

@@ -34,6 +34,9 @@ public:
 
     class Transaction;
 
+    struct Nulltype {}; // used to represent a null value in SQLite
+    static constexpr Nulltype null = Nulltype{}; 
+
 private:
     sqlite3 *sqliteDB = nullptr;
     std::string dbPath; // path to store databases
@@ -62,6 +65,8 @@ public:
     Statement getStatement(const std::string &sql);
 
     Transaction beginTransaction(); // begin a transaction
+
+    bool inTransaction() const { return !transactionStack.empty(); } // check if in transaction
 };
 
 
@@ -80,6 +85,8 @@ public:
 private:
     sqlite3_stmt *stmt = nullptr; // SQLite statement pointer
 
+    bool has_result = false; // true if the statement has a result set
+
     // only allow SqliteConnection to create Statement
     Statement(sqlite3 *db, const std::string &sql);
     friend class SqliteConnection; 
@@ -95,12 +102,18 @@ public:
     Statement &operator=(Statement &&other) noexcept;
 
     // bind a value to the statement
+    // handle null value
+    void bind(int index, const Nulltype &)
+    {
+        sqlite3_bind_null(stmt, index);
+    }
+    // handle other types
     template <typename T>
     void bind(int index, T value)
     {
         if constexpr (std::is_same_v<T, int>)
             sqlite3_bind_int(stmt, index, value);
-        else if constexpr (std::is_same_v<T, int64_t>)
+        else if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, size_t>)
             sqlite3_bind_int64(stmt, index, value);
         else if constexpr (std::is_same_v<T, double>)
             sqlite3_bind_double(stmt, index, value);
@@ -126,9 +139,12 @@ public:
     }
 
     // get execute result
+    // if no result, throw an exception
     template <typename T>
     T get(int index) const
     {
+        if(!has_result)
+            throw Exception{Exception::Type::executeError, "No result available."};
         if constexpr (std::is_same_v<T, int>)
             return sqlite3_column_int(stmt, index);
         else if constexpr (std::is_same_v<T, int64_t>)

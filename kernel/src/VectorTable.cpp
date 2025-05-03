@@ -76,10 +76,10 @@ void VectorTable::initializeSQLiteTable()
 {
     auto createSQL = 
         "CREATE TABLE IF NOT EXISTS " + tableName + " ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, " //主键，自动递增 
-        "valid BOOLEAN NOT NULL DEFAULT 0, " //布尔值，默认值为 false(0), 说明向量是否已写入内存中的Faiss数据库 
-        "writeback BOOLEAN NOT NULL DEFAULT 0, " //布尔值，默认值为 false(0), 说明向量是否已写入磁盘中的Faiss数据库
-        "deleted BOOLEAN NOT NULL DEFAULT 0" //尔值，默认值为 false(0), 说明向量是否已删除
+        "id INTEGER PRIMARY KEY, " // primary key
+        "valid BOOLEAN NOT NULL DEFAULT 0, " // boolean value, default is false(0), indicating whether the vector is valid
+        "writeback BOOLEAN NOT NULL DEFAULT 0, " // boolean value, default is false(0), indicating whether the vector is written to disk
+        "deleted BOOLEAN NOT NULL DEFAULT 0" // boolean value, default is false(0), indicating whether the vector is deleted
     ");";
     sqlite.execute(createSQL);
 }
@@ -196,20 +196,46 @@ int VectorTable::writeToDisk()
     return changedCount;
 }
 
-VectorTable::idx_t VectorTable::addVector(const std::vector<float> &vector)
+void VectorTable::addVector(idx_t id, const std::vector<float> &vector)
 {
     if(vector.size() != dimension)
         throw Exception{Exception::Type::wrongArg, "Vector dimension does not match the VectorTable dimension."};
 
-    // 1. add vector to SQLite table, but set flag invalid
-    auto insertSQL = "INSERT INTO " + tableName + " (valid) VALUES (0);";
-    sqlite.execute(insertSQL);
-    auto id = sqlite.getLastInsertId(); // get the last insert id
+    // check if the id exists in SQLite table, if exists, only update faiss index
+    auto querySQL = "SELECT * FROM " + tableName + " WHERE id = ?;";
+    auto queryStmt = sqlite.getStatement(querySQL);
+    queryStmt.bind(1, id);
+    bool updateFlag = false;
+    if (queryStmt.step()) // check if the vector exists in SQLite table
+    {
+        auto valid = queryStmt.get<int>(1);
+        auto deleted = queryStmt.get<int>(3);
+        if (valid == 1 && deleted == 0) // check if the vector is valid and not deleted
+        {
+            updateFlag = true; // set update flag
+        }
+    }
 
-    // 2. add vector to Faiss index
-    faissIndex->add_with_ids(1, vector.data(), &id);
+    if(updateFlag) // exists, only need update faiss index
+    {
+        // update vector in Faiss index
+        faissIndex->add_with_ids(1, vector.data(), &id);
+    }
+    else // else, add a new vector to SQLite table and Faiss index
+    {
+        // add vector to SQLite table, but set flag invalid
+        auto insertSQL = "INSERT OR REPLACE INTO " + tableName + " (id) VALUES (?);";
+        auto insertStmt = sqlite.getStatement(insertSQL); // prepare the statement
+        insertStmt.bind(1, id); // bind the id
+        insertStmt.step(); // execute the statement
+        if (insertStmt.changes() == 0) // check if the vector is added
+            throw Exception{Exception::Type::unknownError, "Failed to add vector to SQLite table: " + std::to_string(id)};
 
-    // 3. add successfully, change flag in SQLite table
+        // add vector to Faiss index
+        faissIndex->add_with_ids(1, vector.data(), &id);
+    }
+
+    // add successfully, change flag in SQLite table
     auto updateSQL = "UPDATE " + tableName + " SET valid = 1 WHERE id = ?;";
     auto updateStmt = sqlite.getStatement(updateSQL); 
     updateStmt.bind(1, id);
@@ -220,36 +246,52 @@ VectorTable::idx_t VectorTable::addVector(const std::vector<float> &vector)
     if (addCount >= maxAddCoune) 
         writeToDisk();
 
-    return id;
 }
 
-std::vector<VectorTable::idx_t> VectorTable::addVector(const std::vector<std::vector<float>> &vectors)
+void VectorTable::addVector(const std::vector<idx_t> &ids, const std::vector<std::vector<float>> &vectors)
 {
     if(vectors.empty())
         throw Exception{Exception::Type::wrongArg, "Vectors are empty."};
     if (vectors[0].size() != dimension)
         throw Exception{Exception::Type::wrongArg, "Vector dimension does not match the VectorTable dimension."};
-    auto resultIds = std::vector<idx_t>(vectors.size());
+    if (ids.size() != vectors.size())
+        throw Exception{Exception::Type::wrongArg, "Number of IDs does not match number of vectors."};
 
-    // 1. add vectors to SQLite table, but set flag invalid
-    auto trans1 = sqlite.beginTransaction(); // begin transaction_1
-    try
+    // 1. check each id, distinguish update and add
+    std::vector<bool> updateFlags(vectors.size(), false); 
+    auto querySQL = "SELECT id, valid, deleted FROM " + tableName + " WHERE id = ?;";
+    auto queryStmt = sqlite.getStatement(querySQL); // prepare the statement
+    for (size_t i = 0; i < vectors.size(); i++)
     {
-        auto insertSQL = "INSERT INTO " + tableName + " (valid) VALUES (0);";
-        auto insertStmt = sqlite.getStatement(insertSQL); // prepare the statement
-        // insert vectors into SQLite table
-        for (size_t i = 0; i < vectors.size(); i++)
+        queryStmt.bind(1, ids[i]); // bind the id
+        if (queryStmt.step()) // check if the vector exists in SQLite table
         {
-            insertStmt.step(); 
-            resultIds[i] = sqlite.getLastInsertId(); 
-            insertStmt.reset(); // reset the statement for the next bind
+            auto valid = queryStmt.get<int>(1);
+            auto deleted = queryStmt.get<int>(2);
+            if (valid == 1 && deleted == 0) // check if the vector is valid and not deleted
+            {
+                updateFlags[i] = true; // set update flag
+            }
         }
-    } catch (...) {
-        trans1.rollback(); // rollback transaction_1
-        throw;
+        queryStmt.reset();
+    }
+
+    // 2. add "non-update" vectors to SQLite table, but set flag invalid
+    auto trans1 = sqlite.beginTransaction(); // begin transaction_1
+    auto insertSQL = "INSERT OR REPLACE INTO " + tableName + " (id) VALUES (?);";
+    auto insertStmt = sqlite.getStatement(insertSQL); 
+    for(size_t i = 0; i < ids.size(); i++)
+    {
+        if(!updateFlags[i]) // only add non-update vectors
+        {
+            insertStmt.bind(1, ids[i]); // bind the id
+            insertStmt.step(); 
+            insertStmt.reset(); 
+        }
     }
     trans1.commit(); // commit transaction_1
 
+    // 3. update all vectors to faiss index
     // convert std::vector<std::vector<float>> &vectors to std::vector<float> &vectors, may slow down
     auto flatVectors = std::vector<float>(vectors.size() * dimension);
     for (size_t i = 0; i < vectors.size(); i++)
@@ -262,25 +304,19 @@ std::vector<VectorTable::idx_t> VectorTable::addVector(const std::vector<std::ve
         std::memcpy(flatVectors.data() + i * dimension, vectors[i].data(), dimension * sizeof(float)); // faster than std::copy
     }
 
-    // 2. add vectors to Faiss index
-    faissIndex->add_with_ids(vectors.size(), flatVectors.data(), resultIds.data());
+    // add vectors to Faiss index
+    faissIndex->add_with_ids(vectors.size(), flatVectors.data(), ids.data());
 
-    // 3. add successfully, change flag in SQLite table
+    // 4. add successfully, change all flags in SQLite table
     auto trans2 = sqlite.beginTransaction(); // begin transaction_2
-    try
+    auto updateSQL = "UPDATE " + tableName + " SET valid = 1 WHERE id = ?;";
+    auto updateStmt = sqlite.getStatement(updateSQL); // prepare the statement
+    // update valid flag in SQLite table
+    for (size_t i = 0; i < ids.size(); i++)
     {
-        auto updateSQL = "UPDATE " + tableName + " SET valid = 1 WHERE id = ?;";
-        auto updateStmt = sqlite.getStatement(updateSQL); // prepare the statement
-        // update valid flag in SQLite table
-        for (size_t i = 0; i < resultIds.size(); i++)
-        {
-            updateStmt.bind(1, resultIds[i]);
-            updateStmt.step(); 
-            updateStmt.reset(); // reset the statement for the next bind
-        }
-    } catch (...) {
-        trans2.rollback(); // rollback transaction_2
-        throw;
+        updateStmt.bind(1, ids[i]);
+        updateStmt.step(); 
+        updateStmt.reset(); 
     }
     trans2.commit(); // commit transaction_2
 
@@ -289,7 +325,6 @@ std::vector<VectorTable::idx_t> VectorTable::addVector(const std::vector<std::ve
     if (addCount >= maxAddCoune)
         writeToDisk();
 
-    return resultIds;
 }
 
 // this function will only mark the vector as invalid in SQLite table, cannot remove it from Faiss index
@@ -360,6 +395,8 @@ int VectorTable::reconstructFaissIndex()
 {
     if(deleteCount == 0)
         return 0; // no need to reconstruct Faiss index
+    if(sqlite.inTransaction())
+        return 0; // cannot reconstruct, need to commit transaction first
     
     // get all valid idx from SQL table
     auto querySQL = "SELECT id FROM " + tableName + " WHERE valid = 1 AND deleted = 0;";
@@ -374,7 +411,7 @@ int VectorTable::reconstructFaissIndex()
     // create new Faiss index in memory
     faiss::Index *newFaissIndex = faiss::index_factory(dimension, faissIndexType.c_str(), metricType);
     if (newFaissIndex == nullptr)
-        throw std::runtime_error("Failed to create new Faiss index in memory.");
+        throw Exception{Exception::Type::unknownError, "Failed to create new Faiss index in memory."};
     if(!validIdList.empty())
     {
         // get valid vectors by valid ids from faiss index

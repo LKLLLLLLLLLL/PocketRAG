@@ -35,7 +35,7 @@ protected:
     static std::shared_ptr<Ort::AllocatorWithDefaultOptions> allocator; // allocator
     static std::shared_ptr<Ort::MemoryInfo> memoryInfo; // memory info for tensor creation
     std::shared_ptr<Ort::Session> session = nullptr; // ONNX session, loaded with model
-    Ort::SessionOptions sessionOptions; // session options, can be customized for each model
+    // std::shared_ptr<Ort::SessionOptions> sessionOptions = nullptr; // session options, can be customized for each model
 
 
     // ONNXRuntime is a graph-based runtime, when running, need to specify the input and output names of the model
@@ -63,8 +63,10 @@ BE CAREFUL: some implementation may differ between different embedding models
 class EmbeddingModel : public ONNXModel
 {
 private:
+    int embeddingId; // embedding id from sql table
     int embeddingDimension; // embedding dimension, get from model
-    sentencepiece::SentencePieceProcessor tokenizer; // tokenizer of embedding model, use sentencepiece
+    int maxInputLength; // max input length,  can be changed in the model
+    std::shared_ptr<sentencepiece::SentencePieceProcessor> tokenizer = nullptr; // tokenizer of embedding model, use sentencepiece
 
     // tokenize input string to ids and attention mask
     // input string must be encoded in utf-8
@@ -78,9 +80,14 @@ public:
     // instantiate the ONNX model,
     // will find `model.onnx` & `model.onnx_data` & `sentencepiece.bpe.model` in the modelDirPath,
     // modelDirPath should end with `/`
-    EmbeddingModel(const std::wstring &targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
-    
-    inline int getDimension() const { return embeddingDimension; } // get embedding dimension
+    EmbeddingModel(int embeddingId, int maxInputLength,  const std::wstring &targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+
+    // get embedding dimension
+    inline int getDimension() const { return embeddingDimension; }
+    // get embedding id
+    inline int getId() const { return embeddingId; } 
+    // get max input length
+    inline int getMaxInputLength() const { return maxInputLength; }
 
     // generate embedding for a single string
     // input string must be encoded in utf-8

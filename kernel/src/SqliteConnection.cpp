@@ -140,10 +140,12 @@ bool SqliteConnection::Statement::step()
     auto returnCode = sqlite3_step(stmt);
     if (returnCode == SQLITE_ROW) 
     {
+        has_result = true;
         return true;
     }
     else if (returnCode == SQLITE_DONE) 
     {
+        has_result = false;
         return false;
     }
     else

@@ -67,6 +67,8 @@ public:
     // prevent copy and assignment
     VectorTable(const VectorTable &) = delete;
     VectorTable &operator=(const VectorTable &) = delete;
+    VectorTable(VectorTable &&) = default;
+    VectorTable &operator=(VectorTable &&) = default;
 
     // query the most similar vectors, return a pair with the top-x ids in vector and their distances in vector, x may smaller than maxResultCount
     std::pair<std::vector<faiss::idx_t>, std::vector<float>> querySimlar(const std::vector<float> &queryVector, int maxrRsultCount) const;
@@ -76,13 +78,13 @@ public:
     std::vector<float> getVectorFromId(faiss::idx_t id) const;
     
     // add a vector to the table, return it's id in VectorTable
-    // if try to add same vector, it will be add successfully, with defferent id, DO NOT DO THAT
+    // if try to add same vector, it will overwrite the old one
     // low speed, do not use if unnecessary
-    idx_t addVector(const std::vector<float> &vector);
+    void addVector(idx_t id, const std::vector<float> &vector);
     // add batch of vectors to the table, return their ids in VectorTable
     // if try to add same vector, it will be add successfully, with defferent id, DO NOT DO THAT
     // highspeed, recommond to use
-    std::vector<idx_t> addVector(const std::vector<std::vector<float>> &vectors);
+    void addVector(const std::vector<idx_t> &ids, const std::vector<std::vector<float>> &vectors);
 
     // remove a vector from the table, return it's id in VectorTable
     // if the id is not in the table, throw an exception
