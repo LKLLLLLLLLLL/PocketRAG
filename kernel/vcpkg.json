@@ -1,8 +1,9 @@
 {
   "dependencies": [
+    "cmark",
     "curl",
     "faiss",
     "nlohmann-json",
-    "cmark"
+    "xxhash"
   ]
 }

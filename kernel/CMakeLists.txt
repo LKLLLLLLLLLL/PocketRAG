@@ -53,6 +53,9 @@ find_package(nlohmann_json CONFIG REQUIRED)
 # 导入cmark
 find_package(cmark CONFIG REQUIRED)
 
+# 导入xxhash
+find_package(xxHash CONFIG REQUIRED)
+
 # 导入 cppjieba (纯头文件库)
 set(CPPJIEBA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/cppjieba)
 include_directories(
@@ -121,6 +124,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     CURL::libcurl
     nlohmann_json::nlohmann_json
     cmark::cmark
+    xxHash::xxhash
 )    
 
 # -------------拷贝动态链接库--------------
