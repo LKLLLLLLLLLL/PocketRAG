@@ -55,6 +55,17 @@ public:
 
     class Progress;
 
+    // A wrapper for embedding model, used to store the model and its parameters
+    struct Embedding
+    {
+        int embeddingId;
+        std::string embeddingName;
+        int embeddingDimension;
+        int maxInputLength;
+        int dimension;
+        std::shared_ptr<EmbeddingModel> model;
+    };
+
 private:  
     std::string docName; // extract from path
     std::filesystem::path docPath; // full path
@@ -66,7 +77,7 @@ private:
 
     SqliteConnection& sqlite;
     TextSearchTable& tTable;
-    std::vector<EmbeddingModel>& embdModel; // embedding model, can be multiple models
+    std::vector<Embedding>& embeddings; // embedding model, can be multiple models
     std::vector<VectorTable> &vTable;       // vector table, one table has one embedding model
 
     static const int maxUncheckedTime = 60 * 60 * 24; // max unchecked time, second, 1 day
@@ -84,7 +95,7 @@ private:
     void updateToTable(Progress& progress);
 
     // update one embedding to text search table and vector table
-    void updateOneEmbedding(const std::string &content, EmbeddingModel &model, VectorTable &vectortable, Progress& progress);
+    void updateOneEmbedding(const std::string &content, Embedding &embedding, VectorTable &vectortable, Progress& progress);
 
     // helper functions
     // calculate hash of the document
@@ -94,7 +105,7 @@ private:
     void updateSqlite(std::string hash = "") const;
 
 public:
-    DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<VectorTable> &vTable, std::vector<EmbeddingModel> &embdModel);
+    DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<VectorTable> &vTable, std::vector<Embedding> &embeddings);
     ~DocPipe() = default; 
 
     DocPipe(const DocPipe&) = delete; // disable copy constructor

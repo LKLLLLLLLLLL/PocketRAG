@@ -74,9 +74,9 @@ void Session::initializeEmbedding()
     {
         vectorTables.clear(); // clear old vector tables
     }
-    if(!embeddingModels.empty())
+    if(!embeddings.empty())
     {
-        embeddingModels.clear(); // clear old embedding models
+        embeddings.clear(); // clear old embedding models
     }
 
     auto stmt = sqlite->getStatement("SELECT id, name, model_path, max_input_length FROM embeddings;");
@@ -88,9 +88,10 @@ void Session::initializeEmbedding()
         int maxInputLength = stmt.get<int>(3);
 
         // create embedding model
-        auto embeddingModel = EmbeddingModel(id, maxInputLength, modelPath, ONNXModel::device::cuda);
+        auto embeddingModel = EmbeddingModel(modelPath, ONNXModel::device::cuda);
         int dimension = embeddingModel.getDimension();
-        embeddingModels.push_back(std::move(embeddingModel));
+        Embedding embedding{id, name, dimension, maxInputLength, dimension, std::make_shared<EmbeddingModel>(embeddingModel)};
+        embeddings.push_back(std::move(embedding));
 
         // create vector table for this embedding model
         auto vectorTable = VectorTable(dbPath.string(), "_vector_" + name, *sqlite, dimension);
@@ -139,7 +140,7 @@ void Session::checkDoc()
     // open docpipe for each file
     for (const auto &filepath : files)
     {
-        DocPipe docPipe(filepath, *sqlite, *textTable, vectorTables, embeddingModels);
+        DocPipe docPipe(filepath, *sqlite, *textTable, vectorTables, embeddings);
         docPipe.check(); // check the file
         auto state = docPipe.getState(); // get the state of the document
         if (state == DocPipe::DocState::modified || state == DocPipe::DocState::created || state == DocPipe::DocState::deleted)
@@ -199,14 +200,14 @@ auto Session::search(const std::string &query, int limit) -> std::vector<std::ve
     }
 
     // search for each embedding
-    for(int i = 0; i < embeddingModels.size(); i++)
+    for(int i = 0; i < embeddings.size(); i++)
     {
-        auto& embeddingModel = embeddingModels[i];
+        auto& embedding = embeddings[i];
         auto& vectorTable = vectorTables[i];
 
         // 1. get results from vector table
         // get embedding for the query
-        auto queryVector = embeddingModel.embed(query);
+        auto queryVector = embedding.model->embed(query);
         // query the most similar vectors
         auto vectorResults = vectorTable.querySimlar(queryVector, vectorLimit);
 

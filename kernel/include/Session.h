@@ -25,6 +25,9 @@ public:
         std::string content;
         std::string metadata;
     };
+
+    using Embedding = DocPipe::Embedding; 
+
 private:
     std::string repoName;
     std::filesystem::path repoPath;
@@ -33,7 +36,7 @@ private:
     std::shared_ptr<SqliteConnection> sqlite;
     std::shared_ptr<TextSearchTable> textTable;
     std::vector<VectorTable> vectorTables;
-    std::vector<EmbeddingModel> embeddingModels;
+    std::vector<Embedding> embeddings;
 
     std::queue<DocPipe> docqueue; // doc queue for processing
 

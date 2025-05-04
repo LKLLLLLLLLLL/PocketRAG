@@ -13,7 +13,7 @@
 #include "ONNXModel.h"
 
 //-------------------------------------DocPipe-------------------------------------//
-DocPipe::DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<VectorTable> &vTable, std::vector<EmbeddingModel> &embdModel) : docPath(docPath), sqlite(sqlite), vTable(vTable), tTable(tTable), embdModel(embdModel)
+DocPipe::DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<VectorTable> &vTable, std::vector<Embedding> &embeddings) : docPath(docPath), sqlite(sqlite), vTable(vTable), tTable(tTable), embeddings(embeddings)
 {
     // extract docName from docPath
     docName = docPath.filename().string();
@@ -113,9 +113,9 @@ void DocPipe::updateDoc(std::function<void(double)> callback)
     // create progress object
     std::vector<std::pair<std::string, double>> subProgress;
     subProgress.push_back({"openfile", 0.02});
-    for(auto &model : embdModel)
+    for(auto &embedding : embeddings)
     {
-        subProgress.push_back({"embedding", 0.97 / embdModel.size()});
+        subProgress.push_back({"embedding", 0.97 / embeddings.size()});
     }
     subProgress.push_back({"updatesql", 0.01});
     Progress progress(callback, subProgress); // create progress object
@@ -191,9 +191,9 @@ void DocPipe::addDoc(std::function<void(double)> callback)
     std::vector<std::pair<std::string, double>> subProgress;
     subProgress.push_back({"insert_documents_table", 0.01});
     subProgress.push_back({"openfile", 0.02});
-    for(auto &model : embdModel)
+    for(auto &embedding : embeddings)
     {
-        subProgress.push_back({"embedding", 0.96 / embdModel.size()});
+        subProgress.push_back({"embedding", 0.96 / embeddings.size()});
     }
     subProgress.push_back({"updatesql", 0.01});
     Progress progress(callback, subProgress); // create progress object
@@ -323,24 +323,24 @@ void DocPipe::updateToTable(Progress& progress)
     progress.finishSubprogress(); // finish open file progress
     
     // 2. for each embedding model, update the embedding table and vector table
-    if(embdModel.size() != vTable.size())
-        throw Exception(Exception::Type::wrongArg, "Embedding model size and vector table size do not match: " + std::to_string(embdModel.size()) + " vs " + std::to_string(vTable.size()));
-    for(int i = 0; i < embdModel.size(); i++)
+    if(embeddings.size() != vTable.size())
+        throw Exception(Exception::Type::wrongArg, "Embedding model size and vector table size do not match: " + std::to_string(embeddings.size()) + " vs " + std::to_string(vTable.size()));
+    for(int i = 0; i < embeddings.size(); i++)
     {
-        auto &model = embdModel[i]; // get embedding model
+        auto &embedding = embeddings[i]; // get embedding model
         auto &vectortable = vTable[i]; // get vector table
-        updateOneEmbedding(content, model, vectortable, progress); // update embedding for this model
+        updateOneEmbedding(content, embedding, vectortable, progress); // update embedding for this model
         progress.finishSubprogress(); // finish embedding progress
     }
 }
 
 // a slowly version, can be improved by adding batch process
-void DocPipe::updateOneEmbedding(const std::string &content, EmbeddingModel &model, VectorTable &vectortable, Progress& progress)
+void DocPipe::updateOneEmbedding(const std::string &content, Embedding &embedding, VectorTable &vectortable, Progress& progress)
 {
     // 1. split content to chunks
     std::vector<Chunker::Chunk> newChunks;
     {
-        Chunker chunker(content, docType, model.getMaxInputLength()); // create chunker
+        Chunker chunker(content, docType, embedding.maxInputLength); // create chunker
         newChunks = chunker.getChunks();           // get chunks from chunker
     }
     progress.updateSubprocess(0.01); 
@@ -357,7 +357,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, EmbeddingModel &mod
     auto sql = "SELECT chunk_id, chunk_index, content_hash FROM chunks WHERE doc_id = ? AND embedding_id = ?;";
     auto stmt = sqlite.getStatement(sql);
     stmt.bind(1, docId);
-    stmt.bind(2, model.getId());
+    stmt.bind(2, embedding.embeddingId);
     while (stmt.step())
     {
         chunkRow row;
@@ -449,7 +449,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, EmbeddingModel &mod
         auto sql = "INSERT INTO chunks (doc_id, embedding_id, chunk_index, content_hash) VALUES (?, ?, ?, ?);";
         auto stmt = sqlite.getStatement(sql); // prepare statement
         stmt.bind(1, docId); // bind doc id
-        stmt.bind(2, model.getId()); // bind embedding id
+        stmt.bind(2, embedding.embeddingId); // bind embedding id
         stmt.bind(3, index); // bind chunk index
         stmt.bind(4, hash); // bind content hash
         stmt.step(); // execute statement
@@ -459,8 +459,8 @@ void DocPipe::updateOneEmbedding(const std::string &content, EmbeddingModel &mod
         auto chunkid = sqlite.getLastInsertId(); // get chunk id
 
         // add chunk to vector table
-        auto embedding = model.embed(chunk.content); // get embedding from model
-        vectortable.addVector(chunkid, embedding); // add vector to vector table
+        auto embedVector = embedding.model->embed(chunk.content); // get vector from embedding
+        vectortable.addVector(chunkid, embedVector); // add vector to vector table
 
         // add chunk to text table
         tTable.addChunk({chunk.content, chunk.metadata, chunkid}); // add text to text table

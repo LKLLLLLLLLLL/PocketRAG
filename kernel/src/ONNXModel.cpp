@@ -86,9 +86,14 @@ void printTensorData(const Ort::Value &tensor, const std::string &name, int maxS
 // ------------------------ ONNXModel ------------------------
 bool ONNXModel::is_initialized = false;
 std::shared_ptr<Ort::Env> ONNXModel::env;
-std::unordered_set<std::filesystem::path> ONNXModel::instancesModel;
+
+std::mutex ONNXModel::mutex;
+std::unordered_map<std::filesystem::path, std::weak_ptr<Ort::Session>> ONNXModel::instancesSessions;
+
 std::shared_ptr<Ort::AllocatorWithDefaultOptions> ONNXModel::allocator;
 std::shared_ptr<Ort::MemoryInfo> ONNXModel::memoryInfo;
+
+std::unordered_map<Ort::Session *, std::shared_ptr<std::mutex>> ONNXModel::sessionMutexes;
 
 void ONNXModel::initialize()
 {
@@ -103,70 +108,121 @@ void ONNXModel::initialize()
 ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf): 
     modelDirPath(targetModelDirPath)
 {
-    // check if the model has been instantiated
-    if (instancesModel.find(targetModelDirPath) != instancesModel.end())
-        throw std::runtime_error("The model has been instantiated already: " + targetModelDirPath.string());
-
-    // initialize 
-    if(!is_initialized)
-        initialize();
-
-    // configure device and perf setting
-    Ort::SessionOptions sessionOptions;
-    sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-    if(dev == device::cuda)
     {
-        OrtCUDAProviderOptions cudaOptions;
-        sessionOptions.AppendExecutionProvider_CUDA(cudaOptions);
-    }
-    else if(dev == device::cpu)
-    {
-        if(perf == perfSetting::low) // limit max thread
+        std::lock_guard<std::mutex> lock(mutex); // lock the mutex
+
+        // initialize
+        if (!is_initialized)
+            initialize();
+
+        // check if there is already a session with the same modelDirPath
+        bool isExist = false;
+        auto it = instancesSessions.find(targetModelDirPath);
+        if(it != instancesSessions.end() && !it->second.expired()) // session exists
         {
-            sessionOptions.SetIntraOpNumThreads(2); 
-            sessionOptions.SetInterOpNumThreads(2);
+            auto sessionPtr = it->second.lock(); // get the session pointer
+            if(sessionPtr)
+            {
+                session = sessionPtr; // use the existing session
+                isExist = true;
+            }
         }
-        // sessionOptions use all thread in default
+        if(!isExist) // no existing session, create a new one
+        {
+            // configure device and perf setting
+            Ort::SessionOptions sessionOptions;
+            sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+            if (dev == device::cuda)
+            {
+                OrtCUDAProviderOptions cudaOptions;
+                sessionOptions.AppendExecutionProvider_CUDA(cudaOptions);
+            }
+            else if (dev == device::cpu)
+            {
+                if (perf == perfSetting::low) // limit max thread
+                {
+                    sessionOptions.SetIntraOpNumThreads(2);
+                    sessionOptions.SetInterOpNumThreads(2);
+                }
+                // sessionOptions use all thread in default
+            }
+
+            // open session
+            auto modelPath = targetModelDirPath / "model.onnx";
+            if (!std::filesystem::exists(modelPath))
+                throw std::runtime_error("Model file not found: " + modelPath.string());
+            auto modelPathwString = string_to_wstring(modelPath.string());
+            session.reset(new Ort::Session(*env, modelPathwString.c_str(), sessionOptions));
+            if (!session)
+                throw std::runtime_error("Failed to load ONNX model: " + targetModelDirPath.string());
+            
+            // store the session in the map
+            instancesSessions[targetModelDirPath] = session; // store the session in the map
+        }
+        // get session mutex
+        if (isExist)
+        {
+            auto it = sessionMutexes.find(session.get());
+            if (it != sessionMutexes.end())
+            {
+                sessionMutex = it->second; // use the existing mutex
+            }
+        }
+        else
+        {
+            sessionMutex = std::make_shared<std::mutex>(); // create a new mutex
+            sessionMutexes[session.get()] = sessionMutex;  // store the mutex in the map
+        }
     }
-
-    // open session
-    auto modelPath = targetModelDirPath / "model.onnx";
-    if(!std::filesystem::exists(modelPath))
-        throw std::runtime_error("Model file not found: " + modelPath.string());
-    auto modelPathwString = string_to_wstring(modelPath.string());
-    session.reset(new Ort::Session(*env, modelPathwString.c_str(), sessionOptions));
-    if(!session)
-        throw std::runtime_error("Failed to load ONNX model: " + targetModelDirPath.string());
-
-    // regist targetModelDirPath
-    instancesModel.insert(targetModelDirPath);
-
     // update input and output names
-    size_t numInputs = session->GetInputCount();
-    size_t numOutputs = session->GetOutputCount();
-    inputNames.resize(numInputs);
-    outputNames.resize(numOutputs);
-    for (size_t i = 0; i < numInputs; ++i)
     {
-        Ort::AllocatedStringPtr inputNamePtr = session->GetInputNameAllocated(i, *allocator);
-        inputNames[i] = inputNamePtr.get();
-    }
-    for (size_t i = 0; i < numOutputs; ++i)
-    {
-        Ort::AllocatedStringPtr outputNamePtr = session->GetOutputNameAllocated(i, *allocator);
-        outputNames[i] = outputNamePtr.get();
+        std::lock_guard<std::mutex> lock(*sessionMutex);
+        size_t numInputs = session->GetInputCount();
+        size_t numOutputs = session->GetOutputCount();
+        inputNames.resize(numInputs);
+        outputNames.resize(numOutputs);
+        for (size_t i = 0; i < numInputs; ++i)
+        {
+            Ort::AllocatedStringPtr inputNamePtr = session->GetInputNameAllocated(i, *allocator);
+            inputNames[i] = inputNamePtr.get();
+        }
+        for (size_t i = 0; i < numOutputs; ++i)
+        {
+            Ort::AllocatedStringPtr outputNamePtr = session->GetOutputNameAllocated(i, *allocator);
+            outputNames[i] = outputNamePtr.get();
+        }
     }
 }
 
 ONNXModel::~ONNXModel()
 {
-    // remove modelDirPath from instancesModel
-    instancesModel.erase(modelDirPath);
-    session.reset(); // release session
+    // remove from instancesSessions map if session is not used anymore
+    {
+        std::lock_guard<std::mutex> lock(mutex); // lock the mutex
+        bool needReset = false;
+        if(session.use_count() == 1) // only this instance is using the session, need to remove from map
+        {
+            needReset = true; // need to reset session
+            // remove from instancesSessions map
+            auto it = instancesSessions.find(modelDirPath);
+            if(it != instancesSessions.end())
+            {
+                instancesSessions.erase(it); // remove from map
+            }
+            // remove from sessionMutexes map
+            auto it2 = sessionMutexes.find(session.get());
+            if(it2 != sessionMutexes.end())
+            {
+                sessionMutexes.erase(it2); // remove from map
+            }
+        }
+        session.reset(); // release session
+        sessionMutex.reset(); // release mutex
+    }
 }
 
 // ------------------------ EmbeddingModel ------------------------
-EmbeddingModel::EmbeddingModel(int embeddingId, int maxInputLength, std::filesystem::path targetModelDirPath, device dev, perfSetting perf) : embeddingId(embeddingId), maxInputLength(maxInputLength), ONNXModel(targetModelDirPath, dev, perf)
+EmbeddingModel::EmbeddingModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf) : ONNXModel(targetModelDirPath, dev, perf)
 {
     // load tokenizer
     tokenizer = std::make_unique<sentencepiece::SentencePieceProcessor>();
@@ -179,8 +235,11 @@ EmbeddingModel::EmbeddingModel(int embeddingId, int maxInputLength, std::filesys
 
     // get embedding dimension from model
     // asume the second output is the embedding output
-    Ort::TypeInfo typeInfo = session->GetOutputTypeInfo(1);
-    embeddingDimension = typeInfo.GetTensorTypeAndShapeInfo().GetShape().back(); // get the last dimension of the output shape
+    {
+        std::lock_guard<std::mutex> lock(*sessionMutex); // lock the mutex
+        Ort::TypeInfo typeInfo = session->GetOutputTypeInfo(1);
+        embeddingDimension = typeInfo.GetTensorTypeAndShapeInfo().GetShape().back(); // get the last dimension of the output shape
+    }
 }
 
 std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> EmbeddingModel::tokenize(const std::string &text) const
@@ -282,7 +341,11 @@ std::vector<float> EmbeddingModel::embed(const std::string &text) const
     std::vector<const char *> outputNamesPtr = {outputNames[1].c_str()}; // assume that the second output is the embedding output, only compute the embedding output to save time
 
     // run inference
-    auto output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesPtr.data(), input_tensors.data(), input_tensors.size(), outputNamesPtr.data(), outputNamesPtr.size());
+    std::vector<Ort::Value> output_tensors;
+    {
+        std::lock_guard<std::mutex> lock(*sessionMutex); // lock the mutex
+        output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesPtr.data(), input_tensors.data(), input_tensors.size(), outputNamesPtr.data(), outputNamesPtr.size());
+    }
 
     auto embeddingVectorPtr = output_tensors[0].GetTensorMutableData<float>(); // get the output tensor data
     std::vector<float> embeddingVector(embeddingVectorPtr, embeddingVectorPtr + embeddingDimension); // copy the output tensor data to a vector
@@ -309,7 +372,11 @@ std::vector<std::vector<float>> EmbeddingModel::embed(const std::vector<std::str
     std::vector<const char *> outputNamesPtr = {outputNames[1].c_str()}; // assume that the second output is the embedding output, only compute the embedding output to save time
 
     // run inference
-    auto output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesPtr.data(), input_tensors.data(), input_tensors.size(), outputNamesPtr.data(), outputNamesPtr.size());
+    std::vector<Ort::Value> output_tensors;
+    {
+        std::lock_guard<std::mutex> lock(*sessionMutex); // lock the mutex
+        output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesPtr.data(), input_tensors.data(), input_tensors.size(), outputNamesPtr.data(), outputNamesPtr.size());
+    }
 
     auto embeddingVectorPtr = output_tensors[0].GetTensorMutableData<float>(); // get the output tensor data
     std::vector<std::vector<float>> embeddingVectors; // create a vector of vectors to store the embedding vectors
