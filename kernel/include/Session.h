@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <string>
 #include <memory>
+#include <vector>
+#include <queue>
 
 #include "SqliteConnection.h"
 #include "VectorTable.h"
@@ -33,6 +35,8 @@ private:
     std::vector<VectorTable> vectorTables;
     std::vector<EmbeddingModel> embeddingModels;
 
+    std::queue<DocPipe> docqueue; // doc queue for processing
+
     constexpr static double alpha = 0.6; // alpha for L2 distance 
 
     // creat basic sqlite tables
@@ -48,8 +52,10 @@ public:
     Session(const Session&) = delete; // disable copy constructor
     Session& operator=(const Session&) = delete; // disable copy assignment operator
 
-    // scan the repo path to update doc status
-    void refreshDoc();
+    // scan the repo path to find changed documents 
+    void checkDoc();
+    // actually execute updating task, need callback function to report progress
+    void refreshDoc(std::function<void(std::string, double)> callback);
 
     std::vector<std::vector<searchResult>> search(const std::string &query, int limit = 10);
 

@@ -16,13 +16,16 @@ int main()
     std::string repoName = "repo";
     int sessionId = 1; // example session ID
     Session session(repoName, repoPath, sessionId);
-    if (!std::filesystem::exists("./repo/.PocketRAG/repo_vector_bge_m3.faiss"))
+    if (!std::filesystem::exists("./repo/.PocketRAG/_vector_bge_m3.faiss"))
     {
         session.addEmbedding(1, "bge_m3", "D:/Code/PocketRAG/models/bge-m3", 512); // example embedding
     }
     while(true)
     {
-        session.refreshDoc(); // refresh documents in the repository
+        session.checkDoc(); // check documents in the repository
+        session.refreshDoc([](std::string path, double progress){
+            std::cout << "Processing " << path << ": " << progress * 100 << "%" << std::endl; // print progress
+        }); // refresh documents in the repository
         std::string query;
         std::cout << "Enter your query: ";
         std::getline(std::cin, query);

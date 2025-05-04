@@ -1,6 +1,7 @@
 # pragma once
 #include <iostream>
 #include <filesystem>
+#include <functional>
 
 #include "SqliteConnection.h"
 #include "VectorTable.h"
@@ -31,7 +32,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     chunk_index INTEGER NOT NULL,   -- index in one document with one embedding 
     content_hash TEXT NOT NULL, -- hash of the content and metadata
 
-    UNIQUE(doc_id, embedding_id, chunk_index),
+    -- UNIQUE(doc_id, embedding_id, chunk_index),
 
     FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE,
     FOREIGN KEY(embedding_id) REFERENCES embeddings(id) ON DELETE CASCADE
@@ -40,6 +41,8 @@ CREATE TABLE IF NOT EXISTS chunks (
 class DocPipe
 {
 public:
+    enum class DocState {unchecked, modified, created, deleted, unchanged};
+
     struct Exception : public std::exception
     {
         enum class Type {notFound, openError, sqlError, wrongArg, unknownError};
@@ -50,12 +53,12 @@ public:
         const char* what() const noexcept override { return message.c_str(); } // override what() method
     };
 
-private:
-    enum class taskType {check, add, del};
-    
+    class Progress;
+
+private:  
     std::string docName; // extract from path
     std::filesystem::path docPath; // full path
-    taskType type;
+    DocState state = {DocState::unchecked};
 
     Chunker::docType docType; // document type, used to split the document
 
@@ -68,25 +71,24 @@ private:
 
     static const int maxUncheckedTime = 60 * 60 * 24; // max unchecked time, second, 1 day
 
-    // check if the document changed, if changed update db
-    // this method can be called frquently, because it check quickly
-    void checkDoc(); 
+    // update document in db
+    void updateDoc(std::function<void(double)> callback);
 
     // add new document to db
-    void addDoc(); 
+    void addDoc(std::function<void(double)> callback);
 
     // delete document from db
-    void delDoc(); 
+    void delDoc(std::function<void(double)> callback);
 
     // update document to text search table and vector table
-    void updateToTable();
+    void updateToTable(Progress& progress);
 
     // update one embedding to text search table and vector table
-    void updateOneEmbedding(const std::string &content, EmbeddingModel &model, VectorTable &vectortable);
+    void updateOneEmbedding(const std::string &content, EmbeddingModel &model, VectorTable &vectortable, Progress& progress);
 
     // helper functions
     // calculate hash of the document
-    static std::string calculateHash(const std::filesystem::path &path);
+    static std::string calculatedocHash(const std::filesystem::path &path);
     static std::string calculateHash(const std::string &content);
     // update last_modified, last_checked, content_hash, file_size in sqlite
     void updateSqlite(std::string hash = "") const;
@@ -98,9 +100,45 @@ public:
     DocPipe(const DocPipe&) = delete; // disable copy constructor
     DocPipe& operator=(const DocPipe&) = delete; // disable copy assignment operator
 
-    // process the task
-    void process();
+    DocPipe(DocPipe&&) = default; // enable move constructor
+    DocPipe& operator=(DocPipe&&) = default; // enable move assignment operator
 
-    int64_t getId() const { return docId; } // get docId
+    // check document status to get task type, but not process the task
+    void check();
 
+    // get doc state, call after check()
+    DocState getState() const { return state; }
+
+    // process the task, need callback function to report progress
+    void process(std::function<void(double)> callback);
+
+    // get docId
+    int64_t getId() const { return docId; } 
+
+    // get doc path
+    std::string getPath() const { return docPath.string(); } // get doc path
+
+};
+
+/*
+This class is used to report progress of the task.
+*/
+class DocPipe::Progress
+{
+private:
+    std::function<void(double)> callback;              // callback function for progress
+    double progress = 0.0;                             // progress value, range [0.0, 1.0]
+    std::vector<std::pair<std::string, double>> steps; // config of steps name and steps length
+    int currentStep = 0;                               // current step index
+
+public:
+    Progress(std::function<void(double)> callback) : callback(callback) {}
+    Progress(std::function<void(double)> callback, std::vector<std::pair<std::string, double>> subProgress);
+
+    void update(double progress);
+
+    void updateSubprocess(double progress);
+
+    void finishSubprogress();
+    
 };
