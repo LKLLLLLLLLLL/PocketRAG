@@ -14,24 +14,10 @@
 
 // ---------------------SqliteConnection---------------------
 
-std::set<std::filesystem::path> SqliteConnection::dbPathSet;
-std::mutex SqliteConnection::dbPathSetMutex;
-
 SqliteConnection::SqliteConnection(const std::string &dbPath, const std::string &tableName) : dbPath(dbPath), tableName(tableName)
 {
     dbFullPath = std::filesystem::path(dbPath) / (tableName + ".db");
 
-    // check and update dbPathSet
-    {
-        std::lock_guard<std::mutex> lock(dbPathSetMutex); // lock the mutex to protect dbPathSet
-
-        // check if the database path is already opened
-        if (dbPathSet.find(dbFullPath) != dbPathSet.end())
-            throw Exception{Exception::Type::openError, "Database path already opened: " + dbFullPath.string()};
-
-        // add the database path to the set
-        dbPathSet.insert(dbFullPath); 
-    }
     // check if the directory exists, if not, create it
     if (!std::filesystem::exists(dbPath))
         std::filesystem::create_directories(dbPath);
@@ -40,11 +26,13 @@ SqliteConnection::SqliteConnection(const std::string &dbPath, const std::string 
     auto returnCode = sqlite3_open_v2(dbFullPath.string().c_str(), &sqliteDB, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI, nullptr);
     if (returnCode != SQLITE_OK)
     {
-        std::lock_guard<std::mutex> lock(dbPathSetMutex); // lock the mutex to protect dbPathSet
-        dbPathSet.erase(dbFullPath); // remove the database path from the set
         throw Exception{Exception::Type::openError, "Failed to create SQLite database: " + dbFullPath.string() + "\n    sqlite error " + sqlite3_errmsg(sqliteDB)};
     }
 
+    // activate thread safety mode
+    sqlite3_config(SQLITE_CONFIG_SERIALIZED); // enable thread safety mode for SQLite
+    execute("PRAGMA journal_mode=WAL;"); // set journal mode to WAL for better concurrency
+    execute("PRAGMA busy_timeout=5000;"); // set busy timeout to 5 seconds
 }
 
 SqliteConnection::~SqliteConnection()
@@ -59,11 +47,6 @@ SqliteConnection::~SqliteConnection()
     if (sqliteDB != nullptr)
         sqlite3_close(sqliteDB);
 
-    {
-        std::lock_guard<std::mutex> lock(dbPathSetMutex); // lock the mutex to protect dbPathSet
-        if(dbPathSet.find(dbFullPath) != dbPathSet.end())
-            dbPathSet.erase(dbFullPath); // remove the database path from the set
-    }
 }
 
 int SqliteConnection::execute(const std::string &sql)

@@ -14,8 +14,7 @@
 /*
 This class manages a SQLite database connection.
 Gurantee that every database path is unique.
-DO NOT CALL METHODS IN MULTIPLE THREADS.
-if set addTokenizer = true, it will register a jieba tokenizer to the SQLite database.
+MAKE SURE each thread has its own SqliteConnection object.
 */
 class SqliteConnection
 {
@@ -42,9 +41,6 @@ private:
     std::string dbPath; // path to store databases
     std::string tableName;
     std::filesystem::path dbFullPath; // full path to the database file, generated from dbPath and tableName
-
-    static std::set<std::filesystem::path> dbPathSet;  // make sure every database path is unique
-    static std::mutex dbPathSetMutex; // mutex to protect dbPathSet
 
     std::stack<std::string> transactionStack; // stack to manage transactions, only store activate transactions
 
