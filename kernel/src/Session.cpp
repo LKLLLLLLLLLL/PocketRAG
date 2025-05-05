@@ -14,11 +14,11 @@
 Session::Session(std::string repoName, std::filesystem::path repoPath, int sessionId, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter) : repoName(repoName), repoPath(repoPath), sessionId(sessionId), docStateReporter(docStateReporter), progressReporter(progressReporter)
 {
     // open a sqlite connection
-    auto dbPath = repoPath / ".PocketRAG";
+    dbPath = repoPath / "db" / ".PocketRAG";
     sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);
 
     // open text search table
-    textTable = std::make_shared<TextSearchTable>(*sqlite, "_text_search");
+    textTable = std::make_shared<TextSearchTable>(*sqlite, "text_search");
 
     // initialize sqliteDB
     initializeSqlite();
@@ -47,12 +47,12 @@ void Session::initializeSqlite()
     // create embeddings table
     sqlite->execute(
         "CREATE TABLE IF NOT EXISTS embeddings ("
-        "id INTEGER PRIMARY KEY, "
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "name TEXT NOT NULL UNIQUE, "
         "model_path TEXT NOT NULL, "
-        "max_input_length INTEGER NOT NULL"
-        ");"
-    );
+        "max_input_length INTEGER NOT NULL, "
+        "valid BOOLEAN DEFAULT 1" // for soft delete
+        ");");
 
     // create chunks table
     sqlite->execute(
@@ -81,7 +81,6 @@ Session::~Session()
 
 void Session::initializeEmbedding()
 {
-    auto dbPath = repoPath / ".PocketRAG";
     if(!vectorTables.empty())
     {
         vectorTables.clear(); // clear old vector tables
@@ -91,7 +90,7 @@ void Session::initializeEmbedding()
         embeddings.clear(); // clear old embedding models
     }
 
-    auto stmt = sqlite->getStatement("SELECT id, name, model_path, max_input_length FROM embeddings;");
+    auto stmt = sqlite->getStatement("SELECT id, name, model_path, max_input_length FROM embeddings WHERE valid = 1;");
     while (stmt.step())
     {
         int id = stmt.get<int>(0);
@@ -106,7 +105,7 @@ void Session::initializeEmbedding()
         embeddings.push_back(embedding);
 
         // create vector table for this embedding model
-        auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), "_vector_" + name, *sqlite, dimension);
+        auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), "vector_" + id, *sqlite, dimension);
         vectorTables.push_back(std::move(vectorTable));
     }
 }
@@ -277,25 +276,23 @@ auto Session::search(const std::string &query, int limit) -> std::vector<std::ve
     return allResults;
 }
 
-void Session::addEmbedding(int id, const std::string &name, const std::string &modelPath, int maxInputLength)
+void Session::addEmbedding(const std::string &name, const std::string &modelPath, int maxInputLength)
 {
-    std::unique_lock writelock(mutex); 
+    std::unique_lock writelock(mutex);
+
     // check if the embedding already exists
-    auto stmt = sqlite->getStatement("SELECT id FROM embeddings WHERE name = ? AND model_path = ? AND max_input_length = ?;");
+    auto stmt = sqlite->getStatement("SELECT id FROM embeddings WHERE name = ? AND valid = 1;");
     stmt.bind(1, name);
-    stmt.bind(2, modelPath);
-    stmt.bind(3, maxInputLength);
     if(stmt.step())
     {
         throw std::runtime_error("Embedding with this name already exists.");
     }
 
     // add embedding to sqlite
-    auto insertStmt = sqlite->getStatement("INSERT INTO embeddings (id, name, model_path, max_input_length) VALUES (?, ?, ?, ?);");
-    insertStmt.bind(1, id);
-    insertStmt.bind(2, name);
-    insertStmt.bind(3, modelPath);
-    insertStmt.bind(4, maxInputLength);
+    auto insertStmt = sqlite->getStatement("INSERT INTO embeddings (name, model_path, max_input_length) VALUES (?, ?, ?);");
+    insertStmt.bind(1, name);
+    insertStmt.bind(2, modelPath);
+    insertStmt.bind(3, maxInputLength);
     insertStmt.step();
 
     // re initialize embedding models and vector tables

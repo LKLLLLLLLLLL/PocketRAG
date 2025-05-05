@@ -24,20 +24,25 @@ int main()
             {
                 std::cout << doc << ", "; // print changed documents
             }
+            std::cout << std::endl;
         }, 
         [&lastprintTime](std::string path, double progress)
         {
             auto now = std::chrono::steady_clock::now();
+            static auto lastProgress = 0.0;
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastprintTime).count();
-            if (elapsed < 1 && progress <= 0.98 && progress >= 0.03) // print progress every second
+            auto progressDiff = progress - lastProgress;
+            if (elapsed < 1 && progress <= 0.98 && progress >= 0.03 && progressDiff < 0.15) // print progress every second
                 return;
             lastprintTime = now;
+            lastProgress = progress;
             std::cout << "Processing " << path << ": " << progress * 100 << "%" << std::endl; // print progress
         }
     );
-    if (!std::filesystem::exists(".\\repo\\.PocketRAG\\_vector_bge_m3.faiss"))
+    if (!std::filesystem::exists(".\\repo\\.PocketRAG\\_vector_bge_m3_512.faiss"))
     {
-        session.addEmbedding(1, "bge_m3", "../../models/bge-m3", 512); // example embedding
+        session.addEmbedding("bge_m3-512", "../../models/bge-m3", 512); // example embedding
+        session.addEmbedding("bge_m3_1024", "../../models/bge-m3", 1024); // example embedding
     }
     while(true)
     {

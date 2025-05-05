@@ -94,7 +94,5 @@ namespace jiebaTokenizer
     void register_jieba_tokenizer(sqlite3 *db);
 
     cppjieba::Jieba *get_jieba_ptr();
-
-    void CutForSearch(const std::string &text, std::vector<std::string> &words);
 }
 

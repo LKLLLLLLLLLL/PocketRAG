@@ -45,7 +45,7 @@ VectorTable::VectorTable(std::filesystem::path dbDirPath, const std::string &tab
     else
     {
         throw Exception{Exception::Type::openError, "Faiss index not found and dimension is not set."};
-    }
+    } 
 
     // change non writeback vector to invalid vector in SQLite table
     auto updateSQL = "UPDATE " + tableName + 

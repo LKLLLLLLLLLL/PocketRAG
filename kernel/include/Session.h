@@ -32,6 +32,7 @@ public:
 private:
     std::string repoName;
     std::filesystem::path repoPath;
+    std::filesystem::path dbPath;
     int sessionId;
 
     std::shared_ptr<SqliteConnection> sqlite;
@@ -77,6 +78,6 @@ public:
 
     std::vector<std::vector<searchResult>>search(const std::string &query, int limit = 10);
 
-    void addEmbedding(int id, const std::string &name, const std::string &modelPath, int maxInputLength);
+    void addEmbedding(const std::string &name, const std::string &modelPath, int maxInputLength);
 
 };

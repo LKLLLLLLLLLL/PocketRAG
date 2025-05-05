@@ -380,7 +380,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
 
     // 3. compare new chunks with existing chunks, and update / add / delete chunks
     // traverse new chunks to add and update chunk in tables
-    auto trans = sqlite.beginTransaction(); // begin transaction
+    auto trans1 = sqlite.beginTransaction(); // begin transaction
     std::queue<size_t> addChunkQueue; 
     std::queue<std::pair<size_t, int>> updateChunkQueue; // store index and chunk id for update
     for (int index = 1; index <= newChunks.size(); index++) // index begin with 1, defferent with NULL value of sqlite
@@ -446,8 +446,9 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         // no need to update vector table and text table, no changes
     }
     progress.updateSubprocess(0.04); // update progress
-    trans.commit(); // commit transaction, commit changes, because operation below may be terminate any time
+    trans1.commit(); // commit transaction, commit changes, because operation below may be terminate any time
     // add chunks
+    auto trans2 = sqlite.beginTransaction(); // begin transaction for adding chunks
     double addCount = addChunkQueue.size();
     while(!addChunkQueue.empty())
     {
@@ -480,8 +481,12 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
 
         // check stop flag
         if(stopFlag) // check if stop flag is set
+        {
+            trans2.commit(); // commit part of chunks
             return;
+        }
     }
+    trans2.commit();
 
     return;
 }

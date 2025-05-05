@@ -18,7 +18,7 @@ thread_local SqliteConnection::LocalDataManager SqliteConnection::dataManager;
 // ---------------------SqliteConnection---------------------
 void SqliteConnection::openSqlite(LocalData &data)
 {
-    auto dbFullPath = std::filesystem::path(dbDirPath) / (tableName + ".db"); // full path for the database file
+    auto dbFullPath = std::filesystem::path(dbDirPath) / (dbName + ".db"); // full path for the database file
 
     // try to create SQLite database
     auto returnCode = sqlite3_open_v2(dbFullPath.string().c_str(), &data.sqliteDB, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI, nullptr);
@@ -31,7 +31,7 @@ void SqliteConnection::openSqlite(LocalData &data)
     jiebaTokenizer::register_jieba_tokenizer(data.sqliteDB);
 }
 
-SqliteConnection::SqliteConnection(const std::string &dbDirPath, const std::string &tableName) : dbDirPath(dbDirPath), tableName(tableName)
+SqliteConnection::SqliteConnection(const std::string &dbDirPath, const std::string &dbName) : dbDirPath(dbDirPath), dbName(dbName)
 {
     // check if the directory exists, if not, create it
     if (!std::filesystem::exists(dbDirPath))

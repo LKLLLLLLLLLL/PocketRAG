@@ -52,7 +52,7 @@ public:
     static constexpr Nulltype null = Nulltype{}; 
 
 private:
-    std::string tableName;
+    std::string dbName;
     std::filesystem::path dbDirPath; // path to the database dir, will open or create the tablename.db file in this dir
 
     struct LocalData // thread local data for each connection

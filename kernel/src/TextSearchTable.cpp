@@ -24,11 +24,8 @@ namespace jiebaTokenizer
         std::string text(pText, nText);
         std::vector<std::string> words;
 
-        // use search engine mode to tokenize
-        {
-            std::lock_guard<std::mutex> lock(jiebaMutex);
-            jieba->Cut(text, words);
-        }
+        // tokenize
+        jieba->Cut(text, words);
 
         // output each token result
         int offset = 0;
@@ -46,50 +43,6 @@ namespace jiebaTokenizer
 
         return SQLITE_OK;
     }
-
-    // // register jieba tokenizer to specified SQLite database
-    // void register_jieba_tokenizer(SqliteConnection &db)
-    // {
-    //     {
-    //         std::lock_guard<std::mutex> lock(jiebaMutex);
-    //         if (jieba == nullptr) // initialize jieba object
-    //         {
-    //             jieba = new cppjieba::Jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH); // PATH has been defined in the cmakefile
-    //         }
-    //     }
-
-    //     static fts5_tokenizer tokenizer = {
-    //         jieba_tokenizer_create,
-    //         jieba_tokenizer_delete,
-    //         jieba_tokenizer_tokenize};
-
-    //     fts5_api *fts5api = nullptr;
-    //     sqlite3_stmt *stmt = nullptr;
-
-    //     try
-    //     {
-    //         auto statement = db.getStatement("SELECT fts5(?)");
-    //         statement.bind(1, (void *)&fts5api, "fts5_api_ptr"); // bind the fts5_api pointer to the statement
-    //         statement.step();
-
-    //         statement.reset(); // reset the statement for reuse
-    //         if (fts5api == nullptr)
-    //         {
-    //             throw SqliteConnection::Exception{SqliteConnection::Exception::Type::unknownError, "Failed to get FTS5 API pointer"};
-    //         }
-
-    //         // register the tokenizer to the SQLite database
-    //         auto rc = fts5api->xCreateTokenizer(fts5api, "jieba", (void *)jieba, &tokenizer, nullptr);
-    //         if (rc != SQLITE_OK)
-    //         {
-    //             throw SqliteConnection::Exception{SqliteConnection::Exception::Type::unknownError, "Failed to register jieba tokenizer"};
-    //         }
-    //     }
-    //     catch (const SqliteConnection::Exception &e)
-    //     {
-    //         throw SqliteConnection::Exception{SqliteConnection::Exception::Type::unknownError, "Failed to register jieba tokenizer: " + std::string(e.what())};
-    //     }
-    // }
 
     // register jieba tokenizer to specified SQLite database
     void register_jieba_tokenizer(sqlite3 *db)
@@ -146,11 +99,6 @@ namespace jiebaTokenizer
         return jieba;
     }
 
-    void CutForSearch(const std::string &text, std::vector<std::string> &words)
-    {
-        std::lock_guard<std::mutex> lock(jiebaMutex);
-        jieba->CutForSearch(text, words);
-    }
 };
 
 //-----------------------TextSearchTable---------------------
@@ -214,10 +162,12 @@ void TextSearchTable::deleteChunk(int64_t chunkId)
 
 auto TextSearchTable::search(const std::string &query, int limit) -> std::vector<ResultChunk>
 {
-    std::shared_lock readlock(mutex); // lock for reading
+    // add "\" before special characters
+    std::set<std::string> specialChars = {"\\", "'", "\"", ":", "(", ")", "*", "+", "-", ",", "{", "}", "^"};
+
     // tokenize the query using jieba
     std::vector<std::string> keywords;
-    jiebaTokenizer::CutForSearch(query, keywords); 
+    jiebaTokenizer::jieba->CutForSearch(query, keywords); 
 
     if(keywords.empty())
     {
@@ -226,28 +176,42 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
     std::string queryStr;
     for (size_t i = 0; i < keywords.size(); ++i)
     {
-        if (keywords[i] == " " || keywords[i].empty() || keywords[i] == "\n" || keywords[i] == "\r\n" 
-        ) continue; // skip empty keywords
-        if (i > 0) queryStr += " OR ";
-        queryStr += keywords[i];
+        std::string safeKeyword;
+        for (char c : keywords[i]) 
+        {
+            if (std::isalnum(static_cast<unsigned char>(c)) || c > 127) 
+            { 
+                safeKeyword += c;
+            }
+        }
+        
+        if (!safeKeyword.empty()) 
+        {
+            if (!queryStr.empty()) queryStr += " OR ";
+            queryStr += safeKeyword;
+        }
     }
-    // auto queryStr = query; // use the original query string
+    if(queryStr.empty())
+    {
+        return {}; // no keywords, return empty result
+    }
 
     // construct the query stmt
     auto& begin = ResultChunk::HIGHLIGHT_BEGINS;
     auto& end = ResultChunk::HIGHLIGHT_ENDS;
-    auto queryStmt = sqlite.getStatement(
-        "SELECT highlight(" + tableName + ", 0, '" + begin + "', '" + end + "') AS highlighted_content, "
-               "highlight(" + tableName + ", 1, '" + begin + "', '" + end + "') AS highlighted_metadata, "
-               "chunkId, bm25(" + tableName + ") AS score "
-        "FROM " + tableName + " "
-        "WHERE " + tableName + " MATCH ? "
-        "ORDER BY score "  
-        "LIMIT ?"
-    );
+    auto qerySql = 
+    "SELECT highlight(" + tableName + ", 0, '" + begin + "', '" + end + "') AS highlighted_content, "
+            "highlight(" + tableName + ", 1, '" + begin + "', '" + end + "') AS highlighted_metadata, "
+            "chunkId, bm25(" + tableName + ") AS score "
+    "FROM " + tableName + " "
+    "WHERE " + tableName + " MATCH ? "
+    "ORDER BY score "  
+    "LIMIT ?";
+    auto queryStmt = sqlite.getStatement(qerySql);
     queryStmt.bind(1, queryStr);
     queryStmt.bind(2, limit);
 
+    std::shared_lock readlock(mutex); // lock for reading
     std::vector<ResultChunk> resultChunks;
     while(queryStmt.step())
     {
