@@ -1,99 +1,213 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu} = require('electron/main')
+const { app, BrowserWindow, ipcMain, dialog} = require('electron/main')
 const path = require('node:path')
 const {spawn} = require('node:child_process')
+const fs = require('node:fs')
 
-let childProcess
-
-function startEXE() {
-  const exePath = path.join(__dirname, '../../../kernel/bin/PocketRAG_kernel.exe')
-  console.log(`exePath: ${exePath}`)
-  childProcess = spawn(exePath)
-
-  childProcess.on('error', (err) => {
-    console.error('Failed to start child process:', err.message)
-    throw err;
-  })
-
-  childProcess.stdout.on('data', (data) => {
-    console.log(`stdout: ${data}`)
-  })
-
-  childProcess.stdout.on('end', () =>{
-    childProcess.kill()
-    console.log(`the child process has ended`)
-  })
-
-  childProcess.stderr.on('data', (err) => {
-    console.error('stderr:', err.toString())
-  })
-
-  childProcess.on('close', (code) => {
-    console.log(`child process exited with code ${code}`)
-  })
-}
+const kernelPath = path.join(__dirname, '../../../kernel/bin/PocketRAG_kernel.exe')
+const kernel = spawn(kernelPath)
+kernel.on('error', (err) => {
+  console.error('Failed to start kernel:', err)
+  app.quit()
+})
+kernel.stdout.on('data', stdoutListener)
+const windows = new Map()
 
 
-//pattern1:Renderer to main (one-way)
-function handleSetTitle (event, title) {
-    const webContents = event.sender
-    const win = BrowserWindow.fromWebContents(webContents)
-    win.setTitle(title)
-}
+async function stdoutListener (data) {
+  const result = JSON.parse(data.toString())
+  const window = windows.get(result.windowId)
 
-//Pattern 2: Renderer to main (two-way)
-async function handleFileOpen () {
-  const { canceled, filePaths } = await dialog.showOpenDialog({})
-  if (!canceled) {
-    startEXE()
-    if(childProcess && !childProcess.killed) {
-      childProcess.stdin.write(`${filePaths[0]}\n`)
+  if(!window) {
+    throw new Error('Window not found from windowId: ' + result.windowId)
+  }
+  else {
+    switch(result.type) {
+      case 'query':
+        window.webContents.send('queryResult', result.result)
+        break
+      case 'embedding':
+        window.webContents.send('embedding', result.result)
+        break
     }
-    return filePaths[0]
   }
 }
 
+
+async function selectRepo (event) {
+  const {canceled, filePaths} = await dialog.showOpenDialog({properties: ['openDirectory']})
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  
+  const result = {
+    type : 'selectRepo',
+    callback : false,
+    windowId : windowId,
+    repoPath : filePaths[0]
+  }
+
+  if (!canceled) {
+    if(kernel.pid && !kernel.killed) {
+      console.log(JSON.stringify(result))
+      // kernel.stdin.write(JSON.stringify(result) + '\n')
+      return result.repoPath
+    }
+  }
+}
+
+
+async function addFile (event, repoPath) {
+  const {canceled, filePaths} = await dialog.showOpenDialog({})
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  let isexist = false
+
+  if(!canceled){
+    if(kernel.pid && !kernel.killed) {
+      const destPath = path.join(repoPath, path.basename(filePaths[0]))
+      try{
+        fs.accessSync(destPath, fs.constants.F_OK)
+        isexist = true
+      }catch (err){
+        isexist = false
+      }
+      if(isexist) {
+        return '文件已存在，请重命名'
+      }
+      else {
+        try {
+          fs.copyFileSync(filePaths[0], destPath)
+          console.log('add success')
+          const result = {
+            type : 'addFile',
+            callback : false,
+            windowId : windowId,
+            filePath : destPath
+          }
+          console.log(JSON.stringify(result))
+          // kernel.stdin.write(JSON.stringify(result) + '\n')
+          return result.filePath
+        }catch(err) {
+          return '文件添加失败'
+        }
+      }
+    }
+  }
+}
+
+
+async function removeFile (event, repoPath) {
+  const {canceled, filePaths} = await dialog.showOpenDialog({defaultPath : repoPath})
+  if(!canceled) {
+    if(path.dirname(filePaths[0]) !== repoPath){
+      return '文件不在当前仓库中，请重新选择'
+    }
+    else {
+      if(kernel.pid && !kernel.killed) {
+        try {
+          fs.unlinkSync(filePaths[0])
+          console.log('remove success')
+          const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+          const result = {
+            type : 'removeFile',
+            callback : false,
+            windowId : windowId,
+            filePath : filePaths[0]
+          }
+          console.log(JSON.stringify(result))
+          // kernel.stdin.write(JSON.stringify(result) + '\n')
+          return result.filePath
+        }catch(err) {
+          return '文件删除失败'
+        }
+      }
+    }
+  }
+}
+
+
+async function selectEmbeddingModel(event, embeddingModel) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const result = {
+    type : 'selectEmbeddingModel',
+    callback : false,
+    windowId : windowId,
+    embeddingModelPath : embeddingModel
+  }
+  if(kernel.pid && !kernel.killed) {
+    try{
+      console.log(JSON.stringify(result))
+      //kernel.stdin.write(JSON.stringify(result) + '\n')
+    }catch(err) {
+      return '模型选择失败'
+    }
+  }
+}
+
+function query(event, query) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const result = {
+    type : 'query',
+    callback : true,
+    windowId : windowId,
+    content : query
+  }
+  if(kernel.pid && !kernel.killed) {
+    console.log(JSON.stringify(result))
+    // kernel.stdin.write(JSON.stringify(result) + '\n')
+  }
+}
+
+
 function createWindow () {
+  const windowId = Date.now()
   const mainWindow = new BrowserWindow({
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
     }
   })
 
-  //Pattern 3: Main to Renderer
-  const menu = Menu.buildFromTemplate([
-    {
-      label: app.name,
-      submenu: [
-        {
-          click: () => mainWindow.webContents.send('update-counter', 1),
-          label: 'Increment'
-        },
-        {
-          click: () => mainWindow.webContents.send('update-counter', -1),
-          label: 'Decrement'
-        }
-      ]
-    }
-  ])
-  Menu.setApplicationMenu(menu)
-
   mainWindow.loadFile('electron/src/renderer/index.html')
+
+  windows.set(windowId, mainWindow)
+
+  mainWindow.on('closed', () => {
+    windows.delete(windowId)
+  })
 }
 
+
+function getWindowId (window) {
+  for(const [id, win] of windows.entries()) {
+    if(win === window) {
+      return id
+    }
+  }
+  return null
+}
+
+
 app.whenReady().then(() => {
-  ipcMain.on('set-title', handleSetTitle)
-  ipcMain.handle('dialog:openFile', handleFileOpen)
-  ipcMain.on('counter-value', (_event, value) => {
-    console.log(value) // will print value to Node console
-  })
+  ipcMain.handle('createNewWindow', createWindow)
+  ipcMain.handle('selectRepo', selectRepo)
+  ipcMain.handle('addFile', addFile)
+  ipcMain.handle('removeFile', removeFile)
+  ipcMain.handle('selectEmbeddingModel', selectEmbeddingModel)
+  ipcMain.on('query', query)
 
   createWindow()
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+
+  app.on('window-all-closed', function () {
+    if (process.platform !== 'darwin') app.quit()
+  })
 })
 
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit()
+
+app.on('quit', () => {
+  if (kernel.pid && !kernel.killed) {
+    kernel.kill();
+    kernel.removeAllListeners('error')
+    console.log('Kernel process killed and listeners removed')
+  }
 })

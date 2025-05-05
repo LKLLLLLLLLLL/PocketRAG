@@ -1,8 +1,12 @@
 const { contextBridge, ipcRenderer} = require('electron/renderer')
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  setTitle: (title) => ipcRenderer.send('set-title', title),
-  openFile: () => ipcRenderer.invoke('dialog:openFile'),
-  onUpdateCounter: (callback) => ipcRenderer.on('update-counter', (_event, value) => callback(value)),
-  counterValue: (value) => ipcRenderer.send('counter-value', value)
+  selectRepo: () => ipcRenderer.invoke('selectRepo'),
+  addFile: (repoPath) => ipcRenderer.invoke('addFile', repoPath),
+  removeFile: (repoPath) => ipcRenderer.invoke('removeFile', repoPath),
+  selectEmbeddingModel: (embeddingModel) => ipcRenderer.invoke('selectEmbeddingModel', embeddingModel),
+  query: (query) => ipcRenderer.send('query', query),
+  oncequeryResult: (callback) => ipcRenderer.once('queryResult', (_, result) => callback(result)),
+  onembedding: (callback) => ipcRenderer.on('embedding', (_, result) => callback(result)),
+  createNewWindow: () => ipcRenderer.invoke('createNewWindow')
 })

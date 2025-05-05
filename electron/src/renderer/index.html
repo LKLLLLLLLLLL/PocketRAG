@@ -2,19 +2,28 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
-    <title>Hello World!</title>
+    <title></title>
   </head>
   <body>
-    Title: <input id="title"/>
-    <button id="btn1" type="button">Set</button>
     <p>
-      <button type="button" id="btn2">Open a File</button>
-      File path: <strong id="filePath"></strong>
+      <button id = "newWindow">新建窗口</button>
     </p>
-    <p>Current value: <strong id="counter">0</strong></p>
-    
+    <p>
+      <button id = "repo">打开文件夹</button>
+      <button id = "add">添加文件</button>
+      <button id = "remove">删除文件</button>
+    </p>
+    <p>
+      <select id = "embeddingModel">
+        <option value = "F:\zxie\work\PocketRAG\models\bge-m3" selected>bge-m3</option>
+      </select>
+      <button id = "embeddingModelSelect">确认模型选择</button>
+    </p>
+    <p>
+      <input type = "text" id = "query" placeholder="请输入查询内容">
+      <button id = "querybtn">查询</button>
+    </p>
     <script src="./index.js"></script>
   </body>
 </html>
