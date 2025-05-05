@@ -1,22 +1,82 @@
-const setButton = document.getElementById('btn1')
-const titleInput = document.getElementById('title')
-setButton.addEventListener('click', () => {
-  const title = titleInput.value
-  window.electronAPI.setTitle(title)
+const repo = document.getElementById('repo')
+const add = document.getElementById('add')
+const remove = document.getElementById('remove')
+const embeddingModelSelect = document.getElementById('embeddingModelSelect')
+const querybtn = document.getElementById('querybtn')
+let currentRepo = undefined
+let currentEmbeddingModel = undefined
+
+
+repo.addEventListener('click', async () => {
+  let temp = await window.electronAPI.selectRepo()
+  if(temp !== undefined) currentRepo = temp
+  console.log(currentRepo)
 })
 
-const btn = document.getElementById('btn2')
-const filePathElement = document.getElementById('filePath')
-btn.addEventListener('click', async () => {
-  const filePath = await window.electronAPI.openFile()
-  filePathElement.innerText = filePath
+
+add.addEventListener('click', async () => {
+  if(currentRepo !== undefined) {
+    let file = await window.electronAPI.addFile(currentRepo)
+    if(file === '文件已存在，请重命名'){
+      alert(file)
+      file = undefined
+    }
+    else if (file === '文件添加失败'){
+      alert(file)
+      file = undefined
+    }
+    console.log(file)
+  }
+  else {
+    alert('请先选择一个仓库')
+  }
 })
 
-const counter = document.getElementById('counter')
-window.electronAPI.onUpdateCounter((value) => {
-  const oldValue = Number(counter.innerText)
-  const newValue = oldValue + value
-  counter.innerText = newValue.toString()
-  window.electronAPI.counterValue(newValue)
+
+remove.addEventListener('click', async() => {
+  if(currentRepo !== undefined) {
+    let file = await window.electronAPI.removeFile(currentRepo)
+    if(file === '文件不在当前仓库中，请重新选择' || file === '文件删除失败'){
+      alert(file)
+      file = undefined
+    }
+    console.log(file)
+  }
+  else {
+    alert('请先选择一个仓库')
+  }
 })
 
+
+embeddingModelSelect.addEventListener('click', async() => {
+  if(currentRepo !== undefined) {
+    const embeddingModel = document.getElementById('embeddingModel')
+    let err = await window.electronAPI.selectEmbeddingModel(embeddingModel.value)
+    if(err) alert(err)
+    else currentEmbeddingModel = embeddingModel.innerText
+    console.log(currentEmbeddingModel)
+  }
+  else {
+    alert('请先选择一个仓库')
+  }
+})
+
+
+const queryHandler = async () => {
+  querybtn.removeEventListener('click', queryHandler)
+
+  const query = document.getElementById('query').value
+
+  if(currentRepo !== undefined && currentEmbeddingModel !== undefined && query !== '') {
+    const result = await window.electronAPI.query(query)
+    if(result === '查询失败') alert(result)
+    else console.log(result)
+  }
+  else if(currentRepo === undefined) alert('请先选择一个仓库')
+  else if(currentEmbeddingModel === undefined)alert('请先选择一个嵌入模型')
+  else alert('查询不能为空')
+
+  querybtn.addEventListener('click', queryHandler)
+}
+
+querybtn.addEventListener('click', queryHandler)
