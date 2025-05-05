@@ -90,11 +90,11 @@ void Session::initializeEmbedding()
         // create embedding model
         auto embeddingModel = EmbeddingModel(modelPath, ONNXModel::device::cuda);
         int dimension = embeddingModel.getDimension();
-        Embedding embedding{id, name, dimension, maxInputLength, dimension, std::make_shared<EmbeddingModel>(embeddingModel)};
-        embeddings.push_back(std::move(embedding));
+        auto embedding = std::make_shared<Embedding>(id, name, dimension, maxInputLength, dimension, std::make_shared<EmbeddingModel>(embeddingModel));
+        embeddings.push_back(embedding);
 
         // create vector table for this embedding model
-        auto vectorTable = VectorTable(dbPath.string(), "_vector_" + name, *sqlite, dimension);
+        auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), "_vector_" + name, *sqlite, dimension);
         vectorTables.push_back(std::move(vectorTable));
     }
 }
@@ -170,8 +170,7 @@ void Session::refreshDoc(std::function<void(std::string, double)> callback)
     // reconstruct each vector table
     for(auto& vectorTable : vectorTables)
     {
-        vectorTable.reconstructFaissIndex();
-        vectorTable.writeToDisk();
+        vectorTable->reconstructFaissIndex();
     }
 }
 
@@ -207,9 +206,9 @@ auto Session::search(const std::string &query, int limit) -> std::vector<std::ve
 
         // 1. get results from vector table
         // get embedding for the query
-        auto queryVector = embedding.model->embed(query);
+        auto queryVector = embedding->model->embed(query);
         // query the most similar vectors
-        auto vectorResults = vectorTable.querySimlar(queryVector, vectorLimit);
+        auto vectorResults = vectorTable->search(queryVector, vectorLimit);
 
         // 2. merge results and sort by new score
         std::vector<Result> mergeResults;

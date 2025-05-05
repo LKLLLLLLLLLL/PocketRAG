@@ -35,8 +35,8 @@ private:
 
     std::shared_ptr<SqliteConnection> sqlite;
     std::shared_ptr<TextSearchTable> textTable;
-    std::vector<VectorTable> vectorTables;
-    std::vector<Embedding> embeddings;
+    std::vector<std::shared_ptr<VectorTable>> vectorTables;
+    std::vector<std::shared_ptr<Embedding>> embeddings;
 
     std::queue<DocPipe> docqueue; // doc queue for processing
 

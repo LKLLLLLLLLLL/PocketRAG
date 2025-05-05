@@ -77,8 +77,8 @@ private:
 
     SqliteConnection& sqlite;
     TextSearchTable& tTable;
-    std::vector<Embedding>& embeddings; // embedding model, can be multiple models
-    std::vector<VectorTable> &vTable;       // vector table, one table has one embedding model
+    std::vector<std::shared_ptr<Embedding>> &embeddings; // embedding model, can be multiple models
+    std::vector<std::shared_ptr<VectorTable>> &vTable;       // vector table, one table has one embedding model
 
     static const int maxUncheckedTime = 60 * 60 * 24; // max unchecked time, second, 1 day
 
@@ -95,7 +95,7 @@ private:
     void updateToTable(Progress& progress);
 
     // update one embedding to text search table and vector table
-    void updateOneEmbedding(const std::string &content, Embedding &embedding, VectorTable &vectortable, Progress& progress);
+    void updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress);
 
     // helper functions
     // calculate hash of the document
@@ -105,7 +105,7 @@ private:
     void updateSqlite(std::string hash = "") const;
 
 public:
-    DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<VectorTable> &vTable, std::vector<Embedding> &embeddings);
+    DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<std::shared_ptr<VectorTable>> &vTable, std::vector<std::shared_ptr<Embedding>> &embeddings);
     ~DocPipe() = default; 
 
     DocPipe(const DocPipe&) = delete; // disable copy constructor

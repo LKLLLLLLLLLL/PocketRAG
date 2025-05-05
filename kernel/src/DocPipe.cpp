@@ -13,7 +13,7 @@
 #include "ONNXModel.h"
 
 //-------------------------------------DocPipe-------------------------------------//
-DocPipe::DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<VectorTable> &vTable, std::vector<Embedding> &embeddings) : docPath(docPath), sqlite(sqlite), vTable(vTable), tTable(tTable), embeddings(embeddings)
+DocPipe::DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<std::shared_ptr<VectorTable>> &vTable, std::vector<std::shared_ptr<Embedding>> &embeddings) : docPath(docPath), sqlite(sqlite), vTable(vTable), tTable(tTable), embeddings(embeddings)
 {
     // extract docName from docPath
     docName = docPath.filename().string();
@@ -178,7 +178,7 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     // delete from vector table
     for(auto &vectorTable : vTable) // tranverse each vector table
     {
-        vectorTable.removeVector(chunkIds); // delete batch of chunk from vector table
+        vectorTable->removeVector(chunkIds); // delete batch of chunk from vector table
     }
 
     trans.commit(); // commit transaction
@@ -335,12 +335,12 @@ void DocPipe::updateToTable(Progress& progress)
 }
 
 // a slowly version, can be improved by adding batch process
-void DocPipe::updateOneEmbedding(const std::string &content, Embedding &embedding, VectorTable &vectortable, Progress& progress)
+void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress& progress)
 {
     // 1. split content to chunks
     std::vector<Chunker::Chunk> newChunks;
     {
-        Chunker chunker(content, docType, embedding.maxInputLength); // create chunker
+        Chunker chunker(content, docType, embedding->maxInputLength); // create chunker
         newChunks = chunker.getChunks();           // get chunks from chunker
     }
     progress.updateSubprocess(0.01); 
@@ -357,7 +357,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, Embedding &embeddin
     auto sql = "SELECT chunk_id, chunk_index, content_hash FROM chunks WHERE doc_id = ? AND embedding_id = ?;";
     auto stmt = sqlite.getStatement(sql);
     stmt.bind(1, docId);
-    stmt.bind(2, embedding.embeddingId);
+    stmt.bind(2, embedding->embeddingId);
     while (stmt.step())
     {
         chunkRow row;
@@ -411,7 +411,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, Embedding &embeddin
             throw Exception(Exception::Type::sqlError, "Failed to delete chunk from database: " + std::to_string(chunkid));
         
         // delete vector from vector table
-        vectortable.removeVector(chunkid); // remove vector from vector table
+        vectortable->removeVector(chunkid); // remove vector from vector table
 
         // delete text from text table
         tTable.deleteChunk(chunkid); // delete text from text table
@@ -449,7 +449,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, Embedding &embeddin
         auto sql = "INSERT INTO chunks (doc_id, embedding_id, chunk_index, content_hash) VALUES (?, ?, ?, ?);";
         auto stmt = sqlite.getStatement(sql); // prepare statement
         stmt.bind(1, docId); // bind doc id
-        stmt.bind(2, embedding.embeddingId); // bind embedding id
+        stmt.bind(2, embedding->embeddingId); // bind embedding id
         stmt.bind(3, index); // bind chunk index
         stmt.bind(4, hash); // bind content hash
         stmt.step(); // execute statement
@@ -459,8 +459,8 @@ void DocPipe::updateOneEmbedding(const std::string &content, Embedding &embeddin
         auto chunkid = sqlite.getLastInsertId(); // get chunk id
 
         // add chunk to vector table
-        auto embedVector = embedding.model->embed(chunk.content); // get vector from embedding
-        vectortable.addVector(chunkid, embedVector); // add vector to vector table
+        auto embedVector = embedding->model->embed(chunk.content); // get vector from embedding
+        vectortable->addVector(chunkid, embedVector); // add vector to vector table
 
         // add chunk to text table
         tTable.addChunk({chunk.content, chunk.metadata, chunkid}); // add text to text table

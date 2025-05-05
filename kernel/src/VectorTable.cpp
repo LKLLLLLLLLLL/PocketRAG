@@ -13,24 +13,13 @@
 #include <faiss/index_io.h>
 #include <faiss/index_factory.h>
 
-std::set<std::filesystem::path> VectorTable::pathSet;
-std::mutex VectorTable::faissMutex;
-
-VectorTable::VectorTable(const std::string &dbPath, const std::string &tableName, SqliteConnection &sqlite, int dim) : tableName(tableName), sqlite(sqlite)
+VectorTable::VectorTable(std::filesystem::path dbDirPath, const std::string &tableName, SqliteConnection &sqliteConnection, int dim) : tableName(tableName), sqlite(sqliteConnection)
 {
-    dbFullPath = std::filesystem::path(dbPath) / (tableName + ".faiss");
-
-    // check if the database path is already opened
-    {
-        std::lock_guard<std::mutex> lock(faissMutex); // lock the mutex to protect pathSet
-        if (pathSet.find(dbFullPath) != pathSet.end())
-            throw Exception{Exception::Type::openError, "Database path already opened: " + dbFullPath.string()};
-        pathSet.insert(dbFullPath); // add the database path to the set
-    }
+    auto dbFullPath = std::filesystem::path(dbDirPath) / (tableName + ".faiss");
 
     // check if the directory exists, if not, create it
-    if (!std::filesystem::exists(dbPath))
-        std::filesystem::create_directories(dbPath);
+    if (!std::filesystem::exists(dbDirPath))
+        std::filesystem::create_directories(dbDirPath);
 
     // initialize SQLite table
     initializeSQLiteTable();
@@ -74,6 +63,7 @@ VectorTable::VectorTable(const std::string &dbPath, const std::string &tableName
 
 void VectorTable::initializeSQLiteTable()
 {
+    std::unique_lock<std::shared_mutex> lock(mutex); 
     auto createSQL = 
         "CREATE TABLE IF NOT EXISTS " + tableName + " ("
         "id INTEGER PRIMARY KEY, " // primary key
@@ -91,14 +81,10 @@ VectorTable::~VectorTable()
         reconstructFaissIndex();
         writeToDisk();
     }
-    {
-        std::lock_guard<std::mutex> lock(faissMutex); 
-        pathSet.erase(dbFullPath); // remove the database path from the set
-    }
 }
 
 // a slowly version
-std::pair<std::vector<faiss::idx_t>, std::vector<float>> VectorTable::querySimlar(const std::vector<float> &queryVector, int maxResultCount) const
+std::pair<std::vector<faiss::idx_t>, std::vector<float>> VectorTable::search(const std::vector<float> &queryVector, int maxResultCount) const
 {
     if(queryVector.size() != dimension)
         throw Exception{Exception::Type::wrongArg, "Query vector dimension does not match the VectorTable dimension."};
@@ -110,6 +96,8 @@ std::pair<std::vector<faiss::idx_t>, std::vector<float>> VectorTable::querySimla
     //search from index
     auto resultIndex = std::vector<faiss::idx_t>(maxResultCount);
     auto resultDistance = std::vector<float>(maxResultCount);
+    
+    std::shared_lock<std::shared_mutex> readlock(mutex); 
     faissIndex->search(1, queryVector.data(), maxResultCount, resultDistance.data(), resultIndex.data());
 
     // check if the result's valid flag and deleted flag in SQLite table
@@ -137,6 +125,8 @@ std::pair<std::vector<faiss::idx_t>, std::vector<float>> VectorTable::querySimla
         auto deleted = queryStmt.get<int>(2);
         idToFlagMap[id] = {valid != 0, deleted != 0};
     }
+    readlock.unlock(); // unlock the read lock
+
     for(int i = 0; i < resultIndex.size(); i++) // filter unexpected results
     {
         auto id = resultIndex[i];
@@ -156,6 +146,7 @@ std::vector<float> VectorTable::getVectorFromId(faiss::idx_t id) const
     if(id < 0)
         throw Exception{Exception::Type::wrongArg, "Id is out of range."};
 
+    std::shared_lock<std::shared_mutex> readlock(mutex); // lock the mutex for reading
     // check if the vector's valid flag and deleted flag in SQLite table
     auto querySQL = "SELECT valid, deleted FROM " + tableName + " WHERE id = ?;";
     auto queryStmt = sqlite.getStatement(querySQL);
@@ -180,13 +171,13 @@ int VectorTable::writeToDisk()
         return 0; // no need to write to disk
 
     // avoid overwriting the old index file while writing the new one
-    std::filesystem::path newFile = dbFullPath.parent_path() / (tableName + ".faiss.new");
+    std::filesystem::path newFile = dbDirPath / (tableName + ".faiss.new");
     faiss::write_index(faissIndex, newFile.string().c_str());
     // remove old index file and rename the new one
-    std::filesystem::remove(dbFullPath);
-    std::filesystem::rename(newFile, dbFullPath);
+    std::filesystem::remove(dbDirPath / (tableName + ".faiss"));
+    std::filesystem::rename(newFile, dbDirPath / (tableName + ".faiss"));
 
-    // change falg in SQLite table
+    // change flag in SQLite table
     auto updateSQL = "UPDATE " + tableName + 
         " SET writeback = 1"
         " WHERE valid = 1 AND writeback = 0;";
@@ -201,6 +192,7 @@ void VectorTable::addVector(idx_t id, const std::vector<float> &vector)
     if(vector.size() != dimension)
         throw Exception{Exception::Type::wrongArg, "Vector dimension does not match the VectorTable dimension."};
 
+    std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing 
     // check if the id exists in SQLite table, if exists, only update faiss index
     auto querySQL = "SELECT * FROM " + tableName + " WHERE id = ?;";
     auto queryStmt = sqlite.getStatement(querySQL);
@@ -257,6 +249,7 @@ void VectorTable::addVector(const std::vector<idx_t> &ids, const std::vector<std
     if (ids.size() != vectors.size())
         throw Exception{Exception::Type::wrongArg, "Number of IDs does not match number of vectors."};
 
+    std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
     // 1. check each id, distinguish update and add
     std::vector<bool> updateFlags(vectors.size(), false); 
     auto querySQL = "SELECT id, valid, deleted FROM " + tableName + " WHERE id = ?;";
@@ -333,6 +326,7 @@ VectorTable::idx_t VectorTable::removeVector(idx_t id)
     if (id < 0)
         throw Exception{Exception::Type::wrongArg, "Id is out of range."};
     
+    std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
     // sign the vector by valid = false in SQLite table
     auto updateSQL = "UPDATE " + tableName + " SET deleted = 1 WHERE id = ?;";
     auto updateStmt = sqlite.getStatement(updateSQL);
@@ -358,6 +352,7 @@ std::vector<VectorTable::idx_t> VectorTable::removeVector(const std::vector<Vect
     if (ids.empty())
         return {}; // no ids to remove
 
+    std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
     // sign the vector by valid = false in SQLite table
     auto trans = sqlite.beginTransaction(); // begin transaction
     try
@@ -398,6 +393,7 @@ int VectorTable::reconstructFaissIndex()
     if(sqlite.inTransaction())
         return 0; // cannot reconstruct, need to commit transaction first
     
+    std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
     // get all valid idx from SQL table
     auto querySQL = "SELECT id FROM " + tableName + " WHERE valid = 1 AND deleted = 0;";
     auto queryStmt = sqlite.getStatement(querySQL);
@@ -436,6 +432,7 @@ int VectorTable::reconstructFaissIndex()
 
 std::vector<VectorTable::idx_t> VectorTable::getInvalidIds() const
 {
+    std::shared_lock<std::shared_mutex> readlock(mutex); // lock the mutex for reading
     // get all invalid ids from SQL table
     auto querySQL = "SELECT id FROM " + tableName + " WHERE valid = 0 AND deleted = 0;";
     auto queryStmt = sqlite.getStatement(querySQL);

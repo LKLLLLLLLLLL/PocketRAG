@@ -1,4 +1,4 @@
-# pragma once
+#pragma once
 #include <string>
 #include <vector>
 #include <filesystem>
@@ -8,20 +8,35 @@
 #include <set>
 #include <mutex>
 #include <stack>
+#include <thread>
+#include <unordered_map>
 
 #include <sqlite3.h>
+
+namespace 
+{
+    struct SqliteInitializer
+    {
+        SqliteInitializer()
+        {
+            sqlite3_config(SQLITE_CONFIG_SERIALIZED); // enable thread safety mode for SQLite
+        }
+    };
+    static SqliteInitializer sqliteInitializer; // static initializer, run initialize once at the start of the program
+};
+
 
 /*
 This class manages a SQLite database connection.
 Gurantee that every database path is unique.
-MAKE SURE each thread has its own SqliteConnection object.
+It will automatically create new sqlite connection for each thread.
 */
 class SqliteConnection
 {
 public:
     struct Exception: std::exception
     {
-        enum class Type{openError, executeError, transactionError, fatalError, unknownError};
+        enum class Type{openError, executeError, transactionError, fatalError, unknownError, threadError};
         Type type;
         std::string message; 
 
@@ -37,38 +52,67 @@ public:
     static constexpr Nulltype null = Nulltype{}; 
 
 private:
-    sqlite3 *sqliteDB = nullptr;
-    std::string dbPath; // path to store databases
     std::string tableName;
-    std::filesystem::path dbFullPath; // full path to the database file, generated from dbPath and tableName
+    std::filesystem::path dbDirPath; // path to the database dir, will open or create the tablename.db file in this dir
 
-    std::stack<std::string> transactionStack; // stack to manage transactions, only store activate transactions
+    struct LocalData // thread local data for each connection
+    {
+        sqlite3 *sqliteDB = nullptr;
+        std::stack<std::string> transactionStack;
+    };
+    
+    class LocalDataManager;
+    friend class LocalDataManager; // allow localDataManager to access private members
+
+    static thread_local LocalDataManager dataManager; // thread local data manager for each connection
+
+    void openSqlite(LocalData& data); // open SQLite database connection and initialize sqlite pointer
 
 public:
-    SqliteConnection(const std::string &dbPath, const std::string &tableName);
+    SqliteConnection(const std::string &dbDirPath, const std::string &tableName);
     ~SqliteConnection();
 
     SqliteConnection(const SqliteConnection&) = delete; // disable copy constructor
     SqliteConnection& operator=(const SqliteConnection&) = delete; // disable copy assignment operator
 
+    SqliteConnection(SqliteConnection &&other) = delete; // disable move constructor
+    SqliteConnection &operator=(SqliteConnection &&other) = delete; // disable move assignment operator
+
     // execute a sample SQL statement, return changes count
     int execute(const std::string &sql);
 
     // get the last insert id from the database
-    int64_t getLastInsertId() const;
+    int64_t getLastInsertId();
 
     // prepare a statement for execution
     Statement getStatement(const std::string &sql);
 
     Transaction beginTransaction(); // begin a transaction
 
-    bool inTransaction() const { return !transactionStack.empty(); } // check if in transaction
+    bool inTransaction(); // check if in transaction
+};
+
+
+/*
+This class manage tread local data for each connection
+*/
+class SqliteConnection::LocalDataManager 
+{
+private:
+    std::unordered_map<SqliteConnection *, LocalData> connMap{}; // map: connection -> local data
+public:
+    LocalData &get(SqliteConnection *conn); // return or create local data for this connection and thread
+
+    ~LocalDataManager(); // when this thread closed, clean up all connections
+
+    void removeConnection(SqliteConnection *conn); // interface for SqliteConnection to remove itself from map
 };
 
 
 /*
 This class wraps a SQLite statement.
 It can be used to execute SQL statements and fetch results.
+Can only be created and used in same thread.
 */
 class SqliteConnection::Statement
 {
@@ -87,6 +131,14 @@ private:
     Statement(sqlite3 *db, const std::string &sql);
     friend class SqliteConnection; 
 
+    std::thread::id threadId; // thread id of the connection
+
+    void checkThread() const // check if the statement is used in the same thread
+    {
+        if (threadId != std::this_thread::get_id())
+            throw Exception{Exception::Type::threadError, "SQLite statement is not used in the same thread."};
+    }
+
 public:
     ~Statement();
 
@@ -101,12 +153,14 @@ public:
     // handle null value
     void bind(int index, const Nulltype &)
     {
+        checkThread();
         sqlite3_bind_null(stmt, index);
     }
     // handle other types
     template <typename T>
     void bind(int index, T value)
     {
+        checkThread();
         if constexpr (std::is_same_v<T, int>)
             sqlite3_bind_int(stmt, index, value);
         else if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, size_t>)
@@ -121,17 +175,8 @@ public:
     // bind a pointer to the statement, requires a name to identify the pointer
     void bind(int index, void* ptr, const char* name)
     {
+        checkThread();
         sqlite3_bind_pointer(stmt, index, ptr, name, nullptr);
-    }
-
-    // execute the statement and return the result
-    // return false if statement is done, true if there are more rows to fetch
-    bool step();
-    
-    // return the number of changes made by the last executed statement
-    int changes() const
-    {
-        return sqlite3_changes(sqlite3_db_handle(stmt)); // get changes count from the database handle
     }
 
     // get execute result
@@ -139,6 +184,7 @@ public:
     template <typename T>
     T get(int index) const
     {
+        checkThread();
         if(!has_result)
             throw Exception{Exception::Type::executeError, "No result available."};
         if constexpr (std::is_same_v<T, int>)
@@ -156,27 +202,28 @@ public:
             static_assert(std::is_same_v<T, void>, "Unsupported type for SQLite retrieval.");
     }
 
+    // execute the statement and return the result
+    // return false if statement is done, true if there are more rows to fetch
+    bool step();
+
+    // return the number of changes made by the last executed statement
+    int changes() const;
+
     // get the number of columns in the result set
-    int getColumnCount() const
-    {
-        return sqlite3_column_count(stmt);
-    }
+    int getColumnCount() const;
 
     // get the name of the column at the specified index
-    std::string getColumnName(int col) const
-    {
-        auto name = sqlite3_column_name(stmt, col);
-        return name ? name : "";
-    }
+    std::string getColumnName(int col) const;
 
     // reset result for next step
-    void reset() {sqlite3_reset(stmt);}
+    void reset();
 };
 
 
 /*
 This class manages a SQLite transaction.
 Can only be created by SqliteConnection.
+Can only be created and used in the same thread.
 */
 class SqliteConnection::Transaction
 {
@@ -188,9 +235,13 @@ private:
     // else it represents the name of savepoint, eg."savepoint_1"
     std::string transactionName; // name of the transaction
 
+    std::thread::id threadId; // thread id of the connection
+
+    void checkThread() const; // check if the transaction is used in the same thread
+
     // only allow SqliteConnection to create Transaction
-    Transaction(SqliteConnection &sqlite, std::string transactionName) : sqlite(sqlite), isActive(true), transactionName(transactionName) {}
-    friend class SqliteConnection; 
+    Transaction(SqliteConnection &sqlite, std::string transactionName) : sqlite(sqlite), isActive(true), transactionName(transactionName), threadId(std::this_thread::get_id()) {}
+    friend class SqliteConnection;
 
 public:
     ~Transaction();

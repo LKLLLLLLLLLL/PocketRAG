@@ -1,6 +1,7 @@
 # pragma once
 #include <string>
 #include <vector>
+#include <shared_mutex>
 #include <cppjieba/Jieba.hpp>
 
 #include "SqliteConnection.h"
@@ -8,6 +9,7 @@
 /*
 This class manages a Sqlite FTS5 table for text search.
 This implementation will store full content and metadata in the database, may not be suitable for large documents.
+If each tread has unique sqliteconnection, it is safe to use this class in multiple threads. 
 
 Manage a Sqlite FTS5 table with the following schema:
 CREATE VIRTUAL TABLE IF NOT EXISTS tableName USING fts5(
@@ -53,6 +55,8 @@ private:
     SqliteConnection &sqlite; // store reference to SqliteConnection 
     std::string tableName;
 
+    mutable std::shared_mutex mutex; // mutex for thread safety
+
     cppjieba::Jieba *jieba = nullptr; // Global Jieba tokenizer instance
 
 public:
@@ -61,6 +65,9 @@ public:
 
     TextSearchTable(const TextSearchTable&) = delete; // disable copy constructor
     TextSearchTable& operator=(const TextSearchTable&) = delete; // disable copy assignment operator
+
+    TextSearchTable(TextSearchTable &&other) = delete; // disable move constructor
+    TextSearchTable &operator=(TextSearchTable &&other) = delete; // disable move assignment operator
 
     // add a chunk to the table, if exists the same row with chunkId, will update the row
     void addChunk(const Chunk &chunk);
