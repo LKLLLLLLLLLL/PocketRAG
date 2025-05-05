@@ -1,3 +1,4 @@
+const newWindowBtn = document.getElementById('newWindow')
 const repo = document.getElementById('repo')
 const add = document.getElementById('add')
 const remove = document.getElementById('remove')
@@ -5,6 +6,15 @@ const embeddingModelSelect = document.getElementById('embeddingModelSelect')
 const querybtn = document.getElementById('querybtn')
 let currentRepo = undefined
 let currentEmbeddingModel = undefined
+
+window.electronAPI.onembedding((result) => {
+  console.log(result)
+})
+
+
+newWindowBtn.addEventListener('click', async () => {
+  await window.electronAPI.createNewWindow()
+})
 
 
 repo.addEventListener('click', async () => {
@@ -64,13 +74,14 @@ embeddingModelSelect.addEventListener('click', async() => {
 
 const queryHandler = async () => {
   querybtn.removeEventListener('click', queryHandler)
-
+  
   const query = document.getElementById('query').value
 
   if(currentRepo !== undefined && currentEmbeddingModel !== undefined && query !== '') {
-    const result = await window.electronAPI.query(query)
-    if(result === '查询失败') alert(result)
-    else console.log(result)
+    window.electronAPI.query(query)
+    window.electronAPI.onqueryResult((result) => {
+      console.log(result)
+    })
   }
   else if(currentRepo === undefined) alert('请先选择一个仓库')
   else if(currentEmbeddingModel === undefined)alert('请先选择一个嵌入模型')

@@ -9,18 +9,44 @@ kernel.on('error', (err) => {
   console.error('Failed to start kernel:', err)
   app.quit()
 })
+kernel.stdout.on('data', stdoutListener)
+const windows = new Map()
 
 
-async function selectRepo () {
+async function stdoutListener (data) {
+  const result = JSON.parse(data.toString())
+  const window = windows.get(result.windowId)
+
+  if(!window) {
+    throw new Error('Window not found from windowId: ' + result.windowId)
+  }
+  else {
+    switch(result.type) {
+      case 'query':
+        window.webContents.send('queryResult', result.result)
+        break
+      case 'embedding':
+        window.webContents.send('embedding', result.result)
+        break
+    }
+  }
+}
+
+
+async function selectRepo (event) {
   const {canceled, filePaths} = await dialog.showOpenDialog({properties: ['openDirectory']})
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   
   const result = {
     type : 'selectRepo',
+    callback : false,
+    windowId : windowId,
     repoPath : filePaths[0]
   }
 
   if (!canceled) {
     if(kernel.pid && !kernel.killed) {
+      console.log(JSON.stringify(result))
       // kernel.stdin.write(JSON.stringify(result) + '\n')
       return result.repoPath
     }
@@ -28,14 +54,14 @@ async function selectRepo () {
 }
 
 
-async function addFile (_, repoPath) {
+async function addFile (event, repoPath) {
   const {canceled, filePaths} = await dialog.showOpenDialog({})
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   let isexist = false
 
   if(!canceled){
     if(kernel.pid && !kernel.killed) {
       const destPath = path.join(repoPath, path.basename(filePaths[0]))
-      // console.log(destPath, filePaths[0])
       try{
         fs.accessSync(destPath, fs.constants.F_OK)
         isexist = true
@@ -51,8 +77,11 @@ async function addFile (_, repoPath) {
           console.log('add success')
           const result = {
             type : 'addFile',
+            callback : false,
+            windowId : windowId,
             filePath : destPath
           }
+          console.log(JSON.stringify(result))
           // kernel.stdin.write(JSON.stringify(result) + '\n')
           return result.filePath
         }catch(err) {
@@ -64,9 +93,8 @@ async function addFile (_, repoPath) {
 }
 
 
-async function removeFile (_, repoPath) {
+async function removeFile (event, repoPath) {
   const {canceled, filePaths} = await dialog.showOpenDialog({defaultPath : repoPath})
-  // console.log(path.dirname(filePaths[0]))
   if(!canceled) {
     if(path.dirname(filePaths[0]) !== repoPath){
       return '文件不在当前仓库中，请重新选择'
@@ -76,10 +104,14 @@ async function removeFile (_, repoPath) {
         try {
           fs.unlinkSync(filePaths[0])
           console.log('remove success')
+          const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
           const result = {
             type : 'removeFile',
+            callback : false,
+            windowId : windowId,
             filePath : filePaths[0]
           }
+          console.log(JSON.stringify(result))
           // kernel.stdin.write(JSON.stringify(result) + '\n')
           return result.filePath
         }catch(err) {
@@ -91,64 +123,74 @@ async function removeFile (_, repoPath) {
 }
 
 
-async function selectEmbeddingModel(_, embeddingModel) {
+async function selectEmbeddingModel(event, embeddingModel) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   const result = {
     type : 'selectEmbeddingModel',
+    callback : false,
+    windowId : windowId,
     embeddingModelPath : embeddingModel
   }
   if(kernel.pid && !kernel.killed) {
     try{
+      console.log(JSON.stringify(result))
       //kernel.stdin.write(JSON.stringify(result) + '\n')
-      console.log('select embedding model: ' + embeddingModel)
     }catch(err) {
       return '模型选择失败'
     }
   }
 }
 
-async function query(_, query) {
+function query(event, query) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   const result = {
     type : 'query',
+    callback : true,
+    windowId : windowId,
     content : query
   }
   if(kernel.pid && !kernel.killed) {
-    try{
-      // kernel.stdin.write(JSON.stringify(result) + '\n')
-      // const data = await new Promise((resolve, reject) => {
-      //   const listener = (data) => {
-      //     resolve(data.toString())
-      //   }
-      //   const errListener = (err) => {reject(err)}
-      //   kernel.stdout.once('data',listener)
-      //   kernel.stderr.once('data', errListener)
-      //   kernel.stdout.once('error', errListener)
-      //   kernel.stderr.once('error', errListener)
-      // })
-      // return data
-      return '查询成功'
-    }catch(err) {
-      return '查询失败'
-    }
+    console.log(JSON.stringify(result))
+    // kernel.stdin.write(JSON.stringify(result) + '\n')
   }
 }
 
 
 function createWindow () {
+  const windowId = Date.now()
   const mainWindow = new BrowserWindow({
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
     }
   })
+
   mainWindow.loadFile('electron/src/renderer/index.html')
+
+  windows.set(windowId, mainWindow)
+
+  mainWindow.on('closed', () => {
+    windows.delete(windowId)
+  })
+}
+
+
+function getWindowId (window) {
+  for(const [id, win] of windows.entries()) {
+    if(win === window) {
+      return id
+    }
+  }
+  return null
 }
 
 
 app.whenReady().then(() => {
+  ipcMain.handle('createNewWindow', createWindow)
   ipcMain.handle('selectRepo', selectRepo)
   ipcMain.handle('addFile', addFile)
   ipcMain.handle('removeFile', removeFile)
   ipcMain.handle('selectEmbeddingModel', selectEmbeddingModel)
-  ipcMain.handle('query', query)
+  ipcMain.on('query', query)
 
   createWindow()
 
