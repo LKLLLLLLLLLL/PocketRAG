@@ -102,6 +102,12 @@ namespace jiebaTokenizer
         }
         return jieba;
     }
+
+    void CutForSearch(const std::string &text, std::vector<std::string> &words)
+    {
+        std::lock_guard<std::mutex> lock(jiebaMutex);
+        jieba->CutForSearch(text, words);
+    }
 };
 
 //-----------------------TextSearchTable---------------------
@@ -128,6 +134,7 @@ TextSearchTable::TextSearchTable(SqliteConnection &sqlite, const std::string &ta
 // search in fts5 table before adding a new chunk, may be slow
 void TextSearchTable::addChunk(const Chunk &chunk)
 {
+    std::unique_lock writelock(mutex); // lock for writing
     auto query = sqlite.getStatement("SELECT COUNT(*) FROM " + tableName + " WHERE chunkId = ?");
     query.bind(1, chunk.chunkId);
     query.step();
@@ -154,6 +161,7 @@ void TextSearchTable::addChunk(const Chunk &chunk)
 
 void TextSearchTable::deleteChunk(int64_t chunkId)
 {
+    std::unique_lock writelock(mutex); // lock for writing
     auto deleteStmt = sqlite.getStatement("DELETE FROM " + tableName + " WHERE chunkId = ?");
     deleteStmt.bind(1, chunkId);
     deleteStmt.step();
@@ -166,12 +174,11 @@ void TextSearchTable::deleteChunk(int64_t chunkId)
 
 auto TextSearchTable::search(const std::string &query, int limit) -> std::vector<ResultChunk>
 {
+    std::shared_lock readlock(mutex); // lock for reading
     // tokenize the query using jieba
     std::vector<std::string> keywords;
-    {
-        std::lock_guard<std::mutex> lock(jiebaTokenizer::jiebaMutex);
-        jieba->CutForSearch(query, keywords);
-    }
+    jiebaTokenizer::CutForSearch(query, keywords); 
+
     if(keywords.empty())
     {
         return {}; // no keywords, return empty result
@@ -219,6 +226,7 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
 
 std::pair<std::string, std::string> TextSearchTable::getContent(int64_t chunkId)
 {
+    std::shared_lock readlock(mutex); // lock for reading
     auto queryStmt = sqlite.getStatement("SELECT content, metadata FROM " + tableName + " WHERE chunkId = ?");
     queryStmt.bind(1, chunkId);
 

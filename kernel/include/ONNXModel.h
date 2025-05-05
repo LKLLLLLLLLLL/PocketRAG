@@ -5,6 +5,7 @@
 #include <memory>
 #include <unordered_set>
 #include <filesystem>
+#include <mutex>
 
 #include <onnxruntime_cxx_api.h>
 #include <sentencepiece_processor.h>
@@ -17,27 +18,31 @@ std::string wstring_to_string(const std::wstring &wstr);
 /*
 This class is a base class of all ONNX models.
 Can't be instantiated directly.
-this is a single threaded class.
+make sure one instance is only used by one thread. 
 */
 class ONNXModel
 {
 public:
     enum class device{cpu, cuda}; // only support cpu or cuda now
     enum class perfSetting{low, high}; // set performance exepect, only have effect on cpu
+
 private:
+    static std::mutex mutex;    // mutex for all static variables
     static bool is_initialized; // flag the initialization of ONNX environment 
 
-    // storage all instances' modelDirPath, make sure no two instances have the same modelDirPath, for saving memory
-    static std::unordered_set<std::filesystem::path> instancesModel;
+    // storage all instances' modelDirPath, let instances with same model use sheared session to save memory
+    static std::unordered_map<std::filesystem::path, std::weak_ptr<Ort::Session>> instancesSessions;
+    static std::unordered_map<Ort::Session *, std::shared_ptr<std::mutex>> sessionMutexes; // mutex for each session, to make sure only one thread can run the session at a time
+
 
     std::filesystem::path modelDirPath; // the path of the model directory
 protected:
     static std::shared_ptr<Ort::Env> env; // manage ONNX environment, only initialized once
     static std::shared_ptr<Ort::AllocatorWithDefaultOptions> allocator; // allocator
     static std::shared_ptr<Ort::MemoryInfo> memoryInfo; // memory info for tensor creation
-    std::shared_ptr<Ort::Session> session = nullptr; // ONNX session, loaded with model
-    // std::shared_ptr<Ort::SessionOptions> sessionOptions = nullptr; // session options, can be customized for each model
 
+    std::shared_ptr<Ort::Session> session = nullptr; // ONNX session, include a model
+    std::shared_ptr<std::mutex> sessionMutex = nullptr; // mutex for this session
 
     // ONNXRuntime is a graph-based runtime, when running, need to specify the input and output names of the model
     std::vector<std::string> inputNames; // storage input names of the model
@@ -56,16 +61,15 @@ public:
 };
 
 /*
-This class are designed to handle embedding models. 
+This class are designed to handle embedding models.
 Derived from ONNXModel.
 BE CAREFUL: some implementation may differ between different embedding models
+make sure one instance is only used by one thread.
 */
 class EmbeddingModel : public ONNXModel
 {
 private:
-    int embeddingId; // embedding id from sql table
     int embeddingDimension; // embedding dimension, get from model
-    int maxInputLength; // max input length,  can be changed in the model
     std::shared_ptr<sentencepiece::SentencePieceProcessor> tokenizer = nullptr; // tokenizer of embedding model, use sentencepiece
 
     // tokenize input string to ids and attention mask
@@ -80,14 +84,10 @@ public:
     // instantiate the ONNX model,
     // will find `model.onnx` & `model.onnx_data` & `sentencepiece.bpe.model` in the modelDirPath,
     // modelDirPath should end with `/`
-    EmbeddingModel(int embeddingId, int maxInputLength,  std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+    EmbeddingModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
 
     // get embedding dimension
     inline int getDimension() const { return embeddingDimension; }
-    // get embedding id
-    inline int getId() const { return embeddingId; } 
-    // get max input length
-    inline int getMaxInputLength() const { return maxInputLength; }
 
     // generate embedding for a single string
     // input string must be encoded in utf-8

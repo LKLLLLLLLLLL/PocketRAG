@@ -67,6 +67,9 @@ public:
     Chunker(const Chunker&) = delete; // disable copy constructor
     Chunker& operator=(const Chunker&) = delete; // disable copy assignment
 
+    Chunker(Chunker&&) = delete; // disable move constructor
+    Chunker& operator=(Chunker&&) = delete; // disable move assignment
+
     // get chunks
     std::vector<Chunk> getChunks();
 

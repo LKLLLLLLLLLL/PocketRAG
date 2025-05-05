@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <filesystem>
+#include <vector>
+#include <queue>
 
 #include "SqliteConnection.h"
 #include "VectorTable.h"
@@ -16,7 +18,7 @@ Session::Session(std::string repoName, std::filesystem::path repoPath, int sessi
     sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);
 
     // open text search table
-    textTable = std::make_shared<TextSearchTable>(*sqlite, repoName + "_text_search");
+    textTable = std::make_shared<TextSearchTable>(*sqlite, "_text_search");
 
     // initialize sqliteDB
     initializeSqlite();
@@ -55,7 +57,7 @@ void Session::initializeSqlite()
         "chunk_id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "doc_id INTEGER NOT NULL, "
         "embedding_id INTEGER NOT NULL, "
-        "chunk_index INTEGER NOT NULL, "
+        "chunk_index INTEGER, "
         "content_hash TEXT NOT NULL, "
         ""
         "UNIQUE(doc_id, embedding_id, chunk_index), " // constraints
@@ -72,9 +74,9 @@ void Session::initializeEmbedding()
     {
         vectorTables.clear(); // clear old vector tables
     }
-    if(!embeddingModels.empty())
+    if(!embeddings.empty())
     {
-        embeddingModels.clear(); // clear old embedding models
+        embeddings.clear(); // clear old embedding models
     }
 
     auto stmt = sqlite->getStatement("SELECT id, name, model_path, max_input_length FROM embeddings;");
@@ -86,24 +88,25 @@ void Session::initializeEmbedding()
         int maxInputLength = stmt.get<int>(3);
 
         // create embedding model
-        auto embeddingModel = EmbeddingModel(id, maxInputLength, modelPath, ONNXModel::device::cpu);
+        auto embeddingModel = EmbeddingModel(modelPath, ONNXModel::device::cuda);
         int dimension = embeddingModel.getDimension();
-        embeddingModels.push_back(std::move(embeddingModel));
+        auto embedding = std::make_shared<Embedding>(id, name, dimension, maxInputLength, dimension, std::make_shared<EmbeddingModel>(embeddingModel));
+        embeddings.push_back(embedding);
 
         // create vector table for this embedding model
-        auto vectorTable = VectorTable(dbPath.string(), repoName + "_vector_" + name, *sqlite, dimension);
+        auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), "_vector_" + name, *sqlite, dimension);
         vectorTables.push_back(std::move(vectorTable));
     }
 }
 
-void Session::refreshDoc()
+void Session::checkDoc()
 {
     // get all documents from disk
     std::vector<std::filesystem::path> files;
-    for(const auto &entry : std::filesystem::directory_iterator(repoPath))
+    for (const auto &entry : std::filesystem::directory_iterator(repoPath))
     {
         auto filename = entry.path().filename().string();
-        if(filename.empty() || filename[0] == '.')
+        if (filename.empty() || filename[0] == '.')
         {
             continue; // skip hidden files
         }
@@ -115,37 +118,59 @@ void Session::refreshDoc()
 
     // get all documents from sqlite
     auto stmt = sqlite->getStatement("SELECT doc_name FROM documents;");
-    while(stmt.step())
+    while (stmt.step())
     {
         auto docName = stmt.get<std::string>(0);
         auto docPath = repoPath / docName;
         bool found = false;
-        for(auto it = files.begin(); it != files.end(); ++it) // avoid repeat add
+        for (auto it = files.begin(); it != files.end(); ++it) // avoid repeat add
         {
-            if(it->filename() == docName)
+            if (it->filename() == docName)
             {
                 found = true;
                 break; // file found, no need to check other files
             }
         }
-        if(!found)
+        if (!found)
         {
             files.push_back(docPath); // the file may be deleted, add it to the list
         }
     }
 
     // open docpipe for each file
-    for(const auto& filepath : files)
+    for (const auto &filepath : files)
     {
-        DocPipe docPipe(filepath, *sqlite, *textTable, vectorTables, embeddingModels);
-        docPipe.process(); // process the file
+        DocPipe docPipe(filepath, *sqlite, *textTable, vectorTables, embeddings);
+        docPipe.check(); // check the file
+        auto state = docPipe.getState(); // get the state of the document
+        if (state == DocPipe::DocState::modified || state == DocPipe::DocState::created || state == DocPipe::DocState::deleted)
+        {
+            docqueue.push(std::move(docPipe)); // add to doc queue
+        }
+    }
+}
+
+void Session::refreshDoc(std::function<void(std::string, double)> callback)
+{
+    // process each document in the queue
+    while(!docqueue.empty())
+    {
+        auto docPipe = std::move(docqueue.front()); // get the front document
+        docqueue.pop(); // remove it from the queue
+
+        auto path = docPipe.getPath(); // get the path of the document
+        docPipe.process([&path, &callback](double progress){ // process the document
+            if(callback)
+            {
+                callback(path, progress); // call the callback function with the current progress
+            }
+        });
     }
 
     // reconstruct each vector table
     for(auto& vectorTable : vectorTables)
     {
-        vectorTable.reconstructFaissIndex();
-        vectorTable.writeToDisk();
+        vectorTable->reconstructFaissIndex();
     }
 }
 
@@ -174,16 +199,16 @@ auto Session::search(const std::string &query, int limit) -> std::vector<std::ve
     }
 
     // search for each embedding
-    for(int i = 0; i < embeddingModels.size(); i++)
+    for(int i = 0; i < embeddings.size(); i++)
     {
-        auto& embeddingModel = embeddingModels[i];
+        auto& embedding = embeddings[i];
         auto& vectorTable = vectorTables[i];
 
         // 1. get results from vector table
         // get embedding for the query
-        auto queryVector = embeddingModel.embed(query);
+        auto queryVector = embedding->model->embed(query);
         // query the most similar vectors
-        auto vectorResults = vectorTable.querySimlar(queryVector, vectorLimit);
+        auto vectorResults = vectorTable->search(queryVector, vectorLimit);
 
         // 2. merge results and sort by new score
         std::vector<Result> mergeResults;
