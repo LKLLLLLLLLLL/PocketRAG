@@ -13,7 +13,7 @@
 #include <faiss/index_io.h>
 #include <faiss/index_factory.h>
 
-VectorTable::VectorTable(std::filesystem::path dbDirPath, const std::string &tableName, SqliteConnection &sqliteConnection, int dim) : tableName(tableName), sqlite(sqliteConnection)
+VectorTable::VectorTable(std::filesystem::path dbDirPath, const std::string &tableName, SqliteConnection &sqliteConnection, int dim) : tableName(tableName), sqlite(sqliteConnection), dbDirPath(dbDirPath)
 {
     auto dbFullPath = std::filesystem::path(dbDirPath) / (tableName + ".faiss");
 
@@ -78,8 +78,8 @@ VectorTable::~VectorTable()
 {
     if (faissIndex != nullptr)
     {
-        reconstructFaissIndex();
-        writeToDisk();
+        reconstructFaissIndex(false);
+        writeToDisk(false);
     }
 }
 
@@ -165,10 +165,13 @@ std::vector<float> VectorTable::getVectorFromId(faiss::idx_t id) const
     return vector;
 }
 
-int VectorTable::writeToDisk()
+int VectorTable::writeToDisk(bool alreadyLocked)
 {
     if(addCount == 0)
         return 0; // no need to write to disk
+
+    if(!alreadyLocked)
+        std::unique_lock<std::shared_mutex> writelock(mutex); 
 
     // avoid overwriting the old index file while writing the new one
     std::filesystem::path newFile = dbDirPath / (tableName + ".faiss.new");
@@ -235,8 +238,8 @@ void VectorTable::addVector(idx_t id, const std::vector<float> &vector)
 
     // check if need to write to disk
     addCount++;
-    if (addCount >= maxAddCoune) 
-        writeToDisk();
+    if (addCount >= maxAddCoune)
+        writeToDisk(true);
 
 }
 
@@ -316,7 +319,7 @@ void VectorTable::addVector(const std::vector<idx_t> &ids, const std::vector<std
     // check if need to write to disk
     addCount += vectors.size();
     if (addCount >= maxAddCoune)
-        writeToDisk();
+        writeToDisk(true);
 
 }
 
@@ -341,7 +344,7 @@ VectorTable::idx_t VectorTable::removeVector(idx_t id)
     // check if need to reconstruct Faiss index
     deleteCount++;
     if (deleteCount >= maxDeleteCount)
-        reconstructFaissIndex();
+        reconstructFaissIndex(true);
 
     return id;
 }
@@ -380,20 +383,21 @@ std::vector<VectorTable::idx_t> VectorTable::removeVector(const std::vector<Vect
     // check if need to reconstruct Faiss index
     deleteCount += ids.size();
     if (deleteCount >= maxDeleteCount)
-        reconstructFaissIndex();
+        reconstructFaissIndex(true);
 
     return ids;
 }
 
-// all valid = false or delete = true vectors will be removed from Faiss index, but only delete = true vectors will be removed from SQLite table 
-int VectorTable::reconstructFaissIndex()
+// all valid = false or delete = true vectors will be removed from Faiss index, but only delete = true vectors will be removed from SQLite table
+int VectorTable::reconstructFaissIndex(bool alreadyLocked)
 {
     if(deleteCount == 0)
         return 0; // no need to reconstruct Faiss index
     if(sqlite.inTransaction())
         return 0; // cannot reconstruct, need to commit transaction first
-    
-    std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
+
+    if(!alreadyLocked)
+        std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
     // get all valid idx from SQL table
     auto querySQL = "SELECT id FROM " + tableName + " WHERE valid = 1 AND deleted = 0;";
     auto queryStmt = sqlite.getStatement(querySQL);
@@ -423,9 +427,10 @@ int VectorTable::reconstructFaissIndex()
 
     // save new Faiss index
     faissIndex = newFaissIndex;
-    writeToDisk();
 
-    deleteCount = 0; // reset delete count
+    deleteCount = 0;    // reset delete count
+
+    writeToDisk(true);
 
     return deletedNum;
 }
@@ -445,4 +450,11 @@ std::vector<VectorTable::idx_t> VectorTable::getInvalidIds() const
     }
     
     return invalidIdList;
+}
+
+void VectorTable::write()
+{
+    std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
+    reconstructFaissIndex(true);
+    writeToDisk(true); 
 }

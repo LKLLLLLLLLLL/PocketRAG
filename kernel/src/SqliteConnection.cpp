@@ -8,9 +8,10 @@
 #include <stack>
 #include <memory>
 #include <mutex>
-
 #include <sqlite3.h>
 #include <cppjieba/Jieba.hpp>
+
+#include "TextSearchTable.h"
 
 thread_local SqliteConnection::LocalDataManager SqliteConnection::dataManager;
 
@@ -25,6 +26,9 @@ void SqliteConnection::openSqlite(LocalData &data)
     {
         throw Exception{Exception::Type::openError, "Failed to create SQLite database: " + dbFullPath.string() + "\n    sqlite error " + sqlite3_errmsg(data.sqliteDB)};
     }
+
+    // register the jieba tokenizer to the SQLite database
+    jiebaTokenizer::register_jieba_tokenizer(data.sqliteDB);
 }
 
 SqliteConnection::SqliteConnection(const std::string &dbDirPath, const std::string &tableName) : dbDirPath(dbDirPath), tableName(tableName)

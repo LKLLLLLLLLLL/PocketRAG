@@ -11,7 +11,7 @@
 #include "ONNXModel.h"
 #include "DocPipe.h"
 
-Session::Session(std::string repoName, std::filesystem::path repoPath, int sessionId) : repoName(repoName), repoPath(repoPath), sessionId(sessionId)
+Session::Session(std::string repoName, std::filesystem::path repoPath, int sessionId, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter) : repoName(repoName), repoPath(repoPath), sessionId(sessionId), docStateReporter(docStateReporter), progressReporter(progressReporter)
 {
     // open a sqlite connection
     auto dbPath = repoPath / ".PocketRAG";
@@ -25,6 +25,9 @@ Session::Session(std::string repoName, std::filesystem::path repoPath, int sessi
 
     // read embeddings config from embeddings table and initialize embedding models
     initializeEmbedding();
+
+    // begin background thread for processing documents
+    backgroundThread = std::thread(&Session::backgroundProcess, this);
 }
 
 void Session::initializeSqlite()
@@ -67,6 +70,15 @@ void Session::initializeSqlite()
     );
 }
 
+Session::~Session()
+{
+    stopThread = true; // stop the background thread
+    if (backgroundThread.joinable())
+    {
+        backgroundThread.join(); // wait for the background thread to finish
+    }
+}
+
 void Session::initializeEmbedding()
 {
     auto dbPath = repoPath / ".PocketRAG";
@@ -99,7 +111,22 @@ void Session::initializeEmbedding()
     }
 }
 
-void Session::checkDoc()
+void Session::backgroundProcess()
+{
+    while (!stopThread)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
+        std::queue<DocPipe> docqueue; // create a new doc queue for each iteration
+
+        std::shared_lock readlock(mutex); // lock for reading
+        checkDoc(docqueue); // check for changed documents
+
+        // though refreshDoc will change vector tables and text table, but this changes will not addect to search result, so no need to use writelock
+        refreshDoc(docqueue); // process the documents in the queue
+    }
+}
+
+void Session::checkDoc(std::queue<DocPipe>& docqueue)
 {
     // get all documents from disk
     std::vector<std::filesystem::path> files;
@@ -138,6 +165,7 @@ void Session::checkDoc()
     }
 
     // open docpipe for each file
+    std::vector<std::string> changedDocs;
     for (const auto &filepath : files)
     {
         DocPipe docPipe(filepath, *sqlite, *textTable, vectorTables, embeddings);
@@ -146,36 +174,37 @@ void Session::checkDoc()
         if (state == DocPipe::DocState::modified || state == DocPipe::DocState::created || state == DocPipe::DocState::deleted)
         {
             docqueue.push(std::move(docPipe)); // add to doc queue
+            changedDocs.push_back(filepath.string()); // add to changed documents
         }
     }
+    if(docStateReporter && !changedDocs.empty())
+        docStateReporter(changedDocs); // report changed documents
 }
 
-void Session::refreshDoc(std::function<void(std::string, double)> callback)
+void Session::refreshDoc(std::queue<DocPipe> &docqueue)
 {
     // process each document in the queue
+    bool changed = !docqueue.empty(); // check if there are documents to process
     while(!docqueue.empty())
     {
         auto docPipe = std::move(docqueue.front()); // get the front document
         docqueue.pop(); // remove it from the queue
 
         auto path = docPipe.getPath(); // get the path of the document
-        docPipe.process([&path, &callback](double progress){ // process the document
-            if(callback)
+        docPipe.process([&path, this](double progress) { // process the document
+            if (this->progressReporter)
             {
-                callback(path, progress); // call the callback function with the current progress
+                this->progressReporter(path, progress);
             }
-        });
-    }
-
-    // reconstruct each vector table
-    for(auto& vectorTable : vectorTables)
-    {
-        vectorTable->reconstructFaissIndex();
+        }, 
+        stopThread); // pass the stop flag to the process function
     }
 }
 
 auto Session::search(const std::string &query, int limit) -> std::vector<std::vector<searchResult>>
 {
+    std::shared_lock readlock(mutex); // lock for reading embedding models and vector tables
+    
     int vectorLimit = limit * 3;
     int fts5Limit = limit * 10;
 
@@ -250,6 +279,7 @@ auto Session::search(const std::string &query, int limit) -> std::vector<std::ve
 
 void Session::addEmbedding(int id, const std::string &name, const std::string &modelPath, int maxInputLength)
 {
+    std::unique_lock writelock(mutex); 
     // check if the embedding already exists
     auto stmt = sqlite->getStatement("SELECT id FROM embeddings WHERE name = ? AND model_path = ? AND max_input_length = ?;");
     stmt.bind(1, name);

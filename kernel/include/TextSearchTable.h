@@ -1,4 +1,4 @@
-# pragma once
+#pragma once
 #include <string>
 #include <vector>
 #include <shared_mutex>
@@ -9,7 +9,7 @@
 /*
 This class manages a Sqlite FTS5 table for text search.
 This implementation will store full content and metadata in the database, may not be suitable for large documents.
-If each tread has unique sqliteconnection, it is safe to use this class in multiple threads. 
+It is safe to use this class in multiple threads. 
 
 Manage a Sqlite FTS5 table with the following schema:
 CREATE VIRTUAL TABLE IF NOT EXISTS tableName USING fts5(
@@ -81,3 +81,20 @@ public:
     // get a pair with content and metadata of a chunk by chunkId
     std::pair<std::string, std::string> getContent(int64_t chunkId);
 };
+
+namespace jiebaTokenizer
+{
+    extern cppjieba::Jieba *jieba; 
+    extern std::mutex jiebaMutex;
+
+    int jieba_tokenizer_create(void *sqlite3_api, const char **azArg, int nArg, Fts5Tokenizer **ppOut);
+    void jieba_tokenizer_delete(Fts5Tokenizer *pTokenizer);
+    int jieba_tokenizer_tokenize(Fts5Tokenizer *pTokenizer, void *pCtx, int flags, const char *pText, int nText, int (*xToken)(void *, int, const char *, int, int, int));
+
+    void register_jieba_tokenizer(sqlite3 *db);
+
+    cppjieba::Jieba *get_jieba_ptr();
+
+    void CutForSearch(const std::string &text, std::vector<std::string> &words);
+}
+

@@ -29,7 +29,7 @@ namespace
 /*
 This class manages a SQLite database connection.
 Gurantee that every database path is unique.
-It will automatically create new sqlite connection for each thread.
+It will automatically create new sqlite connection for each thread, guarantee thread safety.
 */
 class SqliteConnection
 {

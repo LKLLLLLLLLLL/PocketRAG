@@ -90,25 +90,29 @@ void DocPipe::check()
     return; // no need to update
 }
 
-void DocPipe::process(std::function<void(double)> callback)
+void DocPipe::process(std::function<void(double)> callback, std::atomic<bool> &stopFlag)
 {
     switch(state)
     {
         case DocState::modified:
-            updateDoc(callback);
+            updateDoc(callback, stopFlag);
             break;
         case DocState::created:
-            addDoc(callback);
+            addDoc(callback, stopFlag);
             break;
         case DocState::deleted:
-            delDoc(callback);
+            delDoc(callback); // very quick, no need to stop
             break;
         default:
-            break; // do nothing
+            return; // do nothing
+    }
+    for(auto &vectortable : vTable) // tranverse each vector table
+    {
+        vectortable->write(); // write all changes to disk
     }
 }
 
-void DocPipe::updateDoc(std::function<void(double)> callback)
+void DocPipe::updateDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag)
 {
     // create progress object
     std::vector<std::pair<std::string, double>> subProgress;
@@ -120,7 +124,9 @@ void DocPipe::updateDoc(std::function<void(double)> callback)
     subProgress.push_back({"updatesql", 0.01});
     Progress progress(callback, subProgress); // create progress object
 
-    updateToTable(progress);
+    updateToTable(progress, stopFlag);
+    if(stopFlag)
+        return; // stop flag is set, return
     updateSqlite();
     progress.finishSubprogress(); // finish update sqlite progress
 
@@ -185,7 +191,7 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     progress.update(1.0); // update progress
 }
 
-void DocPipe::addDoc(std::function<void(double)> callback)
+void DocPipe::addDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag)
 {
     // create progress object
     std::vector<std::pair<std::string, double>> subProgress;
@@ -220,7 +226,9 @@ void DocPipe::addDoc(std::function<void(double)> callback)
     progress.finishSubprogress(); // finish insert documents table progress
 
     // split, embed, and add to text table and vector table
-    updateToTable(progress);
+    updateToTable(progress, stopFlag);
+    if(stopFlag)
+        return; 
 
     // update sqlite with new document info
     updateSqlite();
@@ -309,7 +317,7 @@ void DocPipe::updateSqlite(std::string hash) const
     return;
 }
 
-void DocPipe::updateToTable(Progress& progress)
+void DocPipe::updateToTable(Progress &progress, std::atomic<bool> &stopFlag)
 {
     // 1. open file and read content to a string
     std::ifstream file{docPath};
@@ -329,13 +337,15 @@ void DocPipe::updateToTable(Progress& progress)
     {
         auto &embedding = embeddings[i]; // get embedding model
         auto &vectortable = vTable[i]; // get vector table
-        updateOneEmbedding(content, embedding, vectortable, progress); // update embedding for this model
+        updateOneEmbedding(content, embedding, vectortable, progress, stopFlag); // update embedding for this model
+        if(stopFlag) 
+            return; 
         progress.finishSubprogress(); // finish embedding progress
     }
 }
 
 // a slowly version, can be improved by adding batch process
-void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress& progress)
+void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::atomic<bool> &stopFlag)
 {
     // 1. split content to chunks
     std::vector<Chunker::Chunk> newChunks;
@@ -373,9 +383,9 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     auto trans = sqlite.beginTransaction(); // begin transaction
     std::queue<size_t> addChunkQueue; 
     std::queue<std::pair<size_t, int>> updateChunkQueue; // store index and chunk id for update
-    for (int index = 0; index < newChunks.size(); index++)
+    for (int index = 1; index <= newChunks.size(); index++) // index begin with 1, defferent with NULL value of sqlite
     {
-        auto& chunk = newChunks[index]; // get new chunk
+        auto& chunk = newChunks[index - 1]; // get new chunk
         auto hash = calculateHash(chunk.content + chunk.metadata); // calculate hash for new chunk
         auto it = existingChunks.find(hash);                 // find hash in existing chunks
         if (it != existingChunks.end())   // finded, update chunk
@@ -436,13 +446,14 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         // no need to update vector table and text table, no changes
     }
     progress.updateSubprocess(0.04); // update progress
+    trans.commit(); // commit transaction, commit changes, because operation below may be terminate any time
     // add chunks
     double addCount = addChunkQueue.size();
     while(!addChunkQueue.empty())
     {
         auto index = addChunkQueue.front(); // get chunk index
         addChunkQueue.pop(); // remove from queue
-        auto& chunk = newChunks[index]; // get chunk from new chunks
+        auto& chunk = newChunks[index - 1]; // get chunk from new chunks
         auto hash = calculateHash(chunk.content + chunk.metadata); // calculate hash for new chunk
 
         // add chunk to chunks table
@@ -466,9 +477,11 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         tTable.addChunk({chunk.content, chunk.metadata, chunkid}); // add text to text table
 
         progress.updateSubprocess(0.04 + (addCount - addChunkQueue.size()) * 0.95 / addCount); // update progress
-    }
 
-    trans.commit(); // commit transaction
+        // check stop flag
+        if(stopFlag) // check if stop flag is set
+            return;
+    }
 
     return;
 }
@@ -502,7 +515,8 @@ void DocPipe::Progress::update(double progress)
     if (!steps.empty())
         throw Exception(Exception::Type::wrongArg, "Steps are not empty, please use updateStep() instead of update()");
     this->progress = progress;
-    callback(this->progress); // call the callback function with the current progress
+    if(callback) 
+        callback(this->progress); // call the callback function with the current progress
 }
 
 void DocPipe::Progress::updateSubprocess(double progress)
@@ -512,7 +526,8 @@ void DocPipe::Progress::updateSubprocess(double progress)
     if (steps.empty())
         throw Exception(Exception::Type::wrongArg, "Steps are empty, please use update() instead of updateStep()");
     this->progress = steps[currentStep].second + progress * (steps[currentStep + 1].second - steps[currentStep].second);
-    callback(this->progress); // call the callback function with the current progress
+    if (callback)
+        callback(this->progress); // call the callback function with the current progress
 }
 
 void DocPipe::Progress::finishSubprogress()
@@ -523,5 +538,6 @@ void DocPipe::Progress::finishSubprogress()
         throw Exception(Exception::Type::wrongArg, "No more steps to finish: " + std::to_string(currentStep));
     currentStep++;
     this->progress = steps[currentStep].second; // set progress to the next step
-    callback(this->progress);                   // call the callback function with the current progress
+    if (callback)
+        callback(this->progress); // call the callback function with the current progress
 }

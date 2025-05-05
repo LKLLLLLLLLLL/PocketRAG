@@ -10,6 +10,7 @@
 A chunk generator for one document.
 A naive implementation.
 If there is no content under a heading, it will be treated as a chunk, and this chunk may be very short.
+This is a single-threaded implementation, so it is not thread-safe.
 */
 class Chunker 
 {

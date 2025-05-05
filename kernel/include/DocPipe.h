@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS chunks (
     FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE,
     FOREIGN KEY(embedding_id) REFERENCES embeddings(id) ON DELETE CASCADE
 );
+
+This class is a single threaded class, it is not thread safe.
 */
 class DocPipe
 {
@@ -83,19 +85,19 @@ private:
     static const int maxUncheckedTime = 60 * 60 * 24; // max unchecked time, second, 1 day
 
     // update document in db
-    void updateDoc(std::function<void(double)> callback);
+    void updateDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag);
 
     // add new document to db
-    void addDoc(std::function<void(double)> callback);
+    void addDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag);
 
     // delete document from db
     void delDoc(std::function<void(double)> callback);
 
     // update document to text search table and vector table
-    void updateToTable(Progress& progress);
+    void updateToTable(Progress &progress, std::atomic<bool> &stopFlag);
 
     // update one embedding to text search table and vector table
-    void updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress);
+    void updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::atomic<bool> &stopFlag);
 
     // helper functions
     // calculate hash of the document
@@ -121,7 +123,7 @@ public:
     DocState getState() const { return state; }
 
     // process the task, need callback function to report progress
-    void process(std::function<void(double)> callback);
+    void process(std::function<void(double)> callback, std::atomic<bool> &stopFlag);
 
     // get docId
     int64_t getId() const { return docId; } 

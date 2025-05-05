@@ -12,22 +12,37 @@ int main()
 {
     setup_utf8_console();
 
-    std::filesystem::path repoPath = "./repo"; 
+    std::filesystem::path repoPath = ".\\repo"; 
     std::string repoName = "repo";
     int sessionId = 1; // example session ID
-    Session session(repoName, repoPath, sessionId);
-    if (!std::filesystem::exists("./repo/.PocketRAG/_vector_bge_m3.faiss"))
+    auto lastprintTime = std::chrono::steady_clock::now();
+    Session session(repoName, repoPath, sessionId, 
+        [](std::vector<std::string> docs)
+        {
+            std::cout << "Changed documents: " ;
+            for (const auto& doc : docs)
+            {
+                std::cout << doc << ", "; // print changed documents
+            }
+        }, 
+        [&lastprintTime](std::string path, double progress)
+        {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastprintTime).count();
+            if (elapsed < 1 && progress <= 0.98 && progress >= 0.03) // print progress every second
+                return;
+            lastprintTime = now;
+            std::cout << "Processing " << path << ": " << progress * 100 << "%" << std::endl; // print progress
+        }
+    );
+    if (!std::filesystem::exists(".\\repo\\.PocketRAG\\_vector_bge_m3.faiss"))
     {
-        session.addEmbedding(1, "bge_m3", "D:/Code/PocketRAG/models/bge-m3", 512); // example embedding
+        session.addEmbedding(1, "bge_m3", "../../models/bge-m3", 512); // example embedding
     }
     while(true)
     {
-        session.checkDoc(); // check documents in the repository
-        session.refreshDoc([](std::string path, double progress){
-            std::cout << "Processing " << path << ": " << progress * 100 << "%" << std::endl; // print progress
-        }); // refresh documents in the repository
         std::string query;
-        std::cout << "Enter your query: ";
+        std::cout << "Enter your query: \n";
         std::getline(std::cin, query);
         if(query.empty())
         {
