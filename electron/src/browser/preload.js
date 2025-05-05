@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeFile: (repoPath) => ipcRenderer.invoke('removeFile', repoPath),
   selectEmbeddingModel: (embeddingModel) => ipcRenderer.invoke('selectEmbeddingModel', embeddingModel),
   query: (query) => ipcRenderer.send('query', query),
-  onqueryResult: (callback) => ipcRenderer.on('queryResult', (_, result) => callback(result)),
+  oncequeryResult: (callback) => ipcRenderer.once('queryResult', (_, result) => callback(result)),
   onembedding: (callback) => ipcRenderer.on('embedding', (_, result) => callback(result)),
   createNewWindow: () => ipcRenderer.invoke('createNewWindow')
 })

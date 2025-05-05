@@ -79,14 +79,16 @@ const queryHandler = async () => {
 
   if(currentRepo !== undefined && currentEmbeddingModel !== undefined && query !== '') {
     window.electronAPI.query(query)
-    window.electronAPI.onqueryResult((result) => {
-      console.log(result)
+    const result = await new Promise((resolve) => {
+      window.electronAPI.oncequeryResult((result) => {
+        resolve(result)
+      })
     })
+    console.log(result)
   }
   else if(currentRepo === undefined) alert('请先选择一个仓库')
   else if(currentEmbeddingModel === undefined)alert('请先选择一个嵌入模型')
   else alert('查询不能为空')
-
   querybtn.addEventListener('click', queryHandler)
 }
 
