@@ -63,7 +63,6 @@ public:
     {
         int embeddingId;
         std::string embeddingName;
-        int embeddingDimension;
         int maxInputLength;
         int dimension;
         std::shared_ptr<EmbeddingModel> model;

@@ -13,9 +13,7 @@
 
 /*
 This class manages a SQLite database and several vector tables.
-can only be initialized once.
-
-
+Gurantee thread safety.
 */
 class VectorTable
 {

@@ -124,9 +124,9 @@ void DocPipe::process(std::function<void(double)> callback, std::atomic<bool> &s
         default:
             return; // do nothing
     }
-    for(auto &vectortable : vTable) // tranverse each vector table
+    for (auto &vectorTable : vTable)
     {
-        vectortable->write(); // write all changes to disk
+        vectorTable->write();
     }
 }
 
@@ -351,7 +351,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     // traverse new chunks to add and update chunk in tables
     auto trans1 = sqlite.beginTransaction(); // begin transaction
     std::queue<size_t> addChunkQueue; 
-    std::queue<std::pair<size_t, int>> updateChunkQueue; // store index and chunk id for update
+    std::queue<std::pair<size_t, int64_t>> updateChunkQueue; // store index and chunk id for update
     for (int index = 1; index <= newChunks.size(); index++) // index begin with 1, defferent with NULL value of sqlite
     {
         auto& chunk = newChunks[index - 1]; // get new chunk
@@ -401,7 +401,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     {
         auto [index, chunkid] = updateChunkQueue.front(); // get chunk index
         updateChunkQueue.pop();
-        auto &chunk = newChunks[index]; // get chunk from new chunks
+        auto &chunk = newChunks[index - 1]; // get chunk from new chunks
 
         // update chunks table
         auto sql = "UPDATE chunks SET chunk_index = ? WHERE chunk_id = ?;";

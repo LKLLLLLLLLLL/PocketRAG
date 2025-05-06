@@ -7,16 +7,16 @@
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
-// #include <ONNXModel.h>
 
-/*
-This class is used to initialize and cleanup curl library.
-*/
-class CurlInitializer {
-public:
-    CurlInitializer() { curl_global_init(CURL_GLOBAL_ALL); }
-    ~CurlInitializer() { curl_global_cleanup(); }
-};
+namespace
+{
+    class CurlInitializer {
+    public:
+        CurlInitializer() { curl_global_init(CURL_GLOBAL_ALL); }
+        ~CurlInitializer() { curl_global_cleanup(); }
+    };
+    static CurlInitializer curlInitializer; // make sure curl is initialized before any other code
+}
 
 /*
 This class handles http sessions to openai api.

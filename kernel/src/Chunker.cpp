@@ -31,7 +31,7 @@ Chunker::Chunker(const std::string &text, docType type, int max_length) : in_tex
     if(type == docType::Markdown)
     {
         // build AST
-        ast = cmark_parse_document(in_text.c_str(), in_text.length(), CMARK_OPT_DEFAULT);
+        ast = cmark::cmark_parse_document(in_text.c_str(), in_text.length(), CMARK_OPT_DEFAULT);
         if (ast == nullptr)
         {
             throw Exception(Exception::Type::parserError, "failed to parse markdown document");
@@ -64,9 +64,9 @@ void Chunker::genBasicChunks()
     auto node = cmark_node_first_child(ast);
     while(node != nullptr)
     {
-        auto type = cmark_node_get_type(node);
+        auto type = cmark::cmark_node_get_type(node);
 
-        if (type == CMARK_NODE_HEADING) // if node is a heading node, push to stack
+        if (type == cmark::CMARK_NODE_HEADING) // if node is a heading node, push to stack
         {
             // get heading level
             int level = cmark_node_get_heading_level(node) - 1; // range from 0 to 5
@@ -83,8 +83,8 @@ void Chunker::genBasicChunks()
             headingStack.push_back(title);
 
             // if no blocks under this heading, add title as a chunk
-            auto next = cmark_node_next(node);
-            if(next == nullptr || cmark_node_get_type(next) == CMARK_NODE_HEADING || cmark_node_get_type(next) == CMARK_NODE_THEMATIC_BREAK)
+            auto next = cmark::cmark_node_next(node);
+            if (next == nullptr || cmark::cmark_node_get_type(next) == cmark::CMARK_NODE_HEADING || cmark::cmark_node_get_type(next) == cmark::CMARK_NODE_THEMATIC_BREAK)
             {
                 // generate metadata
                 std::string metadata;
@@ -117,25 +117,25 @@ void Chunker::genBasicChunks()
             basic_chunks.push_back({content, metadata});
         }
 
-        node = cmark_node_next(node);
+        node = cmark::cmark_node_next(node);
     }
     
 }
 
-void Chunker::getContent(cmark_node *node, std::string& content)
+void Chunker::getContent(cmark::cmark_node *node, std::string &content)
 {
     if(node == nullptr)
         return;
-    
-    content = cmark_render_commonmark(node, CMARK_OPT_DEFAULT, 0);
+
+    content = cmark::cmark_render_commonmark(node, CMARK_OPT_DEFAULT, 0);
 }
 
-std::string Chunker::getNodeContent(cmark_node *node)
+std::string Chunker::getNodeContent(cmark::cmark_node *node)
 {
     if (node == nullptr)
         return "";
 
-    char *markdown = cmark_render_commonmark(node, CMARK_OPT_DEFAULT, 0);
+    char *markdown = cmark::cmark_render_commonmark(node, CMARK_OPT_DEFAULT, 0);
     if (markdown == nullptr)
         return "";
     std::string result(markdown);

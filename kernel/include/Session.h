@@ -11,6 +11,7 @@
 #include "TextSearchTable.h"
 #include "ONNXModel.h"
 #include "DocPipe.h"
+#include "LLMConv.h"
 
 /*
 This class handles a session to a window, aka. a repository.
@@ -29,6 +30,27 @@ public:
 
     using Embedding = DocPipe::Embedding; 
 
+    struct EmbeddingConfig
+    {
+        std::string configName;
+        std::string modelName;
+        std::string modelPath;
+        int maxInputLength;
+
+        bool operator<(const EmbeddingConfig &other) const
+        {
+            if (configName != other.configName)
+                return configName < other.configName;
+            if (modelName != other.modelName)
+                return modelName < other.modelName;
+            if (modelPath != other.modelPath)
+                return modelPath < other.modelPath;
+            return maxInputLength < other.maxInputLength;
+        }
+    };
+
+    using EmbeddingConfigList = std::vector<EmbeddingConfig>;
+
 private:
     std::string repoName;
     std::filesystem::path repoPath;
@@ -40,8 +62,6 @@ private:
     std::vector<std::shared_ptr<VectorTable>> vectorTables;
     std::vector<std::shared_ptr<Embedding>> embeddings;
 
-    // std::queue<DocPipe> docqueue; // doc queue for processing
-
     std::thread backgroundThread; // background thread for processing documents
     std::shared_mutex mutex;
     std::atomic<bool> stopThread = false; // flag to stop the background thread
@@ -50,18 +70,17 @@ private:
     std::function<void(std::vector<std::string>)> docStateReporter;
     std::function<void(std::string, double)> progressReporter;
 
-    constexpr static double alpha = 0.6; // alpha for L2 distance 
+    constexpr static double alpha = 0.6; // ratio for L2 distance, when ranking the results
 
     // creat basic sqlite tables, should only be called in constructor
     void initializeSqlite();
-
-    // read embeddings config from embeddings table and initialize embedding models
-    void initializeEmbedding();
 
     // scan the repo path to find changed documents
     void checkDoc(std::queue<DocPipe>& docqueue);
     // actually execute updating task, need callback function to report progress
     void refreshDoc(std::queue<DocPipe> &docqueue);
+    // remove invalid embedding_config and their chunks
+    void removeInvalidEmbedding();
 
     // background thread for processing documents
     void backgroundProcess();
@@ -78,6 +97,6 @@ public:
 
     std::vector<std::vector<searchResult>>search(const std::string &query, int limit = 10);
 
-    void addEmbedding(const std::string &name, const std::string &modelPath, int maxInputLength);
-
+    // config embedding settings, if arg is empty, will read from sqlite table
+    void configEmbedding(const EmbeddingConfigList &configs = {});
 };

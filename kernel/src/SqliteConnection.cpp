@@ -29,6 +29,8 @@ void SqliteConnection::openSqlite(LocalData &data)
 
     // register the jieba tokenizer to the SQLite database
     jiebaTokenizer::register_jieba_tokenizer(data.sqliteDB);
+
+    sqlite3_busy_timeout(dataManager.get(this).sqliteDB, 10000); // set busy timeout to 10 seconds
 }
 
 SqliteConnection::SqliteConnection(const std::string &dbDirPath, const std::string &dbName) : dbDirPath(dbDirPath), dbName(dbName)
@@ -38,9 +40,7 @@ SqliteConnection::SqliteConnection(const std::string &dbDirPath, const std::stri
         std::filesystem::create_directories(dbDirPath);
 
     // activate thread safety mode
-    sqlite3_config(SQLITE_CONFIG_SERIALIZED); // enable thread safety mode for SQLite
     execute("PRAGMA journal_mode=WAL;");      // set journal mode to WAL for better concurrency
-    execute("PRAGMA busy_timeout=5000;");     // set busy timeout to 5 seconds
 }
 
 SqliteConnection::~SqliteConnection()

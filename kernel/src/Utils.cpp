@@ -1,5 +1,12 @@
 #include "Utils.h"
 
+#include <iostream>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <codecvt>
+#include <regex>
+
 std::string Utils::calculatedocHash(const std::filesystem::path &path)
 {
     // open file
@@ -8,7 +15,7 @@ std::string Utils::calculatedocHash(const std::filesystem::path &path)
         throw std::runtime_error("Failed to open file: " + path.string());
 
     std::vector<char> buffer(8192);             // 8KB buffer
-    XXH64_state_t *state = XXH64_createState(); // create a new state for hash calculation
+    xxhash::XXH64_state_t *state = xxhash::XXH64_createState(); // create a new state for hash calculation
     if (!state)
         throw std::runtime_error("Failed to create hash state.");
 
@@ -20,7 +27,7 @@ std::string Utils::calculatedocHash(const std::filesystem::path &path)
         XXH64_update(state, buffer.data(), file.gcount()); // update hash with the read data
         file.read(buffer.data(), buffer.size());
     }
-    XXH64_hash_t hash = XXH64_digest(state); // get the final hash value
+    xxhash::XXH64_hash_t hash = xxhash::XXH64_digest(state); // get the final hash value
     XXH64_freeState(state);                  // free the state
     file.close();                            // close the file
 
@@ -29,15 +36,15 @@ std::string Utils::calculatedocHash(const std::filesystem::path &path)
 
 std::string Utils::calculateHash(const std::string &content)
 {
-    XXH64_state_t *state = XXH64_createState(); // create a new state for hash calculation
+    xxhash::XXH64_state_t *state = xxhash::XXH64_createState(); // create a new state for hash calculation
     if (!state)
         throw std::runtime_error( "Failed to create hash state.");
 
     // calculate hash
-    XXH64_reset(state, 0);                               // reset the state with initial hash value
-    XXH64_update(state, content.data(), content.size()); // update hash with the content
-    XXH64_hash_t hash = XXH64_digest(state);             // get the final hash value
-    XXH64_freeState(state);                              // free the state
+    xxhash::XXH64_reset(state, 0);                       // reset the state with initial hash value
+    xxhash::XXH64_update(state, content.data(), content.size()); // update hash with the content
+    xxhash::XXH64_hash_t hash = XXH64_digest(state);             // get the final hash value
+    xxhash::XXH64_freeState(state);                              // free the state
 
     return std::to_string(hash); // convert hash to string and return
 }

@@ -24,10 +24,10 @@ Session::Session(std::string repoName, std::filesystem::path repoPath, int sessi
     initializeSqlite();
 
     // read embeddings config from embeddings table and initialize embedding models
-    initializeEmbedding();
+    configEmbedding();
 
-    // begin background thread for processing documents
-    backgroundThread = std::thread(&Session::backgroundProcess, this);
+    // // begin background thread for processing documents
+    // backgroundThread = std::thread(&Session::backgroundProcess, this);
 }
 
 void Session::initializeSqlite()
@@ -36,7 +36,7 @@ void Session::initializeSqlite()
     sqlite->execute(
         "CREATE TABLE IF NOT EXISTS documents ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "doc_name TEXT NOT NULL UNIQUE, "
+        "doc_name TEXT UNIQUE NOT NULL, "
         "last_modified INTEGER, "       // file's last modified timestamp
         "file_size INTEGER, "       // file size
         "content_hash TEXT, "       // file content hash
@@ -44,11 +44,12 @@ void Session::initializeSqlite()
         ");"
     );
 
-    // create embeddings table
+    // create embedding config table
     sqlite->execute(
-        "CREATE TABLE IF NOT EXISTS embeddings ("
+        "CREATE TABLE IF NOT EXISTS embedding_config ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "name TEXT NOT NULL UNIQUE, "
+        "config_name TEXT NOT NULL UNIQUE, "
+        "model_name TEXT NOT NULL, "
         "model_path TEXT NOT NULL, "
         "max_input_length INTEGER NOT NULL, "
         "valid BOOLEAN DEFAULT 1" // for soft delete
@@ -65,7 +66,7 @@ void Session::initializeSqlite()
         ""
         "UNIQUE(doc_id, embedding_id, chunk_index), " // constraints
         "FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE, "
-        "FOREIGN KEY(embedding_id) REFERENCES embeddings(id) ON DELETE CASCADE"
+        "FOREIGN KEY(embedding_id) REFERENCES embedding_config(id) ON DELETE CASCADE"
         ");"
     );
 }
@@ -79,38 +80,6 @@ Session::~Session()
     }
 }
 
-void Session::initializeEmbedding()
-{
-    if(!vectorTables.empty())
-    {
-        vectorTables.clear(); // clear old vector tables
-    }
-    if(!embeddings.empty())
-    {
-        embeddings.clear(); // clear old embedding models
-    }
-
-    auto stmt = sqlite->getStatement("SELECT id, name, model_path, max_input_length FROM embeddings WHERE valid = 1;");
-    while (stmt.step())
-    {
-        int id = stmt.get<int>(0);
-        std::string name = stmt.get<std::string>(1);
-        std::string modelPath = stmt.get<std::string>(2);
-        int maxInputLength = stmt.get<int>(3);
-
-        // create embedding model
-        auto embeddingModel = EmbeddingModel(modelPath, ONNXModel::device::cuda);
-        int dimension = embeddingModel.getDimension();
-        auto embedding = std::make_shared<Embedding>(id, name, dimension, maxInputLength, dimension, std::make_shared<EmbeddingModel>(embeddingModel));
-        embeddings.push_back(embedding);
-
-        // create vector table for this embedding model
-        std::string tableName = "vector_" + std::to_string(id);
-        auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), tableName, *sqlite, dimension);
-        vectorTables.push_back(std::move(vectorTable));
-    }
-}
-
 void Session::backgroundProcess()
 {
     while (!stopThread)
@@ -121,8 +90,11 @@ void Session::backgroundProcess()
         std::shared_lock readlock(mutex); // lock for reading
         checkDoc(docqueue); // check for changed documents
 
-        // though refreshDoc will change vector tables and text table, but this changes will not addect to search result, so no need to use writelock
+        // though refreshDoc will change vector tables and text table, but this changes will not affect to search result, so no need to use writelock(unique_lock)
         refreshDoc(docqueue); // process the documents in the queue
+
+        // logically, there is no other thread use these invalid embedding configs, only need to avoid changes in embedding_config table, so use shared_lock
+        removeInvalidEmbedding();
     }
 }
 
@@ -201,6 +173,46 @@ void Session::refreshDoc(std::queue<DocPipe> &docqueue)
     }
 }
 
+void Session::removeInvalidEmbedding()
+{
+    // the shared_lock is used by caller
+    auto trans = sqlite->beginTransaction(); // avoid unfinished changes be readed by other threads
+    auto selectStmt = sqlite->getStatement("SELECT id FROM embedding_config WHERE valid = 0;");
+    auto chunkStmt = sqlite->getStatement("SELECT chunk_id FROM chunks WHERE embedding_id = ?;");
+    auto deleteChunksStmt = sqlite->getStatement("DELETE FROM chunks WHERE chunk_id = ?;");
+    auto deleteEmbeddingStmt = sqlite->getStatement("DELETE FROM embedding_config WHERE id = ?;");
+    while (selectStmt.step())
+    {
+        auto embeddingId = selectStmt.get<int>(0);
+
+        // get invalid chunk ids
+        chunkStmt.bind(1, embeddingId);
+        std::vector<int64_t> chunkIds;
+        while (chunkStmt.step())
+        {
+            chunkIds.push_back(chunkStmt.get<int64_t>(0)); 
+        }
+        chunkStmt.reset();
+
+        // delete invalid chunks
+        for (auto chunkId : chunkIds)
+        {
+            // delete from text table
+            textTable->deleteChunk(chunkId); 
+            // delete from chunks table
+            deleteChunksStmt.bind(1, chunkId);
+            deleteChunksStmt.step(); 
+            deleteChunksStmt.reset();
+        }
+
+        // delete embedding_config 
+        deleteEmbeddingStmt.bind(1, embeddingId);
+        deleteEmbeddingStmt.step(); 
+        deleteEmbeddingStmt.reset(); 
+    }
+    trans.commit();
+}
+
 auto Session::search(const std::string &query, int limit) -> std::vector<std::vector<searchResult>>
 {
     std::shared_lock readlock(mutex); // lock for reading embedding models and vector tables
@@ -277,25 +289,90 @@ auto Session::search(const std::string &query, int limit) -> std::vector<std::ve
     return allResults;
 }
 
-void Session::addEmbedding(const std::string &name, const std::string &modelPath, int maxInputLength)
+void Session::configEmbedding(const EmbeddingConfigList &configs)
 {
-    std::unique_lock writelock(mutex);
-
-    // check if the embedding already exists
-    auto stmt = sqlite->getStatement("SELECT id FROM embeddings WHERE name = ? AND valid = 1;");
-    stmt.bind(1, name);
-    if(stmt.step())
+    // stop the background thread
+    stopThread = true;
+    if (backgroundThread.joinable())
     {
-        throw std::runtime_error("Embedding with this name already exists.");
+        backgroundThread.join(); 
     }
 
-    // add embedding to sqlite
-    auto insertStmt = sqlite->getStatement("INSERT INTO embeddings (name, model_path, max_input_length) VALUES (?, ?, ?);");
-    insertStmt.bind(1, name);
-    insertStmt.bind(2, modelPath);
-    insertStmt.bind(3, maxInputLength);
-    insertStmt.step();
+    std::unique_lock writelock(mutex);
+    auto trans = sqlite->beginTransaction(); // avoid unfinished changes be readed by other threads
+    if(!configs.empty())
+    {
+        // get old embedding configs
+        std::map<EmbeddingConfig, std::pair<int, EmbeddingConfig>> oldConfigs; // id and config
+        auto stmt = sqlite->getStatement("SELECT id, config_name, model_name, model_path, max_input_length FROM embedding_config;");
+        while (stmt.step())
+        {
+            EmbeddingConfig config;
+            int id = stmt.get<int>(0);
+            config.configName = stmt.get<std::string>(1);
+            config.modelName = stmt.get<std::string>(2);
+            config.modelPath = stmt.get<std::string>(3);
+            config.maxInputLength = stmt.get<int>(4);
+            oldConfigs[config] = {id, config};
+        }
+        // get deleted configs
+        for(auto& newconfig : configs)
+        {
+            auto it = oldConfigs.find(newconfig);
+            if(it != oldConfigs.end())
+            {
+                // finded
+                oldConfigs.erase(it); 
+                continue;
+            }
+            else
+            {
+                // add new config
+                auto insertStmt = sqlite->getStatement("INSERT INTO embedding_config (config_name, model_name, model_path, max_input_length) VALUES (?, ?, ?, ?);");
+                insertStmt.bind(1, newconfig.configName);
+                insertStmt.bind(2, newconfig.modelName);
+                insertStmt.bind(3, newconfig.modelPath);
+                insertStmt.bind(4, newconfig.maxInputLength);
+                insertStmt.step();
+            }
+        }
+        // set flag for deleted configs
+        for(auto& oldconfig : oldConfigs)
+        {
+            auto updateStmt = sqlite->getStatement("UPDATE embedding_config SET valid = 0 WHERE id = ?;");
+            updateStmt.bind(1, oldconfig.second.first);
+            updateStmt.step();
+        }
+    }
 
-    // re initialize embedding models and vector tables
-    initializeEmbedding();
+    // create new vectors
+    std::vector<std::shared_ptr<VectorTable>> tempVectorTables;
+    std::vector<std::shared_ptr<Embedding>> tempEmbeddings;
+    auto stmt = sqlite->getStatement("SELECT id, config_name, model_path, max_input_length FROM embedding_config WHERE valid = 1;");
+    while (stmt.step())
+    {
+        int id = stmt.get<int>(0);
+        std::string name = stmt.get<std::string>(1);
+        std::string modelPath = stmt.get<std::string>(2);
+        int maxInputLength = stmt.get<int>(3);
+
+        // create embedding model
+        auto embeddingModel = EmbeddingModel(modelPath, ONNXModel::device::cuda);
+        int dimension = embeddingModel.getDimension();
+        auto embedding = std::make_shared<Embedding>(id, name, dimension, maxInputLength, std::make_shared<EmbeddingModel>(embeddingModel));
+        tempEmbeddings.push_back(embedding);
+
+        // create vector table for this embedding model
+        std::string tableName = "vector_" + std::to_string(id);
+        auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), tableName, *sqlite, dimension);
+        tempVectorTables.push_back(std::move(vectorTable));
+    }
+    vectorTables = std::move(tempVectorTables); 
+    embeddings = std::move(tempEmbeddings); 
+    trans.commit();
+
+    // resume the background thread
+    stopThread = false;
+    backgroundThread = std::thread(&Session::backgroundProcess, this); 
 }
+    

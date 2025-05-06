@@ -40,11 +40,10 @@ int main()
             std::cout << "Processing " << path << ": " << progress * 100 << "%" << std::endl; // print progress
         }
     );
-    if (!std::filesystem::exists(".\\repo\\.PocketRAG\\db\\vector_1.faiss"))
-    {
-        session.addEmbedding("bge-m3_512", "../../models/bge-m3", 512); // example embedding
-        // session.addEmbedding("bge-m3_1024", "../../models/bge-m3", 1024); // example embedding
-    }
+    session.configEmbedding({
+        {"default", "bge-m3", "../../models/bge-m3", 512},
+        {"1024", "bge-m3", "../../models/bge-m3", 1024}
+    });
     while(true)
     {
         std::string query;
@@ -66,5 +65,8 @@ int main()
             }
             std::cout << "-----------------------------------\n"; // separator for different embedding results
         }
+        session.configEmbedding({
+            {"default", "bge-m3", "../../models/bge-m3", 512}
+        });
     }
 }

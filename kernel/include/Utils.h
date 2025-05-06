@@ -5,8 +5,10 @@
 #include <string>
 #include <codecvt>
 #include <regex>
-
-#include <xxhash.h>
+namespace xxhash
+{
+    #include <xxhash.h>
+}
 
 /*
 This file contains utility functions for the project.
