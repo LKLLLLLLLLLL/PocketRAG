@@ -14,7 +14,7 @@
 Session::Session(std::string repoName, std::filesystem::path repoPath, int sessionId, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter) : repoName(repoName), repoPath(repoPath), sessionId(sessionId), docStateReporter(docStateReporter), progressReporter(progressReporter)
 {
     // open a sqlite connection
-    dbPath = repoPath / "db" / ".PocketRAG";
+    dbPath = repoPath / ".PocketRAG" / "db";
     sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);
 
     // open text search table
@@ -105,7 +105,8 @@ void Session::initializeEmbedding()
         embeddings.push_back(embedding);
 
         // create vector table for this embedding model
-        auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), "vector_" + id, *sqlite, dimension);
+        std::string tableName = "vector_" + std::to_string(id);
+        auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), tableName, *sqlite, dimension);
         vectorTables.push_back(std::move(vectorTable));
     }
 }

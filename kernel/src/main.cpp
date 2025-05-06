@@ -4,13 +4,14 @@
 #include "VectorTable.h"
 #include "TextSearchTable.h"
 #include "ONNXModel.h"
+#include "Utils.h"
 
 #include <iostream>
 #include <filesystem>
 
 int main()
 {
-    setup_utf8_console();
+    Utils::setup_utf8_console();
 
     std::filesystem::path repoPath = ".\\repo"; 
     std::string repoName = "repo";
@@ -39,10 +40,10 @@ int main()
             std::cout << "Processing " << path << ": " << progress * 100 << "%" << std::endl; // print progress
         }
     );
-    if (!std::filesystem::exists(".\\repo\\.PocketRAG\\_vector_bge_m3_512.faiss"))
+    if (!std::filesystem::exists(".\\repo\\.PocketRAG\\db\\vector_1.faiss"))
     {
-        session.addEmbedding("bge_m3-512", "../../models/bge-m3", 512); // example embedding
-        session.addEmbedding("bge_m3_1024", "../../models/bge-m3", 1024); // example embedding
+        session.addEmbedding("bge-m3_512", "../../models/bge-m3", 512); // example embedding
+        // session.addEmbedding("bge-m3_1024", "../../models/bge-m3", 1024); // example embedding
     }
     while(true)
     {

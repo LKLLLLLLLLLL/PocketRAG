@@ -8,6 +8,7 @@
 #include "TextSearchTable.h"
 #include "Chunker.h"
 #include "ONNXModel.h"
+#include "Utils.h"
 
 /*
 This class handles the document processing pipeline.
@@ -73,6 +74,9 @@ private:
     std::filesystem::path docPath; // full path
     DocState state = {DocState::unchecked};
 
+    std::string docContent; // cache content, avoid file changed while processing, do not use this variable directly, use readDoc() instead
+    bool contentCached = false;
+
     Chunker::docType docType; // document type, used to split the document
 
     int64_t docId = -1; // extract from sqlite, if deleted, set to -1
@@ -83,6 +87,9 @@ private:
     std::vector<std::shared_ptr<VectorTable>> &vTable;       // vector table, one table has one embedding model
 
     static const int maxUncheckedTime = 60 * 60 * 24; // max unchecked time, second, 1 day
+
+    // read document from disk, and cache it
+    std::string& readDoc();
 
     // update document in db
     void updateDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag);
@@ -99,12 +106,8 @@ private:
     // update one embedding to text search table and vector table
     void updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::atomic<bool> &stopFlag);
 
-    // helper functions
-    // calculate hash of the document
-    static std::string calculatedocHash(const std::filesystem::path &path);
-    static std::string calculateHash(const std::string &content);
     // update last_modified, last_checked, content_hash, file_size in sqlite
-    void updateSqlite(std::string hash = "") const;
+    void updateSqlite(std::string hash = "");
 
 public:
     DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<std::shared_ptr<VectorTable>> &vTable, std::vector<std::shared_ptr<Embedding>> &embeddings);

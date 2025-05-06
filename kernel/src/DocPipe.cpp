@@ -28,6 +28,22 @@ DocPipe::DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSe
         throw Exception(Exception::Type::wrongArg, "Unsupported document type: " + fileType);
 }
 
+std::string& DocPipe::readDoc()
+{
+    if(contentCached)
+        return docContent; 
+
+    // read document from disk
+    std::ifstream file{docPath};
+    if (!file.is_open())
+        throw Exception(Exception::Type::openError, "Failed to open file: " + docPath.string());
+    std::stringstream buffer;
+    buffer << file.rdbuf();    
+    docContent = buffer.str(); 
+    contentCached = true;
+    return docContent;
+}
+
 void DocPipe::check()
 {
     // check if the doeument exists
@@ -76,17 +92,19 @@ void DocPipe::check()
     auto nowInt = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
     if (nowInt - lastChecked <= maxUncheckedTime)
     {
-        return; // no need to check again
+        state = DocState::unchanged;
+        return; 
     }
 
     // deep check if the document is changed
-    auto hash = calculatedocHash(docPath);
+    auto hash = Utils::calculateHash(readDoc());
     if (hash != contentHash)
     {
         state = DocState::modified; // document is modified
         return;
     }
 
+    state = DocState::unchanged;
     return; // no need to update
 }
 
@@ -237,54 +255,12 @@ void DocPipe::addDoc(std::function<void(double)> callback, std::atomic<bool> &st
     return;
 }
 
-std::string DocPipe::calculatedocHash(const std::filesystem::path &path)
-{
-    // open file
-    std::ifstream file{path, std::ios::binary};
-    if(!file.is_open())
-        throw Exception(Exception::Type::openError, "Failed to open file: " + path.string());
-
-    std::vector<char> buffer(8192); // 8KB buffer
-    XXH64_state_t *state = XXH64_createState(); // create a new state for hash calculation
-    if(!state)
-        throw Exception(Exception::Type::unknownError, "Failed to create hash state.");
-
-    // calculate hash
-    XXH64_reset(state, 0); // reset the state with initial hash value
-    file.read(buffer.data(), buffer.size());
-    while(file.gcount() > 0)
-    {
-        XXH64_update(state, buffer.data(), file.gcount()); // update hash with the read data
-        file.read(buffer.data(), buffer.size());
-    }
-    XXH64_hash_t hash = XXH64_digest(state); // get the final hash value
-    XXH64_freeState(state); // free the state
-    file.close(); // close the file
-
-    return std::to_string(hash); // convert hash to string and return
-}
-
-std::string DocPipe::calculateHash(const std::string &content)
-{
-    XXH64_state_t *state = XXH64_createState(); // create a new state for hash calculation
-    if(!state)
-        throw Exception(Exception::Type::unknownError, "Failed to create hash state.");
-
-    // calculate hash
-    XXH64_reset(state, 0); // reset the state with initial hash value
-    XXH64_update(state, content.data(), content.size()); // update hash with the content
-    XXH64_hash_t hash = XXH64_digest(state); // get the final hash value
-    XXH64_freeState(state); // free the state
-
-    return std::to_string(hash); // convert hash to string and return
-}
-
-void DocPipe::updateSqlite(std::string hash) const
+void DocPipe::updateSqlite(std::string hash) 
 {
     // get content_hash
     if(hash.empty())
     {
-        hash = calculatedocHash(docPath); // calculate hash if not provided
+        hash = Utils::calculateHash(readDoc()); // calculate hash if not provided
     }
     // get last_modified
     auto lastModifiedTime = std::filesystem::last_write_time(docPath);
@@ -320,14 +296,7 @@ void DocPipe::updateSqlite(std::string hash) const
 void DocPipe::updateToTable(Progress &progress, std::atomic<bool> &stopFlag)
 {
     // 1. open file and read content to a string
-    std::ifstream file{docPath};
-    if(!file.is_open())
-        throw Exception(Exception::Type::openError, "Failed to open file: " + docPath.string());
-    std::stringstream buffer;
-    buffer << file.rdbuf(); // read file content to string
-    auto content = buffer.str(); // get string from stringstream
-    if(content.empty())
-        return;
+    auto content = readDoc();
     progress.finishSubprogress(); // finish open file progress
     
     // 2. for each embedding model, update the embedding table and vector table
@@ -386,7 +355,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     for (int index = 1; index <= newChunks.size(); index++) // index begin with 1, defferent with NULL value of sqlite
     {
         auto& chunk = newChunks[index - 1]; // get new chunk
-        auto hash = calculateHash(chunk.content + chunk.metadata); // calculate hash for new chunk
+        auto hash = Utils::calculateHash(chunk.content + chunk.metadata); // calculate hash for new chunk
         auto it = existingChunks.find(hash);                 // find hash in existing chunks
         if (it != existingChunks.end())   // finded, update chunk
         {
@@ -455,7 +424,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         auto index = addChunkQueue.front(); // get chunk index
         addChunkQueue.pop(); // remove from queue
         auto& chunk = newChunks[index - 1]; // get chunk from new chunks
-        auto hash = calculateHash(chunk.content + chunk.metadata); // calculate hash for new chunk
+        auto hash = Utils::calculateHash(chunk.content + chunk.metadata); // calculate hash for new chunk
 
         // add chunk to chunks table
         auto sql = "INSERT INTO chunks (doc_id, embedding_id, chunk_index, content_hash) VALUES (?, ?, ?, ?);";

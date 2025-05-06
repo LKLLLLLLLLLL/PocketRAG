@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <regex>
+
+#include "Utils.h"
 
 const double Chunker::min_chunk_length_ratio = 0.85;
 const std::vector<std::vector<std::string>> Chunker::split_table =
@@ -12,7 +15,8 @@ const std::vector<std::vector<std::string>> Chunker::split_table =
     {"```"}, //code block
     {"---", "___", "****"}, // thematic break
     {"\n+", "\n-", "\n*"}, //list
-    {"\n", "\r\n", "\r"}, // line
+    {"\n\"", "\"\n", "    “", "”\n"}, // quote
+    {"\n"}, // line
     {". ", "! ", "? ", "... ", "。", "！", "？", "……"}, // sentence
     {";", "；"}, // semicolon
     {",", "，"}, // comma
@@ -22,6 +26,8 @@ const Chunker::Chunk Chunker::document = {};
 
 Chunker::Chunker(const std::string &text, docType type, int max_length) : in_text(text), in_type(type), max_length(max_length)
 {
+    auto normalized_text = Utils::normalizeLineEndings(in_text); // normalize line endings
+    
     if(type == docType::Markdown)
     {
         // build AST
@@ -223,6 +229,12 @@ void Chunker::splitChunk(const Chunk& chunk, int split_table_index)
             {
                 break;
             }
+        }
+
+        // if the chunk is too short, ignore it
+        if(sub_chunk.content.length() < min_length)
+        {
+            continue;
         }
         final_chunks.push_back(sub_chunk);
         i = next_pos - 1; 

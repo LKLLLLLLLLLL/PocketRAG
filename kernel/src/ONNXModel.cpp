@@ -1,4 +1,4 @@
-#include <ONNXmodel.h>
+#include "ONNXmodel.h"
 
 #include <iostream>
 #include <string>
@@ -13,37 +13,7 @@
 
 #include <onnxruntime_cxx_api.h>
 
-//--------------------------- Helper Functions ------------------------
-// Convert wstring to string
-std::string wstring_to_string(const std::wstring &wstr) 
-{
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    return converter.to_bytes(wstr);
-}
-
-// Convert string to wstring
-std::wstring string_to_wstring(const std::string &str) 
-{
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    return converter.from_bytes(str);
-}
-
-// set console to UTF-8 to avoid garbled characters
-void setup_utf8_console()
-{
-#ifdef _WIN32
-    // set console to UTF-8
-    system("chcp 65001 > nul");
-
-    // set locale to UTF-8
-    std::ios_base::sync_with_stdio(false);
-    std::locale utf8_locale(std::locale(), new std::codecvt_utf8<wchar_t>());
-    std::wcout.imbue(utf8_locale);
-#else
-    // set locale to UTF-8
-    std::locale::global(std::locale("en_US.UTF-8"));
-#endif
-}
+#include "Utils.h"
 
 /*
 Print tensor data and shape for dubug
@@ -151,7 +121,7 @@ ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfS
             auto modelPath = targetModelDirPath / "model.onnx";
             if (!std::filesystem::exists(modelPath))
                 throw std::runtime_error("Model file not found: " + modelPath.string());
-            auto modelPathwString = string_to_wstring(modelPath.string());
+            auto modelPathwString = Utils::string_to_wstring(modelPath.string());
             session.reset(new Ort::Session(*env, modelPathwString.c_str(), sessionOptions));
             if (!session)
                 throw std::runtime_error("Failed to load ONNX model: " + targetModelDirPath.string());

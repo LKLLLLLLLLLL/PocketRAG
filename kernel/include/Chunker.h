@@ -38,6 +38,8 @@ private:
 
     int max_length; // max bytes length of each chunk, return chunks might be shorter than this value, UTF-8 char may be longer than 1 bytes
 
+    static const int min_length = 4; // if the chunk length is less than this value, it will be ignored
+
     static const double min_chunk_length_ratio; // min chunk length ratio, but there is no guarantee that the chunk length will be greater than this value
     static const std::vector<std::vector<std::string>> split_table; // char table for splitting, only support ch-zh and en now
 

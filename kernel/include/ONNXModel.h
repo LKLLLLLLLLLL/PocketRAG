@@ -10,11 +10,6 @@
 #include <onnxruntime_cxx_api.h>
 #include <sentencepiece_processor.h>
 
-// set console to UTF-8 on Windows
-void setup_utf8_console();
-// Convert wstring to string
-std::string wstring_to_string(const std::wstring &wstr);
-
 /*
 This class is a base class of all ONNX models.
 Can't be instantiated directly.

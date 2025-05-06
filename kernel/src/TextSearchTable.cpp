@@ -162,9 +162,6 @@ void TextSearchTable::deleteChunk(int64_t chunkId)
 
 auto TextSearchTable::search(const std::string &query, int limit) -> std::vector<ResultChunk>
 {
-    // add "\" before special characters
-    std::set<std::string> specialChars = {"\\", "'", "\"", ":", "(", ")", "*", "+", "-", ",", "{", "}", "^"};
-
     // tokenize the query using jieba
     std::vector<std::string> keywords;
     jiebaTokenizer::jieba->CutForSearch(query, keywords); 
