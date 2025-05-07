@@ -7,6 +7,7 @@ git clone https://github.com/LKLLLLLLLLLL/PocketRAG
 详见[Dependencies.md](./docs/Dependencies.md)
 ### 编译kernel
 ```shell
+cd kernel
 mkdir build
 cd build
 cmake .. 

@@ -13,9 +13,11 @@ vcpkg主要管理依赖如下：
 + **curl**：用于提供http请求能力
 + **nlohmann_json**：用于提供json解析能力
 + **cmark**：用于提供markdown解析能力
++ **xxhash**：用于提供hash计算
 
 通过如下命令获取vcpkg源码并构建可执行文件`vcpkg`:
 ```shell
+cd PocketRAG
 git submodule update --init --recursive
 ./vcpkg/bootstrap-vcpkg.bat # on windows
 cd kernel
@@ -36,6 +38,7 @@ cd kernel
 
 该部分已经通过git submodule添加到项目中，在根目录执行以下命令即可完成添加：
 ```shell
+cd PocketRAG
 git submodule update --init --recursive
 ```
 
