@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, dialog} = require('electron/main')
 const path = require('node:path')
 const {spawn} = require('node:child_process')
 const fs = require('node:fs')
+//import electron and node modules
+
 
 const kernelPath = path.join(__dirname, '../../../kernel/bin/PocketRAG_kernel.exe')
 const kernel = spawn(kernelPath)
@@ -9,8 +11,9 @@ kernel.on('error', (err) => {
   console.error('Failed to start kernel:', err)
   app.quit()
 })
-kernel.stdout.on('data', stdoutListener)
+kernel.stdout.on('data', stdoutListener)//kernel stdout listener
 const windows = new Map()
+//define the child process and windows map for the kernel and windows
 
 
 async function stdoutListener (data) {
@@ -21,16 +24,10 @@ async function stdoutListener (data) {
     throw new Error('Window not found from windowId: ' + result.windowId)
   }
   else {
-    switch(result.type) {
-      case 'query':
-        window.webContents.send('queryResult', result.result)
-        break
-      case 'embedding':
-        window.webContents.send('embedding', result.result)
-        break
-    }
+    window.webContents.send('kernelData', result)
   }
 }
+//define the stdout listener for the kernel process
 
 
 async function selectRepo (event) {
@@ -52,6 +49,7 @@ async function selectRepo (event) {
     }
   }
 }
+//select the repository path
 
 
 async function addFile (event, repoPath) {
@@ -70,7 +68,7 @@ async function addFile (event, repoPath) {
       }
       if(isexist) {
         return '文件已存在，请重命名'
-      }
+      }// check if the file name already exists in the repository
       else {
         try {
           fs.copyFileSync(filePaths[0], destPath)
@@ -91,6 +89,7 @@ async function addFile (event, repoPath) {
     }
   }
 }
+// add files to the repository by button click
 
 
 async function removeFile (event, repoPath) {
@@ -98,7 +97,7 @@ async function removeFile (event, repoPath) {
   if(!canceled) {
     if(path.dirname(filePaths[0]) !== repoPath){
       return '文件不在当前仓库中，请重新选择'
-    }
+    }// can't remove the file which is not in the current repository
     else {
       if(kernel.pid && !kernel.killed) {
         try {
@@ -121,6 +120,7 @@ async function removeFile (event, repoPath) {
     }
   }
 }
+//remove a file from the repository by button click
 
 
 async function selectEmbeddingModel(event, embeddingModel) {
@@ -140,6 +140,8 @@ async function selectEmbeddingModel(event, embeddingModel) {
     }
   }
 }
+//select a embedding model
+
 
 function query(event, query) {
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
@@ -154,10 +156,11 @@ function query(event, query) {
     // kernel.stdin.write(JSON.stringify(result) + '\n')
   }
 }
+//send a query to the kernel
 
 
 function createWindow () {
-  const windowId = Date.now()
+  const windowId = Date.now()// use timestamp as windowId
   const mainWindow = new BrowserWindow({
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
@@ -166,12 +169,13 @@ function createWindow () {
 
   mainWindow.loadFile('electron/src/renderer/index.html')
 
-  windows.set(windowId, mainWindow)
+  windows.set(windowId, mainWindow)//add the window to the map
 
   mainWindow.on('closed', () => {
     windows.delete(windowId)
-  })
+  })//delete the window from the map when closed
 }
+
 
 
 function getWindowId (window) {
@@ -182,6 +186,7 @@ function getWindowId (window) {
   }
   return null
 }
+//get the windowId from the window object
 
 
 app.whenReady().then(() => {
@@ -191,16 +196,17 @@ app.whenReady().then(() => {
   ipcMain.handle('removeFile', removeFile)
   ipcMain.handle('selectEmbeddingModel', selectEmbeddingModel)
   ipcMain.on('query', query)
+  //add the event listeners before the window is created
 
   createWindow()
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
+  })// for macOS
 
   app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit()
-  })
+  })// for macOS
 })
 
 
@@ -210,4 +216,4 @@ app.on('quit', () => {
     kernel.removeAllListeners('error')
     console.log('Kernel process killed and listeners removed')
   }
-})
+})//kill the kernel process when the app is closed

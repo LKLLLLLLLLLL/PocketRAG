@@ -7,8 +7,24 @@ const querybtn = document.getElementById('querybtn')
 let currentRepo = undefined
 let currentEmbeddingModel = undefined
 
-window.electronAPI.onembedding((result) => {
-  console.log(result)
+
+window.electronAPI.onKernelData((data) => {
+  const type = data.type
+  switch(type) {
+    case 'embedding':
+      const embeddingEvent = new CustomEvent('embedding', {detail : data})
+      window.dispatchEvent(embeddingEvent)
+      break
+    case 'queryResult':
+      const queryResultEvent = new CustomEvent('queryResult', {detail : data})
+      window.dispatchEvent(queryResultEvent)
+      break
+  }
+})
+
+
+window.addEventListener('embedding',(event) => {
+  console.log(event.detail)
 })
 
 
@@ -61,7 +77,7 @@ remove.addEventListener('click', async() => {
 embeddingModelSelect.addEventListener('click', async() => {
   if(currentRepo !== undefined) {
     const embeddingModel = document.getElementById('embeddingModel')
-    let err = await window.electronAPI.selectEmbeddingModel(embeddingModel.value)
+    const err = await window.electronAPI.selectEmbeddingModel(embeddingModel.value)
     if(err) alert(err)
     else currentEmbeddingModel = embeddingModel.innerText
     console.log(currentEmbeddingModel)
@@ -78,16 +94,16 @@ const queryHandler = async () => {
   const query = document.getElementById('query').value
 
   if(currentRepo !== undefined && currentEmbeddingModel !== undefined && query !== '') {
-    window.electronAPI.query(query)
-    const result = await new Promise((resolve) => {
-      window.electronAPI.oncequeryResult((result) => {
+    const result = await new Promise((resolve, reject) => {
+      window.addEventListener('queryResult', (result) => {
         resolve(result)
       })
+      window.electronAPI.query(query)
     })
     console.log(result)
   }
   else if(currentRepo === undefined) alert('请先选择一个仓库')
-  else if(currentEmbeddingModel === undefined)alert('请先选择一个嵌入模型')
+  else if(currentEmbeddingModel === undefined) alert('请先选择一个嵌入模型')
   else alert('查询不能为空')
   querybtn.addEventListener('click', queryHandler)
 }
