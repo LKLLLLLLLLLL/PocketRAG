@@ -238,3 +238,8 @@ std::pair<std::string, std::string> TextSearchTable::getContent(int64_t chunkId)
 
     return {queryStmt.get<std::string>(0), queryStmt.get<std::string>(1)};
 }
+
+void TextSearchTable::dropTable(SqliteConnection &sqlite, const std::string &tableName)
+{
+    sqlite.execute("DROP TABLE IF EXISTS " + tableName + ";"); // drop the table if exists
+}

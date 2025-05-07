@@ -80,6 +80,9 @@ public:
 
     // get a pair with content and metadata of a chunk by chunkId
     std::pair<std::string, std::string> getContent(int64_t chunkId);
+
+    // drop table from sqlite
+    static void dropTable(SqliteConnection &sqlite, const std::string &tableName);
 };
 
 namespace jiebaTokenizer

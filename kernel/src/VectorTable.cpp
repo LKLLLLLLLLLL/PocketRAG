@@ -458,3 +458,17 @@ void VectorTable::write()
     reconstructFaissIndex(true);
     writeToDisk(true); 
 }
+
+void VectorTable::dropTable(SqliteConnection &sqlite, const std::filesystem::path &path, const std::string &tableName)
+{
+    // drop sql table
+    auto dropSQL = "DROP TABLE IF EXISTS " + tableName + " ;";
+    sqlite.execute(dropSQL);
+
+    // delete faiss index file
+    std::filesystem::path dbFullPath = path / (tableName + ".faiss");
+    if (std::filesystem::exists(dbFullPath))
+    {
+        std::filesystem::remove(dbFullPath);
+    }
+}

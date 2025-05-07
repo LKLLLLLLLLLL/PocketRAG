@@ -56,6 +56,12 @@ private:
     // initialize SQLite table, should only be called when creating a new table
     void initializeSQLiteTable();
 
+    // reconstruct Faiss index from SQLite database, may take a long time; can save memory and disk usage; return the number of vectors delete from sql table
+    int reconstructFaissIndex(bool alreadyLocked);
+
+    // write the Faiss index to disk, return the number of vectors written to disk successfully
+    int writeToDisk(bool alreadyLocked);
+
 public:
     // constructor will open faiss index from given path, if not exist, create a new one
     VectorTable(std::filesystem::path dbDirPath, const std::string &tableName, SqliteConnection &sqliteConnection, int dimension = -1);
@@ -91,15 +97,12 @@ public:
     // if the id is not in the table, throw an exception
     std::vector<idx_t> removeVector(const std::vector<idx_t> &ids);
 
-    // reconstruct Faiss index from SQLite database, may take a long time; can save memory and disk usage; return the number of vectors delete from sql table
-    int reconstructFaissIndex(bool alreadyLocked);
-
-    // write the Faiss index to disk, return the number of vectors written to disk successfully
-    int writeToDisk(bool alreadyLocked);
-
     // write all changes to disk, this may delete vector from faiss index, make sure sqlite table has committed all changes before calling this function
     void write();
 
     // return ids which aren't in the faiss index, which means they will never appeare in the query result
     std::vector<idx_t> getInvalidIds() const;
+
+    // drop table and delete faiss index file
+    static void dropTable(SqliteConnection &sqlite, const std::filesystem::path& path, const std::string &tableName);
 };

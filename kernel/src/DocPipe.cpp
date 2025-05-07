@@ -124,10 +124,6 @@ void DocPipe::process(std::function<void(double)> callback, std::atomic<bool> &s
         default:
             return; // do nothing
     }
-    for (auto &vectorTable : vTable)
-    {
-        vectorTable->write();
-    }
 }
 
 void DocPipe::updateDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag)

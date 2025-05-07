@@ -14,10 +14,10 @@
 #include "LLMConv.h"
 
 /*
-This class handles a session to a window, aka. a repository.
+This class handles a repository.
 This is not a thread-safe class, it should be used in a single thread, but it will fork treads when needed.
 */
-class Session
+class Repository
 {
 public:
     struct searchResult
@@ -55,7 +55,6 @@ private:
     std::string repoName;
     std::filesystem::path repoPath;
     std::filesystem::path dbPath;
-    int sessionId;
 
     std::shared_ptr<SqliteConnection> sqlite;
     std::shared_ptr<TextSearchTable> textTable;
@@ -73,30 +72,41 @@ private:
     constexpr static double alpha = 0.6; // ratio for L2 distance, when ranking the results
 
     // creat basic sqlite tables, should only be called in constructor
+    // no mutex lock.
     void initializeSqlite();
 
-    // scan the repo path to find changed documents
+    // update embeddings in both sqlite and class members
+    // no mutex lock.
+    void updateEmbeddings(const EmbeddingConfigList &configs = {});
+
+    // scan the repo path to find changed documents, no mutex lock.
     void checkDoc(std::queue<DocPipe>& docqueue);
-    // actually execute updating task, need callback function to report progress
+    // actually execute updating task, need callback function to report progress, no mutex lock.
     void refreshDoc(std::queue<DocPipe> &docqueue);
-    // remove invalid embedding_config and their chunks
+    // remove invalid embedding_config and their chunks, no mutex lock.
     void removeInvalidEmbedding();
 
     // background thread for processing documents
     void backgroundProcess();
 
+    void stopBackgroundProcess();
+    void startBackgroundProcess();
+
 public:
-    Session(std::string repoName, std::filesystem::path repoPath, int sessionId, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr);
-    ~Session();
+    Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr);
+    ~Repository();
 
-    Session(const Session&) = delete; // disable copy constructor
-    Session& operator=(const Session&) = delete; // disable copy assignment operator
+    Repository(const Repository&) = delete; // disable copy constructor
+    Repository& operator=(const Repository&) = delete; // disable copy assignment operator
 
-    Session(Session&&) = delete; // disable move constructor
-    Session& operator=(Session&&) = delete; // disable move assignment operator
+    Repository(Repository&&) = delete; // disable move constructor
+    Repository& operator=(Repository&&) = delete; // disable move assignment operator
 
     std::vector<std::vector<searchResult>>search(const std::string &query, int limit = 10);
 
     // config embedding settings, if arg is empty, will read from sqlite table
-    void configEmbedding(const EmbeddingConfigList &configs = {});
+    void configEmbedding(const EmbeddingConfigList &configs);
+
+    // to fix internal error, drop all tables and reconstruct
+    void reConstruct();
 };
