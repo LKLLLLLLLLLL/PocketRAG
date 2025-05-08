@@ -4,6 +4,9 @@
 # VS directory
 .VS/
 
+# jetbrains directory
+.idea/
+
 # OS specific files
 .DS_Store
 Thumbs.db

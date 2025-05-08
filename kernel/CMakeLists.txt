@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
 
-# set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake" 
-#     CACHE STRING "Vcpkg toolchain file")
-
 project(PocketRAG_kernel VERSION 0.0.1)
 
 # 设置输出目录
@@ -22,6 +19,7 @@ endif()
 
 # 设置vcpkg工具链文件
 include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
+include(CMakeFindDependencyMacro)
 
 # --------------导入依赖项---------------
 # 添加自定义 SQLite 构建
@@ -40,9 +38,23 @@ target_include_directories(sqlite3 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/external/sqlite3
 )
 
+# 导入faiss依赖：blas
+# 导入openblas
+find_package(OpenBLAS CONFIG REQUIRED)
+set(BLA_VENDOR OpenBLAS)
+set(BLAS_LIBRARIES ${OpenBLAS_LIBRARIES})
+set(BLAS_INCLUDE_DIRS ${OpenBLAS_INCLUDE_DIRS})
+# 导入lapack
+find_package(LAPACK CONFIG REQUIRED)
+
+
 # 导入faiss
-include(CMakeFindDependencyMacro)
-find_package(faiss CONFIG REQUIRED)
+set(FAISS_ENABLE_GPU OFF)
+set(FAISS_ENABLE_PYTHON OFF)
+set(FAISS_ENABLE_C_API OFF)
+set(BUILD_TESTING OFF)
+set(FAISS_OPT_LEVEL avx2)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/faiss)
 
 # 导入curl
 find_package(CURL CONFIG REQUIRED)
@@ -117,7 +129,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 # 链接依赖库 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    faiss
+    faiss    
     sqlite3
     onnxruntime
     sentencepiece
@@ -131,10 +143,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # 拷贝dll到输出目录，解决依赖问题
 set(VCPKG_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/bin")
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    # 复制vcpkg提供的DLL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${VCPKG_DLL_DIR}"
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    # # 复制vcpkg提供的DLL
+    # COMMAND ${CMAKE_COMMAND} -E copy_directory
+    #     "${VCPKG_DLL_DIR}"
+    #     $<TARGET_FILE_DIR:${PROJECT_NAME}>
     # 复制ONNX Runtime DLL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${ONNXRUNTIME_DIR}/lib/"

@@ -2,7 +2,8 @@
   "dependencies": [
     "cmark",
     "curl",
-    "faiss",
+    "lapack",
+    "openblas",
     "nlohmann-json",
     "xxhash"
   ]
