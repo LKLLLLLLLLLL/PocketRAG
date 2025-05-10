@@ -5,12 +5,14 @@
 #include <string>
 #include <codecvt>
 #include <regex>
+#include <functional>
+#include <mutex>
+#include <queue>
 namespace xxhash
 {
     #include <xxhash.h>
 }
-
-#include "KernelServer.h"
+#include <nlohmann/json.hpp>
 
 /*
 This file contains utility functions for the project.
@@ -62,7 +64,7 @@ namespace Utils
             // enum class Type{send, receive} type; // send to frontend or receive from frontend
             int sessionId; // -1 - KernelServer, others - Session ID
             nlohmann::json data;
-            CallbackManager::Callback callback = nullptr;
+            // CallbackManager::Callback callback = nullptr;
         };
     private:
         std::queue<std::shared_ptr<Message>> queue;

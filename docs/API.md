@@ -1,5 +1,5 @@
 # 此文档定义了界面与后端通信的API接口
-所有同行都通过json文件传输，每一行表示一个消息。
+所有通信都通过json文件传输，每一行表示一个消息。
 大体格式如下：
 ```json
 {
@@ -48,12 +48,10 @@
 
 # 消息具体内容
 
-## frontend -> kernel server
+## main.js -> kernel server
 
 ### stopAll
 析构所有对象并安全退出。收到信息后立即返回，需要通过捕捉退出信号来确定是否成功退出。
-
-只能由main.js发送
 
 ```json
 {
@@ -91,8 +89,6 @@ return:
 
 ### getRepos
 获取仓库列表，返回全部仓库列表。
-
-只能由main.js发送
 
 ```json
 {
@@ -142,9 +138,7 @@ return:
 ```
 
 ### openRepo
-打开一个仓库并创建对应的session，并返回仓库路径。返回SUCCESS并不代表Session初始化成功，只有当窗口收到sessionDone消息后，才保证Session能够访问。
-
-只能由main.js发送
+打开一个仓库并创建对应的session，并返回仓库路径。返回SUCCESS并不代表Session初始化成功，只有当窗口收到sessionPrepared消息后，才保证Session能够访问。
 
 ```json
 {
@@ -190,6 +184,48 @@ return:
 
 **可能的错误：**
 - REPO_NOT_FOUND 仓库不存在
+
+### closeRepo
+关闭一个窗口对应的仓库并销毁对应的session。
+
+```json
+{
+    "windowId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "closeRepo",
+        "windowId" : 120
+    }
+}
+```
+
+return:
+```json
+{
+    "windowId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : true,
+
+    "message" : {
+        "type" : "closeRepo",
+        "windowId" : 120
+    },
+
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
+**可能的错误：**
+- SESSION_NOT_FOUND 未找到与该windowId对应的session
 
 ### createRepo
 创建一个新的仓库，不会创建Session。需要再次调用openRepo来打开对应的Session。
@@ -237,4 +273,117 @@ return:
 - REPO_NAME_NOT_MATCH 仓库名与路径中的仓库名不匹配
 - REPO_NAME_EXIST 仓库名已存在
 
-## kernel server -> frontend
+## window -> session
+### search
+在当前仓库中搜索，返回搜索结果
+```json
+{
+    "windowId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "search",
+        "query" : "search string",
+        "limit" : 10
+    }
+}
+```
+
+return:
+```json
+{
+    "windowId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : true,
+
+    "message" : {
+        "type" : "search",
+        "query" : "search string",
+        "limit" : 10
+    },
+
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    },
+
+    "data" : {
+        "results" : [
+            {
+                "content" : "chunk content",
+                "metadata" : "metadata",
+                "score" : 0.9
+            },
+            {
+                ...
+            }
+        ]
+    }
+}
+```
+
+## session -> window
+### sessionPrepared
+当Session初始化完成后，发送该消息给对应的窗口。
+
+```json
+{
+    "windowId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "sessionPrepared",
+        "repoName" : "name",
+        "path" : "/path/to/repo"
+    }
+}
+```
+
+return:
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
+### embeddingState
+嵌入进度
+```json
+{
+    "windowId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "embeddingState",
+        "filePath" : "/path/to/file",
+        "status" : "embedding", // embedding, done, if the file isn't changed, there will be no message about it
+        "progress" : 0.5 // 1.0 do not mean done
+    }
+}
+```
+
+return:
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```

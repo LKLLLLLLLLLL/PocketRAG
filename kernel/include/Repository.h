@@ -68,6 +68,7 @@ private:
     // callback functions for reporting progress and document state
     std::function<void(std::vector<std::string>)> docStateReporter;
     std::function<void(std::string, double)> progressReporter;
+    std::function<void(std::string)> doneReporter;
 
     constexpr static double alpha = 0.6; // ratio for L2 distance, when ranking the results
 
@@ -93,7 +94,7 @@ private:
     void startBackgroundProcess();
 
 public:
-    Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr);
+    Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr, std::function<void(std::string)> doneReporter = nullptr);
     ~Repository();
 
     Repository(const Repository&) = delete; // disable copy constructor
@@ -109,4 +110,9 @@ public:
 
     // to fix internal error, drop all tables and reconstruct
     void reConstruct();
+
+    std::pair<std::string, std::string> getRepoNameAndPath() const
+    {
+        return {repoName, repoPath.string()};
+    }
 };

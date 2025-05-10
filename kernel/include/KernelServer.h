@@ -33,8 +33,7 @@ private:
     std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server 
 
     std::unordered_map<int, int> windowIdToSessionId = {};
-    // std::vector<std::shared_ptr<Session>> sessions = {};
-    // std::vector<std::thread> sessionThreads = {};
+    std::unordered_map<int, int> sessionIdToWindowId = {};
     std::unordered_map<int, std::shared_ptr<Session>> sessions = {}; // session id -> session ptr
     std::unordered_map<int, std::thread> sessionThreads = {}; // session id -> thread
 
@@ -45,9 +44,9 @@ private:
     void initializeSqlite();
 
     // method called by run()
-    void transmit(nlohmann::json& json); // handle message to session
+    void transmitMessage(nlohmann::json& json); // handle message to session
     void handleMessage(nlohmann::json& json); // handle message to main thread
-    void send(nlohmann::json& json); // send message from server to frontend, will set "isReply" to true
+    void sendBack(nlohmann::json& json); // send message from server to frontend, will set "isReply" to true
 
     void openSession(int windowId, const std::string& repoName, const std::string& repoPath);
     void stopAllSessions(); // stop all session threads, but not deconstruct them
@@ -68,8 +67,15 @@ public:
         return instance; 
     }
 
+    ~KernelServer();
+
     // start the server and open a thread to handle messages from sessions.
     void run();
+
+    void sendMessage(const std::shared_ptr<Utils::MessageQueue::Message>& message)
+    {
+        kernelMessageQueue->push(message);
+    }
 
     // method for sessions to open a conversation
     std::shared_ptr<LLMConv> getLLMConv(const std::string &modelName);
@@ -80,5 +86,3 @@ public:
     // get all generation model names
     std::vector<std::string> getGenerationModels();
 };
-
-

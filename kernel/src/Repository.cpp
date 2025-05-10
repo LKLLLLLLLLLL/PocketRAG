@@ -11,7 +11,7 @@
 #include "ONNXModel.h"
 #include "DocPipe.h"
 
-Repository::Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter)
+Repository::Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter, std::function<void(std::string)> doneReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter), doneReporter(doneReporter)
 {
     // initialize sqliteDB
     initializeSqlite();
@@ -266,6 +266,9 @@ void Repository::refreshDoc(std::queue<DocPipe> &docqueue)
             }
         }, 
         stopThread); // pass the stop flag to the process function
+
+        if(doneReporter)
+            doneReporter(path); // report the document is done
     }
 }
 

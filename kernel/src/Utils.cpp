@@ -128,7 +128,8 @@ void Utils::CallbackManager::callCallback(int callbackId, nlohmann::json &messag
     }
     lock.unlock();
 
-    callback(message);
+    if(callback)
+        callback(message);
 }
 
 //--------------------------MessageQueue--------------------------//

@@ -6,7 +6,7 @@
 
 #include "Repository.h"
 #include "LLMConv.h"
-#include "KernelServer.h"
+
 
 /*
 This clas will open a session to a windows of frontend.
@@ -17,17 +17,26 @@ class Session
 {
 private:
     int sessionId;
-    std::shared_ptr<Repository> repository;
 
     std::thread conversationThread; // thread for LLMConv
 
-    std::shared_ptr<Utils::MessageQueue> sessionMessageQueue = {}; // for session and kernel server communication
+    std::shared_ptr<Repository> repository = nullptr; // repository instance
 
-    static void docStateReporter(std::vector<std::string> docs);
-    static void progressReporter(std::string path, double progress);
+    std::shared_ptr<Utils::MessageQueue> sessionMessageQueue = std::make_shared<Utils::MessageQueue>(); // for session and kernel server communication
 
-    std::shared_ptr<LLMConv> conversation; // conversation instance
-    void conversationProcess();
+    void docStateReporter(std::vector<std::string> docs);
+    void progressReporter(std::string path, double progress);
+    void doneReporter(std::string path);
+
+    // std::shared_ptr<LLMConv> conversation; // conversation instance
+    // void conversationProcess();
+    // void beginConversationThread();
+    // void stopConversationThread();
+
+    std::shared_ptr<Utils::CallbackManager> callbackManager = std::make_shared<Utils::CallbackManager>();
+    void sendBack(nlohmann::json& json);
+    void send(nlohmann::json& json, Utils::CallbackManager::Callback callback);
+    void execCallback(nlohmann::json& json, int callbackId);
 
 public:
     Session(int sessionId, std::string repoName, std::filesystem::path repoPath);

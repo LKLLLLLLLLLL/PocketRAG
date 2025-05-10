@@ -2,13 +2,17 @@
 
 void Session::docStateReporter(std::vector<std::string> docs)
 {
-    // for debug
-    std::cout << "Changed documents: ";
     for (const auto &doc : docs)
     {
-        std::cout << doc << ", ";
+        nlohmann::json json;
+        json["message"]["type"] = "embeddingState";
+        json["message"]["filePath"] = doc;
+        json["message"]["status"] = "embedding";
+        json["message"]["progress"] = 0.0;
+
+        json["toMain"] = false;
+        send(json, nullptr);
     }
-    std::cout << std::endl;
 }
 
 void Session::progressReporter(std::string path, double progress)
@@ -23,11 +27,123 @@ void Session::progressReporter(std::string path, double progress)
         return;
     lastprintTime = now;
     lastProgress = progress;
-    std::cout << "Processing " << path << ": " << progress * 100 << "%" << std::endl; // print progress
+    // send message
+    nlohmann::json json;
+    json["message"]["type"] = "embeddingState";
+    json["message"]["filePath"] = path;
+    json["message"]["status"] = "embedding";
+    json["message"]["progress"] = progress;
+
+    json["toMain"] = false;
+    send(json, nullptr);
 }
 
-Session::Session(int sessionId, std::string repoName, std::filesystem::path repoPath) : sessionId(sessionId), sessionMessageQueue(std::make_shared<Utils::MessageQueue>())
+void Session::doneReporter(std::string path)
 {
-    repository = std::make_shared<Repository>(repoName, repoPath, docStateReporter, progressReporter);
-    conversationThread = std::thread(&Session::conversationProcess, this);
+    nlohmann::json json;
+    json["message"]["type"] = "embeddingState";
+    json["message"]["filePath"] = path;
+    json["message"]["status"] = "done";
+    json["message"]["progress"] = 1.0;
+
+    json["toMain"] = false;
+    send(json, nullptr);
+}
+
+Session::Session(int sessionId, std::string repoName, std::filesystem::path repoPath) : sessionId(sessionId)
+{
+    auto docStateReporter_wrap = [this](std::vector<std::string> docs) { docStateReporter(docs); };
+    auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
+    auto doneReporter_wrap = [this](std::string path) { doneReporter(path); };
+    repository = std::make_shared<Repository>(repoName, repoPath, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
+}
+
+Session::~Session()
+{
+    stop();
+}
+
+void Session::sendBack(nlohmann::json& json)
+{
+    json["isReply"] = true;
+    auto message = std::make_shared<Utils::MessageQueue::Message>(sessionId, std::move(json));
+    sessionMessageQueue->push(message);
+}
+
+void Session::send(nlohmann::json &json, Utils::CallbackManager::Callback callback)
+{
+    auto callbackId = callbackManager->registerCallback(callback);
+    json["callbackId"] = callbackId;
+    json["isReply"] = false;
+    auto message = std::make_shared<Utils::MessageQueue::Message>(sessionId, std::move(json));
+    sessionMessageQueue->push(message);
+}
+
+void Session::execCallback(nlohmann::json &json, int callbackId)
+{
+    callbackManager->callCallback(callbackId, json);
+}
+
+void Session::run()
+{
+    // send done message
+    nlohmann::json json;
+    json["toMain"] = false;
+    json["message"]["type"] = "sessionPrepared";
+    auto [repoName, repoPath] = repository->getRepoNameAndPath();
+    json["message"]["repoName"] = repoName;
+    json["message"]["repoPath"] = repoPath;
+    send(json, nullptr);
+    // handle messages
+    auto message = sessionMessageQueue->pop();
+    while (message != nullptr)
+    {
+        try
+        {
+            auto type = message->data["message"]["type"].get<std::string>();
+            if(type == "search")
+            {
+                auto query = message->data["message"]["query"].get<std::string>();
+                auto limit = message->data["message"]["limit"].get<int>();
+                auto results = repository->search(query, limit);
+                auto resultsJson = nlohmann::json::array();
+                for(auto& embeddingResults: results)
+                {
+                    for (auto &result : embeddingResults)
+                    {
+                        nlohmann::json resultJson;
+                        resultJson["score"] = result.score;
+                        resultJson["content"] = result.content;
+                        resultJson["metadata"] = result.metadata;
+                        resultsJson.push_back(resultJson);
+                    }
+                }
+                sendBack(json);
+            }
+            else
+            {
+                json["status"]["code"] = "INVALID_TYPE";
+                json["status"]["message"] = "Invalid message type: " + type;
+                sendBack(json);
+            }
+        }
+        catch (nlohmann::json::exception &e)
+        {
+            json["status"]["code"] = "WRONG_PARAM";
+            json["status"]["message"] = "Invalid message format, parser error: " + std::string(e.what());
+            sendBack(json);
+        }
+        catch (std::exception &e)
+        {
+            json["status"]["code"] = "UNKNOWN_ERROR";
+            json["status"]["message"] = "Unknown error: " + std::string(e.what());
+            sendBack(json);
+        }
+    }
+}
+
+void Session::stop()
+{
+    // stopConversationThread();
+    sessionMessageQueue->shutdown();
 }

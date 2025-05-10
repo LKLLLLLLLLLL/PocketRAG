@@ -3,9 +3,6 @@
 
 #include <iostream>
 
-
-
-
 //--------------------------KernelServer--------------------------//
 KernelServer::KernelServer()
 {
@@ -24,7 +21,7 @@ void KernelServer::initializeSqlite()
         std::filesystem::create_directory(userDataPath);
     }
 
-    sqliteConnection = std::make_shared<SqliteConnection>(userDataPath / "kernel.db");
+    sqliteConnection = std::make_shared<SqliteConnection>(userDataPath.string(), "kernel.db");
 
     sqliteConnection->execute(
         "CREATE TABLE IF NOT EXISTS embedding_config("
@@ -102,11 +99,11 @@ void KernelServer::run()
         {
             inputJson["status"]["code"] = "WRONG_PARAM";
             inputJson["status"]["message"] = "Invalid message format, parser error: " + std::string(e.what());
-            send(inputJson);
+            sendBack(inputJson);
             continue;
         }
         if(toMain)
-            transmit(inputJson);
+            transmitMessage(inputJson);
         else
             handleMessage(inputJson);
         if(stopAllFlag)
@@ -116,7 +113,7 @@ void KernelServer::run()
     }
 }
 
-void KernelServer::transmit(nlohmann::json& json)
+void KernelServer::transmitMessage(nlohmann::json& json)
 {
     int windowId = json["windowId"].get<int>();
     auto it = windowIdToSessionId.find(windowId);
@@ -129,7 +126,7 @@ void KernelServer::transmit(nlohmann::json& json)
     {
         json["status"]["code"] = "SESSION_NOT_FOUND";
         json["status"]["message"] = "Session not found, with windowId: " + std::to_string(windowId);
-        send(json);
+        sendBack(json);
         return;
     }
     auto message = std::make_shared<Utils::MessageQueue::Message>(sessionId, std::move(json));
@@ -147,7 +144,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
             stopMessageSender();
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
-            send(json);
+            sendBack(json);
         }
         else if(type == "getRepos") // get repos list
         {
@@ -163,7 +160,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
             json["data"]["repoList"] = repoList;
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
-            send(json);
+            sendBack(json);
         }
         else if(type == "openRepo") // open a session with repo name
         {
@@ -185,7 +182,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
                 json["status"]["code"] = "REPO_NOT_FOUND";
                 json["status"]["message"] = "Cannot find repo with name: " + repoName;
             }
-            send(json);
+            sendBack(json);
         }
         else if(type == "createRepo")
         {
@@ -201,21 +198,21 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Invalid path: " + repoPath + ", parser error: " + std::string(e.what());
-                send(json);
+                sendBack(json);
                 return;
             }
             if(!repoPathobj.is_absolute())
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Path is not absolute: " + repoPath;
-                send(json);
+                sendBack(json);
                 return;
             }
             if(!std::filesystem::exists(repoPathobj))
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Path does not exist: " + repoPath;
-                send(json);
+                sendBack(json);
                 return;
             }
             // check if repo name equals to repo name in path
@@ -224,7 +221,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "REPO_NAME_NOT_MATCH";
                 json["status"]["message"] = "Repo name in path: " + repoNameInPath + " not match with repo name: " + repoName;
-                send(json);
+                sendBack(json);
                 return;
             }
             // find if repo name exists
@@ -234,7 +231,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "REPO_NAME_EXISTS";
                 json["status"]["message"] = "Repo name already exists: " + repoName;
-                send(json);
+                sendBack(json);
                 return;
             }
             else // valid create repo
@@ -245,32 +242,53 @@ void KernelServer::handleMessage(nlohmann::json& json)
                 stmt.step();
                 json["status"]["code"] = "SUCCESS";
                 json["status"]["message"] = "";
-                send(json);
+                sendBack(json);
                 return;
             }
+        }
+        else if(type == "closeRepo")
+        {
+            auto windowId = json["message"]["windowId"].get<int>();
+            auto it = windowIdToSessionId.find(windowId);
+            if(it != windowIdToSessionId.end())
+            {
+                int sessionId = it->second;
+                sessions[sessionId]->stop();
+                sessions.erase(sessionId);
+                windowIdToSessionId.erase(windowId);
+                sessionIdToWindowId.erase(sessionId);
+                json["status"]["code"] = "SUCCESS";
+                json["status"]["message"] = "";
+            }
+            else
+            {
+                json["status"]["code"] = "SESSION_NOT_FOUND";
+                json["status"]["message"] = "Session not found, with windowId: " + std::to_string(windowId);
+            }
+            sendBack(json);
         }
         else
         {
             json["status"]["code"] = "INVALID_TYPE";
             json["status"]["message"] = "Invalid message type: " + type;
-            send(json);
+            sendBack(json);
         }
     }
     catch(nlohmann::json::exception& e)
     {
         json["status"]["code"] = "WRONG_PARAM";
         json["status"]["message"] = "Invalid message format, parser error: " + std::string(e.what());
-        send(json);
+        sendBack(json);
     }
     catch(std::exception& e)
     {
         json["status"]["code"] = "UNKNOWN_ERROR";
         json["status"]["message"] = "Unknown error: " + std::string(e.what());
-        send(json);
+        sendBack(json);
     }
 }
 
-void KernelServer::send(nlohmann::json& json)
+void KernelServer::sendBack(nlohmann::json& json)
 {
     json["isReply"] = true;
     auto message = std::make_shared<Utils::MessageQueue::Message>(0, std::move(json));
@@ -284,6 +302,7 @@ void KernelServer::openSession(int windowId, const std::string& repoName, const 
     sessions[sessionId] = session;
     sessionThreads[sessionId] = std::thread(&Session::run, session);
     windowIdToSessionId[windowId] = sessionId;
+    sessionIdToWindowId[sessionId] = windowId;
 }
 
 void KernelServer::startMessageSender()
@@ -305,6 +324,18 @@ void KernelServer::messageSender()
     auto message = kernelMessageQueue->pop();
     while(message != nullptr)
     {
+        if(message->data.contains("windowId"))
+        {
+            auto it = sessionIdToWindowId.find(message->sessionId);
+            if(it != sessionIdToWindowId.end())
+            {
+                message->data["windowId"] = it->second;
+            }
+            else
+            {
+                message->data["windowId"] = -1;
+            }
+        }
         std::cout << message->data.dump() << std::endl;
         message = kernelMessageQueue->pop();
     }
