@@ -13,15 +13,11 @@
 
 Repository::Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter)
 {
-    // open a sqlite connection
-    dbPath = repoPath / ".PocketRAG" / "db";
-    sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);
+    // initialize sqliteDB
+    initializeSqlite();
 
     // open text search table
     textTable = std::make_shared<TextSearchTable>(*sqlite, "text_search");
-
-    // initialize sqliteDB
-    initializeSqlite();
 
     // read embeddings config from embeddings table and initialize embedding models
     updateEmbeddings();
@@ -31,6 +27,9 @@ Repository::Repository(std::string repoName, std::filesystem::path repoPath, std
 
 void Repository::initializeSqlite()
 {
+    dbPath = repoPath / ".PocketRAG" / "db";
+    sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);
+
     // create documents table
     sqlite->execute(
         "CREATE TABLE IF NOT EXISTS documents ("
@@ -130,7 +129,7 @@ void Repository::updateEmbeddings(const EmbeddingConfigList &configs)
         int maxInputLength = stmt.get<int>(3);
 
         // create embedding model
-        auto embeddingModel = EmbeddingModel(modelPath, ONNXModel::device::cuda);
+        auto embeddingModel = EmbeddingModel(modelPath, ONNXModel::device::cpu);
         int dimension = embeddingModel.getDimension();
         auto embedding = std::make_shared<Embedding>(id, name, dimension, maxInputLength, std::make_shared<EmbeddingModel>(embeddingModel));
         tempEmbeddings.push_back(embedding);
@@ -147,11 +146,7 @@ void Repository::updateEmbeddings(const EmbeddingConfigList &configs)
 
 Repository::~Repository()
 {
-    stopThread = true; // stop the background thread
-    if (backgroundThread.joinable())
-    {
-        backgroundThread.join(); // wait for the background thread to finish
-    }
+    stopBackgroundProcess();
 }
 
 void Repository::backgroundProcess()

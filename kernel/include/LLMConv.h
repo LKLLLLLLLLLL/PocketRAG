@@ -171,8 +171,8 @@ protected:
     static std::string getStringConfig(const Config &config, const std::string &key, const std::string &default_value, bool required = false);
     static int getIntConfig(const Config &config, const std::string &key, int default_value, bool required = false);
 
-public: 
     LLMConv(std::string modelName, bool stream = true) : modelName(modelName), stream(stream) {}
+public: 
     virtual ~LLMConv() {}
 
     // Get the model name

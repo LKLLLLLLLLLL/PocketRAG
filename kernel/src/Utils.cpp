@@ -6,6 +6,10 @@
 #include <string>
 #include <codecvt>
 #include <regex>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <queue>
 
 std::string Utils::calculatedocHash(const std::filesystem::path &path)
 {
@@ -72,7 +76,7 @@ void Utils::setup_utf8_console()
 {
 #ifdef _WIN32
     // set console to UTF-8
-    system("chcp 65001 > nul");
+    system("chcp 65001 > null");
 
     // set locale to UTF-8
     std::ios_base::sync_with_stdio(false);
@@ -82,4 +86,86 @@ void Utils::setup_utf8_console()
     // set locale to UTF-8
     std::locale::global(std::locale("en_US.UTF-8"));
 #endif
+}
+
+int Utils::getTimeStamp()
+{
+    auto now = std::chrono::system_clock::now(); // get current time
+    auto duration = now.time_since_epoch(); // get duration since epoch
+    auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(duration).count(); // convert to seconds
+    return static_cast<int>(timestamp); // return as int
+}
+
+//--------------------------CallbackManager--------------------------//
+int Utils::CallbackManager::registerCallback(const Callback &callback)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    auto timeStamp = Utils::getTimeStamp();
+    if (callbacks.find(timeStamp) == callbacks.end())
+    {
+        callbacks[timeStamp] = callback;
+    }
+    else
+    {
+        throw std::runtime_error("Callback already registered with same time stamp.");
+    }
+    return timeStamp;
+}
+
+void Utils::CallbackManager::callCallback(int callbackId, nlohmann::json &message)
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    auto it = callbacks.find(callbackId);
+    Callback callback;
+    if (it != callbacks.end())
+    {
+        callback = it->second;
+        callbacks.erase(it); // remove callback after calling
+    }
+    else
+    {
+        throw std::runtime_error("Callback not found.");
+    }
+    lock.unlock();
+
+    callback(message);
+}
+
+//--------------------------MessageQueue--------------------------//
+void Utils::MessageQueue::push(const std::shared_ptr<Message> &message)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    queue.push(message);
+    conditionVariable.notify_one();
+}
+
+auto Utils::MessageQueue::pop() -> std::shared_ptr<Message>
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    conditionVariable.wait(lock, [this](){ 
+        return !queue.empty() || shutdownFlag;
+    });
+
+    if(shutdownFlag)
+    {
+        return nullptr; 
+    }
+
+    auto message = queue.front();
+    queue.pop();
+
+    return message;
+}
+
+bool Utils::MessageQueue::empty()
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    return queue.empty();
+}
+
+void Utils::MessageQueue::shutdown()
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    shutdownFlag = true;
+    conditionVariable.notify_all();
 }

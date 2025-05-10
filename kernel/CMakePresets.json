@@ -6,7 +6,7 @@
             "displayName": "ninja",
             "description": "设置 Ninja 生成器、版本和安装目录",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/${presetName}",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "VCPKG_ROOT": "${sourceDir}/../vcpkg",
                 "CMAKE_BUILD_TYPE": "Debug",

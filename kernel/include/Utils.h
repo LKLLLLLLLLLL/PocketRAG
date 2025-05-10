@@ -10,6 +10,8 @@ namespace xxhash
     #include <xxhash.h>
 }
 
+#include "KernelServer.h"
+
 /*
 This file contains utility functions for the project.
 */
@@ -30,4 +32,53 @@ namespace Utils
 
     // set console to UTF-8 to avoid garbled characters
     void setup_utf8_console();
+
+    // return a int timestamp
+    int getTimeStamp();
+
+    // a thread-safe callback manager
+    class CallbackManager
+    {
+    public:
+        using Callback = std::function<void(nlohmann::json &)>;
+
+    private:
+        std::unordered_map<int, Callback> callbacks;
+        std::mutex mutex;
+
+    public:
+        // regoister a callback function and return its callback id
+        int registerCallback(const Callback &callback);
+
+        void callCallback(int callbackId, nlohmann::json &message);
+    };
+
+    // a thread-safe message queue
+    class MessageQueue
+    {
+    public:
+        struct Message
+        {
+            // enum class Type{send, receive} type; // send to frontend or receive from frontend
+            int sessionId; // -1 - KernelServer, others - Session ID
+            nlohmann::json data;
+            CallbackManager::Callback callback = nullptr;
+        };
+    private:
+        std::queue<std::shared_ptr<Message>> queue;
+        std::mutex mutex;
+        std::condition_variable conditionVariable;
+        std::atomic<bool> shutdownFlag = false;
+
+    public:
+        void push(const std::shared_ptr<Message> &message);
+
+        // block until a message is available
+        std::shared_ptr<Message> pop();
+
+        bool empty();
+
+        // wake all waiting threads and pop() will exit with nullptr
+        void shutdown();
+    };
 }
