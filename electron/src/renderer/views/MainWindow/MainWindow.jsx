@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import SearchBar from '@/compoents/SearchBar/SearchBar';
+import SearchBar from '@/components/SearchBar/SearchBar';
 import './MainWindow.css';
 
 function MainWindow(){
