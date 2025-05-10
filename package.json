@@ -2,16 +2,43 @@
   "name": "pocketrag",
   "version": "0.0.1",
   "description": "",
-  "main": "electron/src/browser/main.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "main": "./electron/src/main/main.js",
   "scripts": {
-    "start":  "electron ."
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:start": "electron ."
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "electron": "^35.1.4"
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^35.1.4",
+    "electron-builder": "^26.0.12",
+    "vite": "^6.3.5",
+    "wait-on": "^8.0.3"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "build": {
+    "appId": "com.example.pocketrag",
+    "files": [
+      "electron/build/**/*",
+      "electron/src/main/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "electron/public",
+      "output": "dist"
+    },
+    "extraMetadata": {
+      "main": "electron/src/main/main.js"
+    }
   }
 }
