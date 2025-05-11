@@ -96,20 +96,25 @@ int Utils::getTimeStamp()
     return static_cast<int>(timestamp); // return as int
 }
 
+int Utils::randomInt(int min, int max)
+{
+    return std::rand() % (max - min + 1) + min; // generate a random integer between min and max
+}
+
 //--------------------------CallbackManager--------------------------//
 int Utils::CallbackManager::registerCallback(const Callback &callback)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    auto timeStamp = Utils::getTimeStamp();
-    if (callbacks.find(timeStamp) == callbacks.end())
+    auto callbackId = Utils::getTimeStamp() + Utils::randomInt(0, 10000);
+    if (callbacks.find(callbackId) == callbacks.end())
     {
-        callbacks[timeStamp] = callback;
+        callbacks[callbackId] = callback;
     }
     else
     {
         throw std::runtime_error("Callback already registered with same time stamp.");
     }
-    return timeStamp;
+    return callbackId;
 }
 
 void Utils::CallbackManager::callCallback(int callbackId, nlohmann::json &message)

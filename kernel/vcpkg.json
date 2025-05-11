@@ -3,8 +3,8 @@
     "cmark",
     "curl",
     "lapack",
-    "openblas",
     "nlohmann-json",
+    "openblas",
     "xxhash"
   ]
 }

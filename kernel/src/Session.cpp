@@ -1,4 +1,5 @@
 #include "Session.h"
+#include "KernelServer.h"
 
 void Session::docStateReporter(std::vector<std::string> docs)
 {
@@ -50,7 +51,7 @@ void Session::doneReporter(std::string path)
     send(json, nullptr);
 }
 
-Session::Session(int sessionId, std::string repoName, std::filesystem::path repoPath) : sessionId(sessionId)
+Session::Session(int sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer &kernelServer) : sessionId(sessionId), kernelServer(kernelServer)
 {
     auto docStateReporter_wrap = [this](std::vector<std::string> docs) { docStateReporter(docs); };
     auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
@@ -67,7 +68,7 @@ void Session::sendBack(nlohmann::json& json)
 {
     json["isReply"] = true;
     auto message = std::make_shared<Utils::MessageQueue::Message>(sessionId, std::move(json));
-    sessionMessageQueue->push(message);
+    kernelServer.sendMessage(message);
 }
 
 void Session::send(nlohmann::json &json, Utils::CallbackManager::Callback callback)
@@ -76,7 +77,7 @@ void Session::send(nlohmann::json &json, Utils::CallbackManager::Callback callba
     json["callbackId"] = callbackId;
     json["isReply"] = false;
     auto message = std::make_shared<Utils::MessageQueue::Message>(sessionId, std::move(json));
-    sessionMessageQueue->push(message);
+    kernelServer.sendMessage(message);
 }
 
 void Session::execCallback(nlohmann::json &json, int callbackId)
@@ -92,7 +93,7 @@ void Session::run()
     json["message"]["type"] = "sessionPrepared";
     auto [repoName, repoPath] = repository->getRepoNameAndPath();
     json["message"]["repoName"] = repoName;
-    json["message"]["repoPath"] = repoPath;
+    json["message"]["path"] = repoPath;
     send(json, nullptr);
     // handle messages
     auto message = sessionMessageQueue->pop();

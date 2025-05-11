@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.15)
 
 project(PocketRAG_kernel VERSION 0.0.1)
 
+option(USE_GPU "Use GPU" ON) # 是否使用GPU
+
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin) # 可执行文件输出目录
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib) # 动态库输出目录
@@ -12,8 +14,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(MSVC)
-  add_compile_options(/utf-8) # 设置MSVC编译器使用UTF-8编码
-  add_compile_definitions(NOMINMAX) # 禁用windows.h中的min/max宏，避免与std::min/max冲突
+    add_compile_options(/utf-8) # 设置MSVC编译器使用UTF-8编码
+    add_compile_definitions(NOMINMAX) # 禁用windows.h中的min/max宏，避免与std::min/max冲突
+endif()
+
+if(MSVC)
+    string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+    string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
+    string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
 endif()
 
 # 设置vcpkg工具链文件
@@ -45,7 +53,6 @@ set(BLAS_LIBRARIES ${OpenBLAS_LIBRARIES})
 set(BLAS_INCLUDE_DIRS ${OpenBLAS_INCLUDE_DIRS})
 # 导入lapack
 find_package(LAPACK CONFIG REQUIRED)
-
 
 # 导入faiss
 set(FAISS_ENABLE_GPU OFF)
@@ -111,7 +118,9 @@ set_target_properties(onnxruntime PROPERTIES
 )
 
 # 导入cuDNN
-set(CUDNN_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/cudnn-windows-x86_64-9.8.0.87_cuda12-archive/bin")
+if(USE_GPU)
+    set(CUDNN_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/cudnn-windows-x86_64-9.8.0.87_cuda12-archive/bin")
+endif()
 
 
 # -------------设置编译选项--------------
@@ -141,17 +150,47 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # -------------拷贝动态链接库--------------
 # 拷贝dll到输出目录，解决依赖问题
 set(VCPKG_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/bin")
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    # # 复制vcpkg提供的DLL
-    # COMMAND ${CMAKE_COMMAND} -E copy_directory
-    #     "${VCPKG_DLL_DIR}"
-    #     $<TARGET_FILE_DIR:${PROJECT_NAME}>
-    # 复制ONNX Runtime DLL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${ONNXRUNTIME_DIR}/lib/"
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>  
-    # 复制cuDNN DLL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CUDNN_DLL_DIR}"
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>
-)
+
+# 收集所有 ONNX Runtime DLL 文件
+file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/*.dll")
+# 收集所有 cuDNN DLL 文件
+if(USE_GPU)
+    file(GLOB CUDNN_DLL_FILES "${CUDNN_DLL_DIR}/*.dll")
+endif()
+# 为每个找到的DLL文件创建复制命令
+foreach(DLL_FILE ${ONNXRUNTIME_DLL_FILES} ${CUDNN_DLL_FILES})
+    get_filename_component(DLL_NAME ${DLL_FILE} NAME)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${DLL_FILE}
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${DLL_NAME}
+        COMMENT "Copying ${DLL_NAME}"
+    )
+endforeach()
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    # 如果是Debug版本，拷贝.pdb文件
+    file(GLOB ONNXRUNTIME_PDB_FILES "${ONNXRUNTIME_DIR}/lib/*.pdb")
+    foreach(PDB_FILE ${ONNXRUNTIME_PDB_FILES})
+        get_filename_component(PDB_NAME ${PDB_FILE} NAME)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${PDB_FILE}
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PDB_NAME}
+            COMMENT "Copying ${PDB_NAME}"
+        )
+    endforeach()
+endif()
+# add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+#     # # 复制vcpkg提供的DLL
+#     # COMMAND ${CMAKE_COMMAND} -E copy_directory
+#     #     "${VCPKG_DLL_DIR}"
+#     #     $<TARGET_FILE_DIR:${PROJECT_NAME}>
+#     # 复制ONNX Runtime DLL
+#     COMMAND ${CMAKE_COMMAND} -E copy_directory
+#         "${ONNXRUNTIME_DIR}/lib/"
+#         $<TARGET_FILE_DIR:${PROJECT_NAME}>  
+#     # 复制cuDNN DLL
+#     COMMAND ${CMAKE_COMMAND} -E copy_directory
+#         "${CUDNN_DLL_DIR}"
+#         $<TARGET_FILE_DIR:${PROJECT_NAME}>
+# )

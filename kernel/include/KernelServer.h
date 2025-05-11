@@ -14,6 +14,7 @@
 #include "Session.h"
 #include "Utils.h"
 
+struct Repository::EmbeddingConfig;
 
 /*
 This class can only be instantiated once.
@@ -85,4 +86,6 @@ public:
 
     // get all generation model names
     std::vector<std::string> getGenerationModels();
+
+    Repository::EmbeddingConfigList getEmbeddingConfigs();
 };

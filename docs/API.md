@@ -358,7 +358,7 @@ return:
 }
 ```
 
-### embeddingState
+### embeddingStatue
 嵌入进度
 ```json
 {
@@ -369,7 +369,7 @@ return:
     "isReply" : false,
 
     "message" : {
-        "type" : "embeddingState",
+        "type" : "embeddingStatue",
         "filePath" : "/path/to/file",
         "status" : "embedding", // embedding, done, if the file isn't changed, there will be no message about it
         "progress" : 0.5 // 1.0 do not mean done

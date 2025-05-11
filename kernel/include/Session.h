@@ -7,6 +7,7 @@
 #include "Repository.h"
 #include "LLMConv.h"
 
+class KernelServer;
 
 /*
 This clas will open a session to a windows of frontend.
@@ -33,13 +34,14 @@ private:
     // void beginConversationThread();
     // void stopConversationThread();
 
+    KernelServer& kernelServer;
     std::shared_ptr<Utils::CallbackManager> callbackManager = std::make_shared<Utils::CallbackManager>();
     void sendBack(nlohmann::json& json);
     void send(nlohmann::json& json, Utils::CallbackManager::Callback callback);
     void execCallback(nlohmann::json& json, int callbackId);
 
 public:
-    Session(int sessionId, std::string repoName, std::filesystem::path repoPath);
+    Session(int sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer);
     ~Session();
 
     void run();

@@ -21,7 +21,7 @@ void KernelServer::initializeSqlite()
         std::filesystem::create_directory(userDataPath);
     }
 
-    sqliteConnection = std::make_shared<SqliteConnection>(userDataPath.string(), "kernel.db");
+    sqliteConnection = std::make_shared<SqliteConnection>(userDataPath.string(), "kernel");
 
     sqliteConnection->execute(
         "CREATE TABLE IF NOT EXISTS embedding_config("
@@ -85,12 +85,13 @@ void KernelServer::run()
     std::string input(2048, '\0'); // max input size: 2048Byte
     while(std::cin.getline(input.data(), input.size()))
     {
-        auto inputJson = nlohmann::json::parse(input);
+        nlohmann::json inputJson;
         int windowId;
         bool toMain;
         std::string messageType;
         try
         {
+            inputJson = nlohmann::json::parse(input);
             windowId = inputJson["windowId"].get<int>();
             toMain = inputJson["toMain"].get<bool>();
             messageType = inputJson["message"]["type"].get<std::string>();
@@ -102,7 +103,7 @@ void KernelServer::run()
             sendBack(inputJson);
             continue;
         }
-        if(toMain)
+        if(!toMain)
             transmitMessage(inputJson);
         else
             handleMessage(inputJson);
@@ -175,7 +176,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
                 json["status"]["code"] = "SUCCESS";
                 json["status"]["message"] = "";
                 json["data"]["repoName"] = repoName;
-                json["data"]["repoPath"] = repoPath;
+                json["data"]["path"] = repoPath;
             }
             else
             {
@@ -187,7 +188,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
         else if(type == "createRepo")
         {
             auto repoName = json["message"]["repoName"].get<std::string>();
-            auto repoPath = json["message"]["repoPath"].get<std::string>();
+            auto repoPath = json["message"]["path"].get<std::string>();
             // check if repo path is valid
             std::filesystem::path repoPathobj;
             try
@@ -298,7 +299,7 @@ void KernelServer::sendBack(nlohmann::json& json)
 void KernelServer::openSession(int windowId, const std::string& repoName, const std::string& repoPath)
 {
     auto sessionId = Utils::getTimeStamp();
-    auto session = std::make_shared<Session>(sessionId, repoName, repoPath);
+    auto session = std::make_shared<Session>(sessionId, repoName, repoPath, *this);
     sessions[sessionId] = session;
     sessionThreads[sessionId] = std::thread(&Session::run, session);
     windowIdToSessionId[windowId] = sessionId;

@@ -13,7 +13,7 @@
 
 #include "TextSearchTable.h"
 
-thread_local SqliteConnection::LocalDataManager SqliteConnection::dataManager;
+SqliteConnection::LocalDataManager SqliteConnection::dataManager;
 
 // ---------------------SqliteConnection---------------------
 void SqliteConnection::openSqlite(LocalData &data)
@@ -30,7 +30,7 @@ void SqliteConnection::openSqlite(LocalData &data)
     // register the jieba tokenizer to the SQLite database
     jiebaTokenizer::register_jieba_tokenizer(data.sqliteDB);
 
-    sqlite3_busy_timeout(dataManager.get(this).sqliteDB, 10000); // set busy timeout to 10 seconds
+    sqlite3_busy_timeout(data.sqliteDB, 10000); // set busy timeout to 10 seconds
 }
 
 SqliteConnection::SqliteConnection(const std::string &dbDirPath, const std::string &dbName) : dbDirPath(dbDirPath), dbName(dbName)
@@ -102,36 +102,56 @@ bool SqliteConnection::inTransaction()
 }
 
 // ----------------------LocalDataManager----------------------
+size_t SqliteConnection::LocalDataManager::hash::operator()(const std::pair<SqliteConnection *, std::thread::id> &key) const
+{
+    return std::hash<SqliteConnection *>()(key.first) ^ std::hash<std::thread::id>()(key.second);
+}
+
+SqliteConnection::LocalDataManager::LocalDataCleaner::~LocalDataCleaner() // when this thread closed, clean up all connections
+{
+    std::lock_guard<std::mutex> lock(dataManager.mutex);
+    auto it = dataManager.connMap.begin();
+    while (it != dataManager.connMap.end())
+    {
+        auto &[key, data] = *it;
+        auto &[conn, threadId] = key;
+        if (threadId != std::this_thread::get_id())
+        {
+            it++;
+        }
+        it = dataManager.connMap.erase(it);
+    }
+}
+
 auto SqliteConnection::LocalDataManager::get(SqliteConnection *conn) -> LocalData&
 {
-    auto it = connMap.find(conn); // find the connection in the map
+    std::lock_guard<std::mutex> lock(mutex);
+    auto threadId = std::this_thread::get_id(); // get the current thread id
+    auto it = connMap.find({conn, threadId}); // find the connection in the map
     if (it == connMap.end())
     {
-        connMap[conn] = LocalData{};  // create new local data for the connection
-        it = connMap.find(conn);      // get the local data for the connection
+        connMap[{conn, threadId}] = LocalData{}; // create new local data for the connection
+        it = connMap.find({conn, threadId});     // get the local data for the connection
         conn->openSqlite(it->second); // open SQLite database for the connection
     }
     return it->second; // return the local data for the connection
 }
 
-SqliteConnection::LocalDataManager::~LocalDataManager() 
-{
-    for (auto &[conn, data] : connMap) // destructor to clean up all connections
-    {
-        // rollback all transactions if not empty
-        if (!data.transactionStack.empty())
-        {
-            conn->execute("ROLLBACK;"); // rollback all transactions
-        }
-        // close the SQLite database connection
-        if (data.sqliteDB != nullptr)
-            sqlite3_close(data.sqliteDB);
-    }
-}
-
 void SqliteConnection::LocalDataManager::removeConnection(SqliteConnection *conn)
 {
-    connMap.erase(conn); // remove the connection from the map
+    std::lock_guard<std::mutex> lock(mutex);
+    auto it = connMap.begin();
+    while(it != connMap.end())
+    {
+        auto &[key, data] = *it;
+        auto& [connPtr, threadId] = key;
+        if(conn != connPtr)
+        {
+            ++it; // move to the next element
+            continue;
+        }
+        it = connMap.erase(it);
+    }
 }
 
 // ----------------------Statement----------------------

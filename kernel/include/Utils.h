@@ -35,8 +35,10 @@ namespace Utils
     // set console to UTF-8 to avoid garbled characters
     void setup_utf8_console();
 
-    // return a int timestamp
+    // return a int timestamp, seconds since epoch
     int getTimeStamp();
+
+    int randomInt(int min, int max);
 
     // a thread-safe callback manager
     class CallbackManager

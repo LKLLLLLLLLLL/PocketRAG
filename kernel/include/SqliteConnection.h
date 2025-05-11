@@ -28,7 +28,6 @@ namespace
 
 /*
 This class manages a SQLite database connection.
-Gurantee that every database path is unique.
 It will automatically create new sqlite connection for each thread, guarantee thread safety.
 */
 class SqliteConnection
@@ -59,12 +58,29 @@ private:
     {
         sqlite3 *sqliteDB = nullptr;
         std::stack<std::string> transactionStack;
+
+        ~LocalData()
+        {
+            if (!transactionStack.empty())
+            {
+                sqlite3_exec(sqliteDB, "ROLLBACK;", nullptr, nullptr, nullptr); // rollback all transactions
+                while (!transactionStack.empty())
+                {
+                    transactionStack.pop();
+                }
+            }
+            if (sqliteDB != nullptr)
+            {
+                sqlite3_close(sqliteDB); // close the SQLite database connection
+                sqliteDB = nullptr;      // set the pointer to null
+            }
+        }
     };
     
     class LocalDataManager;
     friend class LocalDataManager; // allow localDataManager to access private members
 
-    static thread_local LocalDataManager dataManager; // thread local data manager for each connection
+    static LocalDataManager dataManager; // thread local data manager for each connection
 
     void openSqlite(LocalData& data); // open SQLite database connection and initialize sqlite pointer
 
@@ -99,13 +115,26 @@ This class manage tread local data for each connection
 class SqliteConnection::LocalDataManager 
 {
 private:
-    std::unordered_map<SqliteConnection *, LocalData> connMap{}; // map: connection -> local data
+    struct hash // calculate hash for std::pair<SqliteConnection *, std::thread::id>
+    {
+        size_t operator()(const std::pair<SqliteConnection *, std::thread::id> &key) const;
+    };
+
+    std::unordered_map<std::pair<SqliteConnection *, std::thread::id>, LocalData, hash> connMap{}; // map: (connection, threadId) -> local data
+    std::mutex mutex;
+
+    struct LocalDataCleaner
+    {
+        ~LocalDataCleaner();
+    };
+    static thread_local LocalDataCleaner cleaner; // when this thread closed, clean up all connections
+    friend struct LocalDataCleaner; 
+
 public:
     LocalData &get(SqliteConnection *conn); // return or create local data for this connection and thread
 
-    ~LocalDataManager(); // when this thread closed, clean up all connections
-
-    void removeConnection(SqliteConnection *conn); // interface for SqliteConnection to remove itself from map
+    // interface for SqliteConnection to remove all relative data to himself
+    void removeConnection(SqliteConnection *conn);
 };
 
 
