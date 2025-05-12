@@ -10,7 +10,7 @@ class KernelServer;
 /*
 This clas will open a session to a windows of frontend.
 It will manage a repository instance.
-This is a single threaded class, but it may fork several threads.
+Gurantee part of thread safety: despite "run()", other methods can be called in multiple threads.
 */
 class Session
 {
@@ -23,6 +23,8 @@ private:
 
     std::shared_ptr<Utils::MessageQueue> sessionMessageQueue = std::make_shared<Utils::MessageQueue>(); // for session and kernel server communication
 
+    std::atomic<double> lastProgress = 0.0;
+    std::atomic<std::chrono::steady_clock::time_point> lastprintTime;
     void docStateReporter(std::vector<std::string> docs);
     void progressReporter(std::string path, double progress);
     void doneReporter(std::string path);
@@ -38,17 +40,20 @@ private:
     void send(nlohmann::json& json, Utils::CallbackManager::Callback callback);
     void execCallback(nlohmann::json& json, int callbackId);
 
+    void handleMessage(Utils::MessageQueue::Message& message);
+
 public:
     Session(int sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer);
     ~Session();
 
+    // this method can only be called in one thread
     void run();
 
     // this function can be called by another thread
     void stop();
 
-    void sendMessage(const std::shared_ptr<Utils::MessageQueue::Message>& message)
-    {
-        sessionMessageQueue->push(message);
-    }
+    // called by kernel server, will automatically get embedding config and reranker config from kernel server
+    void config();
+
+    void sendMessage(const std::shared_ptr<Utils::MessageQueue::Message>& message);
 };

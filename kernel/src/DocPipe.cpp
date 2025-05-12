@@ -198,7 +198,11 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     // delete from vector table
     for(auto &vectorTable : vTable) // tranverse each vector table
     {
-        vectorTable->removeVector(chunkIds); // delete batch of chunk from vector table
+        try
+        {
+            vectorTable->removeVector(chunkIds); // delete batch of chunk from vector table
+        }
+        catch(...){} // may throw exception because some chunk ids may not exist in this vector table, ignore it
     }
 
     trans.commit(); // commit transaction
@@ -415,6 +419,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     // add chunks
     auto trans2 = sqlite.beginTransaction(); // begin transaction for adding chunks
     double addCount = addChunkQueue.size();
+    size_t chunkCount = 0;
     while(!addChunkQueue.empty())
     {
         auto index = addChunkQueue.front(); // get chunk index
@@ -450,6 +455,13 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
             trans2.commit(); // commit part of chunks
             return;
         }
+
+        if(chunkCount % 200 == 0) // print every 1000 chunks
+        {
+            trans2.commit();
+            trans2 = sqlite.beginTransaction(); // begin transaction for adding chunks
+        }
+        chunkCount++;
     }
     trans2.commit();
 

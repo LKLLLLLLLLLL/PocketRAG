@@ -2,6 +2,9 @@
 
 #include <iostream>
 #include <filesystem>
+#include <stdexcept>
+#include <thread>
+#include <unordered_set>
 #include <vector>
 #include <queue>
 
@@ -12,15 +15,13 @@
 #include "DocPipe.h"
 #include "Utils.h"
 
-Repository::Repository(std::string repoName, std::filesystem::path repoPath,  std::filesystem::path rerankerModelPath, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter, std::function<void(std::string)> doneReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter), doneReporter(doneReporter)
+Repository::Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter, std::function<void(std::string)> doneReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter), doneReporter(doneReporter)
 {
     // initialize sqliteDB
     initializeSqlite();
 
     // open text search table
     textTable = std::make_shared<TextSearchTable>(*sqlite, "text_search");
-
-    rerankerModel.reset(new RerankerModel(rerankerModelPath, ONNXModel::device::cpu));
 
     // read embeddings config from embeddings table and initialize embedding models
     updateEmbeddings();
@@ -159,22 +160,30 @@ void Repository::backgroundProcess()
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
         std::queue<DocPipe> docqueue; // create a new doc queue for each iteration
 
-        std::shared_lock readlock(mutex); // lock for reading
-        checkDoc(docqueue); // check for changed documents
-
-        // though refreshDoc will change vector tables and text table, but this changes will not affect to search result, so no need to use writelock(unique_lock)
-        refreshDoc(docqueue); // process the documents in the queue
-
-        // logically, there is no other thread use these invalid embedding configs, only need to avoid changes in embedding_config table, so use shared_lock
-        removeInvalidEmbedding();
-
-        for (auto &vectorTable : vectorTables)
         {
-            vectorTable->write();
-            if(vectorTable->getInvalidIds().size() > 0)
+            std::shared_lock readlock(mutex); // lock for reading
+            checkDoc(docqueue); // check for changed documents
+
+            // though refreshDoc will change vector tables and text table, but this changes will not affect to search result, so no need to use writelock(unique_lock)
+            refreshDoc(docqueue); // process the documents in the queue
+
+            // logically, there is no other thread use these invalid embedding configs, only need to avoid changes in embedding_config table, so use shared_lock
+            removeInvalidEmbedding();
+
+            for (auto &vectorTable : vectorTables)
             {
-                reConstruct(); // internal error, reconstruct
+                vectorTable->write();
+                if(vectorTable->getInvalidIds().size() > 0)
+                {
+                    integrity = false;
+                }
             }
+        }
+
+        if(!integrity)
+        {
+            std::cerr << "Database integrity check failed, reconstructing..." << std::endl;
+            reConstruct();
         }
     }
 }
@@ -329,8 +338,8 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
 {
     std::shared_lock readlock(mutex); // lock for reading embedding models and vector tables
     
-    int vectorLimit = limit * 10;
-    int fts5Limit = limit * 20;
+    int vectorLimit = limit * 2;
+    int fts5Limit = limit * 4;
 
     std::vector<searchResult> allResults; // for all results
 
@@ -412,25 +421,55 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
                     << result.chunkId << std::endl;
         }
     }
-    if(acc == searchAccuracy::high) // rerank
+
+    // remove duplicates
+    std::vector<searchResult> uniqueResults;
+    std::unordered_set<std::string> uniqueContents;
+    for (const auto &result : allResults) 
+    {
+        if (uniqueContents.find(result.content + result.metadata) == uniqueContents.end()) // not duplicate
+        {
+            uniqueResults.push_back(result);
+            uniqueContents.insert(result.content + result.metadata);
+        }
+    }
+
+    // rerank
+    if(acc == searchAccuracy::high && rerankerModel)
     {
         auto scores = rerankerModel->rank(query, contents);
-        for(int i = 0; i < allResults.size(); i++)
+        for(int i = 0; i < uniqueResults.size(); i++)
         {
-            allResults[i].score = scores[i];
+            uniqueResults[i].score = scores[i];
         }
     }
 
     // sort results by score and limit to top N
-    std::sort(allResults.begin(), allResults.end(), [](const searchResult &a, const searchResult &b) {
+    std::sort(uniqueResults.begin(), uniqueResults.end(), [](const searchResult &a, const searchResult &b) {
         return a.score > b.score;
     });
-    if (allResults.size() > limit)
+    if (uniqueResults.size() > limit)
     {
-        allResults.resize(limit);
+        uniqueResults.resize(limit);
     }
 
-    return allResults;
+    // get filepath from database
+    auto stmt = sqlite->getStatement("SELECT doc_name FROM documents WHERE id = (SELECT doc_id FROM chunks WHERE chunk_id = ?);");
+    for (auto &result : uniqueResults)
+    {
+        stmt.bind(1, result.chunkId);
+        if (stmt.step())
+        {
+            result.filePath = (repoPath / stmt.get<std::string>(0)).string();
+        }
+        else
+        {
+            std::runtime_error("Error: chunk not found in documents table, chunk_id: " + std::to_string(result.chunkId));
+        }
+        stmt.reset();
+    }
+
+    return uniqueResults;
 }
 
 void Repository::configEmbedding(const EmbeddingConfigList &configs)
@@ -445,9 +484,19 @@ void Repository::configEmbedding(const EmbeddingConfigList &configs)
     startBackgroundProcess();
 }
 
+void Repository::configReranker(const std::filesystem::path &modelPath)
+{
+    std::unique_lock writelock(mutex);
+    if(!modelPath.empty())
+        rerankerModel = std::make_shared<RerankerModel>(modelPath, ONNXModel::device::cpu);
+}
+
 void Repository::reConstruct()
 {
-    stopBackgroundProcess();
+    if(std::this_thread::get_id() != backgroundThread.get_id())
+    {
+        stopBackgroundProcess();
+    }
     std::unique_lock writelock(mutex); // lock for writing
 
     vectorTables.clear();
@@ -481,5 +530,9 @@ void Repository::reConstruct()
     // open text search table
     textTable = std::make_shared<TextSearchTable>(*sqlite, "text_search");
     updateEmbeddings();
-    startBackgroundProcess();
+
+    if(backgroundThread.joinable())
+    {
+        startBackgroundProcess();
+    }
 }

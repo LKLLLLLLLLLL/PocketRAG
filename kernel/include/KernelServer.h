@@ -17,7 +17,7 @@ class Repository;
 This class can only be instantiated once.
 It will handle all requests from the frontend.
 It will open thread to handle messages from frontend and sessions.
-It is a single-thread class.
+It is a single-thread class, only some interface can be called in multiple threads.
 */
 class KernelServer
 {
@@ -26,6 +26,7 @@ public:
 
 private:
     const std::filesystem::path userDataPath = "./UserData";
+    const std::filesystem::path userDataDBPath = userDataPath / "db";
 
     // messagequeue for frontend and backend communication
     std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server 
@@ -75,7 +76,8 @@ public:
         kernelMessageQueue->push(message);
     }
 
-    // method for sessions to open a conversation
+    // methods below are interfaces for sessions to call, can be called in multiple threads
+    // open a conversation
     std::shared_ptr<LLMConv> getLLMConv(const std::string &modelName);
 
     // get repos list, return repo name and repo path
@@ -85,5 +87,7 @@ public:
     std::vector<std::string> getGenerationModels();
 
     Repository::EmbeddingConfigList getEmbeddingConfigs();
+
+    std::filesystem::path getRerankerConfigs();
 };
    

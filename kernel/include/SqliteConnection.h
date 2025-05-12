@@ -1,11 +1,6 @@
 #pragma once
 #include <string>
-#include <vector>
 #include <filesystem>
-#include <iostream>
-#include <stdexcept>
-#include <memory>
-#include <set>
 #include <mutex>
 #include <stack>
 #include <thread>
@@ -277,8 +272,8 @@ public:
 
     Transaction(const Transaction&) = delete; // disable copy constructor
     Transaction& operator=(const Transaction&) = delete; // disable copy assignment operator
-    Transaction(Transaction &&other) = delete; // disable move constructor
-    Transaction &operator=(Transaction &&other) = delete; // disable move assignment operator
+    Transaction(Transaction &&other); // disable move constructor
+    Transaction &operator=(Transaction &&other); // disable move assignment operator
 
     bool checkActive() const { return isActive; } // check if transaction is active
     void commit(); // commit the transaction

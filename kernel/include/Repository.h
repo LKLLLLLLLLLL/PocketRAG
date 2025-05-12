@@ -13,7 +13,7 @@
 
 /*
 This class handles a repository.
-This is not a thread-safe class, it should be used in a single thread, but it will fork treads when needed.
+This is a thread-safe class, but it will fork treads when needed.
 */
 class Repository
 {
@@ -26,6 +26,7 @@ public:
         std::string highlightedContent = "";
         std::string metadata = "";
         std::string highlightedMetadata = "";
+        std::string filePath = ""; // file path
     };
 
     using Embedding = DocPipe::Embedding; 
@@ -66,11 +67,13 @@ private:
     std::shared_ptr<TextSearchTable> textTable;
     std::vector<std::shared_ptr<VectorTable>> vectorTables;
     std::vector<std::shared_ptr<Embedding>> embeddings;
-    std::shared_ptr<RerankerModel> rerankerModel;
+    std::shared_ptr<RerankerModel> rerankerModel = nullptr;
 
     std::thread backgroundThread; // background thread for processing documents
     mutable std::shared_mutex mutex;
     std::atomic<bool> stopThread = false; // flag to stop the background thread
+
+    std::atomic<bool> integrity = true; // if false, call reConstruct() to fix the database
 
     // callback functions for reporting progress and document state
     std::function<void(std::vector<std::string>)> docStateReporter;
@@ -105,7 +108,7 @@ private:
     void startBackgroundProcess();
 
 public:
-    Repository(std::string repoName, std::filesystem::path repoPath,  std::filesystem::path rerankerModelPath, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr, std::function<void(std::string)> doneReporter = nullptr);
+    Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr, std::function<void(std::string)> doneReporter = nullptr);
     ~Repository();
 
     Repository(const Repository&) = delete; // disable copy constructor
@@ -118,6 +121,8 @@ public:
 
     // config embedding settings, if arg is empty, will read from sqlite table
     void configEmbedding(const EmbeddingConfigList &configs);
+
+    void configReranker(const std::filesystem::path &modelPath);
 
     // to fix internal error, drop all tables and reconstruct
     void reConstruct();
