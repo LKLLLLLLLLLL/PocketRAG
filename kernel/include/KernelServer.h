@@ -89,3 +89,4 @@ public:
 
     Repository::EmbeddingConfigList getEmbeddingConfigs();
 };
+   

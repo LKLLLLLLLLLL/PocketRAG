@@ -121,7 +121,7 @@ private:
     };
 
     std::unordered_map<std::pair<SqliteConnection *, std::thread::id>, LocalData, hash> connMap{}; // map: (connection, threadId) -> local data
-    std::mutex mutex;
+    mutable std::mutex mutex;
 
     struct LocalDataCleaner
     {

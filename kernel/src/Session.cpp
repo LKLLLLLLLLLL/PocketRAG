@@ -101,6 +101,12 @@ void Session::run()
     {
         try
         {
+            bool isReply = message->data["isReply"].get<bool>();
+            if (isReply)
+            {
+                execCallback(message->data, message->data["callbackId"].get<int>());
+                continue;
+            }
             auto type = message->data["message"]["type"].get<std::string>();
             if(type == "search")
             {

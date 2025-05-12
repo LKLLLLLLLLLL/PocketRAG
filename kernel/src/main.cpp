@@ -73,14 +73,48 @@
 //     return 0;
 // }
 
-#include "Utils.h"
-#include "KernelServer.h"
 
+
+
+
+
+
+// #include "Utils.h"
+// #include "KernelServer.h"
+
+// int main()
+// {
+//     Utils::setup_utf8_console();
+
+//     KernelServer::openServer().run();
+
+//     return 0;
+// }
+
+
+
+
+#include "ONNXModel.h"
+#include "Utils.h"
 int main()
 {
     Utils::setup_utf8_console();
 
-    KernelServer::openServer().run();
+    RerankerModel model("../../models/bge-reranker-v2-m3", ONNXModel::device::cpu, ONNXModel::perfSetting::high);
+
+    std::string query = "What is the capital of France?";
+    std::vector<std::string> contents = {
+        "The capital of France is Paris.",
+        "The capital of Germany is Berlin.",
+        "The capital of Italy is Rome.",
+        "The capital of Spain is Madrid.",
+        "The capital of Portugal is Lisbon."
+    };
+    std::vector<float> scores = model.rank(query, contents);
+    for (size_t i = 0; i < contents.size(); ++i)
+    {
+        std::cout << "Content: " << contents[i] << ", Score: " << scores[i] << std::endl;
+    }
 
     return 0;
 }

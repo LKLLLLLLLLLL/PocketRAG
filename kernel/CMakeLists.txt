@@ -18,12 +18,6 @@ if(MSVC)
     add_compile_definitions(NOMINMAX) # 禁用windows.h中的min/max宏，避免与std::min/max冲突
 endif()
 
-if(MSVC)
-    string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-    string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
-endif()
-
 # 设置vcpkg工具链文件
 include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
 include(CMakeFindDependencyMacro)
@@ -151,11 +145,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # 拷贝dll到输出目录，解决依赖问题
 set(VCPKG_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/bin")
 
-# 收集所有 ONNX Runtime DLL 文件
-file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/*.dll")
-# 收集所有 cuDNN DLL 文件
 if(USE_GPU)
-    file(GLOB CUDNN_DLL_FILES "${CUDNN_DLL_DIR}/*.dll")
+    file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/*.dll") # 收集所有 ONNX Runtime DLL 文件
+    file(GLOB CUDNN_DLL_FILES "${CUDNN_DLL_DIR}/*.dll") # 收集所有 cuDNN DLL 文件
+else()
+    file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/onnxruntime.dll") # 只收集 onnxruntime.dll 文件
 endif()
 # 为每个找到的DLL文件创建复制命令
 foreach(DLL_FILE ${ONNXRUNTIME_DLL_FILES} ${CUDNN_DLL_FILES})

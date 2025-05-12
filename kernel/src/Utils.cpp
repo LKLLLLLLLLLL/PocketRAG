@@ -101,6 +101,11 @@ int Utils::randomInt(int min, int max)
     return std::rand() % (max - min + 1) + min; // generate a random integer between min and max
 }
 
+float Utils::sigmoid(float x)
+{
+    return 1.0f / (1.0f + std::exp(-x));
+}
+
 //--------------------------CallbackManager--------------------------//
 int Utils::CallbackManager::registerCallback(const Callback &callback)
 {

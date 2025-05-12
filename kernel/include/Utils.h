@@ -40,6 +40,8 @@ namespace Utils
 
     int randomInt(int min, int max);
 
+    float sigmoid(float x);
+
     // a thread-safe callback manager
     class CallbackManager
     {
