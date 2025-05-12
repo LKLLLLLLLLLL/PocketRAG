@@ -29,7 +29,16 @@ void KernelServer::initializeSqlite()
         "config_name TEXT NOT NULL UNIQUE, "
         "model_name TEXT NOT NULL, "
         "model_path TEXT NOT NULL, "
-        "max_input_length INTEGER NOT NULL"
+        "inputLength INTEGER NOT NULL"
+        ");"
+    );
+
+    sqliteConnection->execute(
+        "CREATE TABLE IF NOT EXISTS reranker_model("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "model_name TEXT NOT NULL UNIQUE, "
+        "model_path TEXT NOT NULL, "
+        "chosen BOOLEAN NOT NULL DEFAULT 0"
         ");"
     );
 

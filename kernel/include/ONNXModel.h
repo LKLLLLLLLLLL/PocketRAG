@@ -85,6 +85,7 @@ public:
 
     // get embedding dimension
     inline int getDimension() const { return embeddingDimension; }
+    inline int getMaxLength() const { return maxLength; }
 
     // generate embedding for a single string
     // input string must be encoded in utf-8
@@ -112,7 +113,9 @@ private:
 public:
     RerankerModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
 
+    inline int getMaxLength() const { return maxLength; }
+
+    // score all input contents with query
     float rank(const std::string &query, const std::string &content) const;
     std::vector<float> rank(const std::string &query, const std::vector<std::string> &contents) const;
-    
 };

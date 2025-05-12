@@ -106,6 +106,21 @@ float Utils::sigmoid(float x)
     return 1.0f / (1.0f + std::exp(-x));
 }
 
+std::string Utils::chunkTosequence(const std::string& content, const std::string& metadata)
+{
+    std::string seq = "";
+    seq += "[METADATA]" + metadata + "\n";
+    seq += "[CONTENT]" + content + "\n";
+    return seq;
+}
+
+std::string Utils::toLower(const std::string &str)
+{
+    std::string lowerStr = str;
+    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower); // convert to lowercase
+    return lowerStr;
+}
+
 //--------------------------CallbackManager--------------------------//
 int Utils::CallbackManager::registerCallback(const Callback &callback)
 {

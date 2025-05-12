@@ -1,5 +1,6 @@
 #include "Session.h"
 #include "KernelServer.h"
+#include "Repository.h"
 
 void Session::docStateReporter(std::vector<std::string> docs)
 {
@@ -56,7 +57,7 @@ Session::Session(int sessionId, std::string repoName, std::filesystem::path repo
     auto docStateReporter_wrap = [this](std::vector<std::string> docs) { docStateReporter(docs); };
     auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
     auto doneReporter_wrap = [this](std::string path) { doneReporter(path); };
-    repository = std::make_shared<Repository>(repoName, repoPath, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
+    repository = std::make_shared<Repository>(repoName, repoPath, "",docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
 }
 
 Session::~Session()
@@ -112,19 +113,17 @@ void Session::run()
             {
                 auto query = message->data["message"]["query"].get<std::string>();
                 auto limit = message->data["message"]["limit"].get<int>();
-                auto results = repository->search(query, limit);
+                auto results = repository->search(
+                    query, Repository::searchAccuracy::low, limit);
                 auto resultsJson = nlohmann::json::array();
-                for(auto& embeddingResults: results)
+                for (auto &result : results)
                 {
-                    for (auto &result : embeddingResults)
-                    {
-                        nlohmann::json resultJson;
-                        resultJson["score"] = result.score;
-                        resultJson["content"] = result.content;
-                        resultJson["metadata"] = result.metadata;
-                        resultsJson.push_back(resultJson);
-                    }
-                }
+                    nlohmann::json resultJson;
+                    resultJson["score"] = result.score;
+                    resultJson["content"] = result.content;
+                    resultJson["metadata"] = result.metadata;
+                    resultsJson.push_back(resultJson);
+                }                
                 sendBack(json);
             }
             else

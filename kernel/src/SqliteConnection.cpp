@@ -1,12 +1,9 @@
 #include "SqliteConnection.h"
 
 #include <string>
-#include <vector>
 #include <filesystem>
 #include <iostream>
-#include <stdexcept>
 #include <stack>
-#include <memory>
 #include <mutex>
 #include <sqlite3.h>
 #include <cppjieba/Jieba.hpp>

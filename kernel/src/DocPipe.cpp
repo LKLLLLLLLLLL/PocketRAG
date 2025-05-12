@@ -3,7 +3,6 @@
 #include <iostream>
 #include <filesystem>
 #include <chrono>
-#include <format>
 #include <xxhash.h>
 
 #include "SqliteConnection.h"
@@ -11,6 +10,7 @@
 #include "TextSearchTable.h"
 #include "Chunker.h"
 #include "ONNXModel.h"
+#include "Utils.h"
 
 //-------------------------------------DocPipe-------------------------------------//
 DocPipe::DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<std::shared_ptr<VectorTable>> &vTable, std::vector<std::shared_ptr<Embedding>> &embeddings) : docPath(docPath), sqlite(sqlite), vTable(vTable), tTable(tTable), embeddings(embeddings)
@@ -315,7 +315,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     // 1. split content to chunks
     std::vector<Chunker::Chunk> newChunks;
     {
-        Chunker chunker(content, docType, embedding->maxInputLength); // create chunker
+        Chunker chunker(content, docType, std::min(embedding->model->getMaxLength(), embedding->inputLength)); // create chunker
         newChunks = chunker.getChunks();           // get chunks from chunker
     }
     progress.updateSubprocess(0.01); 
@@ -436,7 +436,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         auto chunkid = sqlite.getLastInsertId(); // get chunk id
 
         // add chunk to vector table
-        auto embedVector = embedding->model->embed(chunk.content); // get vector from embedding
+        auto embedVector = embedding->model->embed(Utils::chunkTosequence(chunk.content, chunk.metadata)); // get vector from embedding
         vectortable->addVector(chunkid, embedVector); // add vector to vector table
 
         // add chunk to text table

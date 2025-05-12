@@ -1,5 +1,4 @@
 # pragma once
-#include <iostream>
 #include <filesystem>
 #include <functional>
 
@@ -8,7 +7,6 @@
 #include "TextSearchTable.h"
 #include "Chunker.h"
 #include "ONNXModel.h"
-#include "Utils.h"
 
 /*
 This class handles the document processing pipeline.
@@ -63,8 +61,8 @@ public:
     {
         int embeddingId;
         std::string embeddingName;
-        int maxInputLength;
         int dimension;
+        int inputLength;
         std::shared_ptr<EmbeddingModel> model;
     };
 

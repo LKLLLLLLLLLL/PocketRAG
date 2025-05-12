@@ -1,11 +1,8 @@
 #pragma once
-#include <iostream>
 #include <thread>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <queue>
 #include <memory>
 
 #include <nlohmann/json.hpp>
@@ -14,7 +11,7 @@
 #include "Session.h"
 #include "Utils.h"
 
-struct Repository::EmbeddingConfig;
+class Repository;
 
 /*
 This class can only be instantiated once.

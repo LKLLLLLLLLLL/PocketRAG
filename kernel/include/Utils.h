@@ -42,6 +42,11 @@ namespace Utils
 
     float sigmoid(float x);
 
+    // convert chunk content and metadata to a sequence which can be used by models
+    std::string chunkTosequence(const std::string& content, const std::string& metadata);
+
+    std::string toLower(const std::string& str);
+
     // a thread-safe callback manager
     class CallbackManager
     {

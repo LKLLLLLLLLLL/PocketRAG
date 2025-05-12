@@ -1,5 +1,4 @@
 # pragma once
-#include <iostream>
 #include <filesystem>
 #include <string>
 #include <memory>
@@ -11,7 +10,6 @@
 #include "TextSearchTable.h"
 #include "ONNXModel.h"
 #include "DocPipe.h"
-#include "LLMConv.h"
 
 /*
 This class handles a repository.
@@ -24,8 +22,10 @@ public:
     {
         int64_t chunkId;
         double score; 
-        std::string content;
-        std::string metadata;
+        std::string content = "";
+        std::string highlightedContent = "";
+        std::string metadata = "";
+        std::string highlightedMetadata = "";
     };
 
     using Embedding = DocPipe::Embedding; 
@@ -35,7 +35,7 @@ public:
         std::string configName;
         std::string modelName;
         std::string modelPath;
-        int maxInputLength;
+        int inputLength;
 
         bool operator<(const EmbeddingConfig &other) const
         {
@@ -45,11 +45,17 @@ public:
                 return modelName < other.modelName;
             if (modelPath != other.modelPath)
                 return modelPath < other.modelPath;
-            return maxInputLength < other.maxInputLength;
+            return inputLength < other.inputLength;
         }
     };
 
     using EmbeddingConfigList = std::vector<EmbeddingConfig>;
+
+    enum class searchAccuracy
+    {
+        low, // sorted and filtered by reranker model
+        high // sorted and filtered by bm25 and vector similarity
+    };
 
 private:
     std::string repoName;
@@ -60,9 +66,10 @@ private:
     std::shared_ptr<TextSearchTable> textTable;
     std::vector<std::shared_ptr<VectorTable>> vectorTables;
     std::vector<std::shared_ptr<Embedding>> embeddings;
+    std::shared_ptr<RerankerModel> rerankerModel;
 
     std::thread backgroundThread; // background thread for processing documents
-    std::shared_mutex mutex;
+    mutable std::shared_mutex mutex;
     std::atomic<bool> stopThread = false; // flag to stop the background thread
 
     // callback functions for reporting progress and document state
@@ -70,7 +77,11 @@ private:
     std::function<void(std::string, double)> progressReporter;
     std::function<void(std::string)> doneReporter;
 
-    constexpr static double alpha = 0.6; // ratio for L2 distance, when ranking the results
+    constexpr static float alpha = 0.6;
+    static float combineScore(float bm25Score, float vectorScore)
+    {
+        return alpha * bm25Score + (1 - alpha) * vectorScore;
+    }
 
     // creat basic sqlite tables, should only be called in constructor
     // no mutex lock.
@@ -94,7 +105,7 @@ private:
     void startBackgroundProcess();
 
 public:
-    Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr, std::function<void(std::string)> doneReporter = nullptr);
+    Repository(std::string repoName, std::filesystem::path repoPath,  std::filesystem::path rerankerModelPath, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr, std::function<void(std::string)> doneReporter = nullptr);
     ~Repository();
 
     Repository(const Repository&) = delete; // disable copy constructor
@@ -103,7 +114,7 @@ public:
     Repository(Repository&&) = delete; // disable move constructor
     Repository& operator=(Repository&&) = delete; // disable move assignment operator
 
-    std::vector<std::vector<searchResult>>search(const std::string &query, int limit = 10);
+    std::vector<searchResult>search(const std::string &query, searchAccuracy acc, int limit = 10);
 
     // config embedding settings, if arg is empty, will read from sqlite table
     void configEmbedding(const EmbeddingConfigList &configs);

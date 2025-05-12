@@ -1,4 +1,5 @@
 #include "TextSearchTable.h"
+#include "Utils.h"
 
 #include <iostream>
 
@@ -127,21 +128,23 @@ void TextSearchTable::addChunk(const Chunk &chunk)
     query.bind(1, chunk.chunkId);
     query.step();
     int count = query.get<int>(0);
+    auto content = Utils::toLower(chunk.content);
+    auto metadata = Utils::toLower(chunk.metadata);
 
     assert(count <= 1); // should not have more than one chunk with the same chunkId 
     if(count == 1) // existint chunk, update it
     {
         auto update = sqlite.getStatement("UPDATE " + tableName + " SET content = ?, metadata = ? WHERE chunkId = ?");
-        update.bind(1, chunk.content);
-        update.bind(2, chunk.metadata);
+        update.bind(1, content);
+        update.bind(2, metadata);
         update.bind(3, chunk.chunkId);
         update.step();
     }
     else // new chunk, insert it
     {
         auto insert = sqlite.getStatement("INSERT INTO " + tableName + " (content, metadata, chunkId) VALUES (?, ?, ?)");
-        insert.bind(1, chunk.content);
-        insert.bind(2, chunk.metadata);
+        insert.bind(1, content);
+        insert.bind(2, metadata);
         insert.bind(3, chunk.chunkId);
         insert.step();
     }
@@ -181,6 +184,7 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
                 safeKeyword += c;
             }
         }
+        safeKeyword = Utils::toLower(safeKeyword);
         
         if (!safeKeyword.empty()) 
         {
