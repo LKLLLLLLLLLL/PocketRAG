@@ -16,7 +16,9 @@ const std::vector<std::vector<Chunker::Flag>> Chunker::split_table =
     {{". ", false}, {"! ", false}, {"? ", false}, {"... ", false}, {"。", false}, {"！", false}, {"？", false}, {"……", false}}, // sentence
     {{";", false}, {"；", false}}, // semicolon
     {{",", false}, {"，", false}}, // comma
-    {{" ", false}} // space
+    {{"、", false}, {"：", false}, {": ", false}, {"“", true}, {"”", false}, {"《", true}, {"》", false}, {"——", true}, {"(", true}, {")", false}, {"（", true}, {"）", false}}, // in sentense separator
+    {{" ", false}}, // space
+    {{":", false}, {"-", true}, {"/", true}, {"\\", true}} // inword separator
 };
 const Chunker::Chunk Chunker::document = {};
 
@@ -35,17 +37,11 @@ Chunker::~Chunker()
 
 int Chunker::posToLine(int pos, int beginLine, const std::string &content) const
 {
-    for (auto i = content.begin(); i != content.end(); i++)
+    if(pos > content.length())
     {
-        if (*i == '\n')
-        {
-            beginLine++;
-        }
-        if (i - content.begin() >= pos)
-        {
-            break;
-        }
+        pos = content.length();
     }
+    beginLine += std::count_if(content.begin(), content.begin() + pos, [](char c) { return c == '\n'; });
     return beginLine;
 }
 
@@ -223,12 +219,24 @@ void Chunker::recursiveChunk(const Chunk &chunk, int split_table_index, const st
     if(split_table_index != -1 && split_table_index >= split_table.size())
     {
         // no more split table, just split directly
-        auto length = chunk.content.length();
-        auto sub_chunk1 = chunk.content.substr(0, length / 2);
-        auto sub_chunk2 = chunk.content.substr(length / 2);
-        auto splitLine = posToLine(length, beginLine, chunk.content);
-        final_chunks.push_back({sub_chunk1, chunk.metadata, nestedLevel + 1, beginLine, splitLine});
-        final_chunks.push_back({sub_chunk2, chunk.metadata, nestedLevel + 1, splitLine, chunk.endLine});
+        auto length = getLength(chunk.content);
+        auto splitNumber = static_cast<int>(length / max_length);
+        auto chunkBytes = static_cast<int>(chunk.content.length() / splitNumber);
+        auto lastBeginLine = chunk.beginLine;
+        for(auto i = 0; i < splitNumber; i++)
+        {
+            auto start = chunkBytes * i;
+            auto end = chunkBytes * (i + 1);
+            // avoid split in the middle of a utf-8 character
+            while (end < chunk.content.length() && (chunk.content[end] & 0xC0) == 0x80)
+            {
+                end++;
+            }
+            auto sub_chunk = chunk.content.substr(start, end - start);
+            auto sub_chunk_line = posToLine(end, lastBeginLine, chunk.content);
+            final_chunks.push_back({sub_chunk, chunk.metadata, nestedLevel + 1, lastBeginLine, sub_chunk_line});
+            lastBeginLine = sub_chunk_line;
+        }
         return;
     }
 
@@ -272,9 +280,11 @@ void Chunker::recursiveChunk(const Chunk &chunk, int split_table_index, const st
         splitLine.push_back(chunk.endLine); // add last line
 
         // split content by split pos
-        for(auto i = 0; i < split_pos.size(); i++)
+        for(auto i = 0; i < split_pos.size() - 1; i++)
         {
-            auto sub_chunk = chunk.content.substr(i, (i + 1) - i);
+            auto start = split_pos[i];
+            auto end = split_pos[i + 1];
+            auto sub_chunk = chunk.content.substr(start, end - start);
             sub_chunks.push_back({sub_chunk, chunk.metadata, nestedLevel + 1, splitLine[i], splitLine[i + 1]});
         }
 

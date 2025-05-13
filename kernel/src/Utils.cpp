@@ -116,7 +116,12 @@ std::string Utils::chunkTosequence(const std::string& content, const std::string
 std::string Utils::toLower(const std::string &str)
 {
     std::string lowerStr = str;
-    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower); // convert to lowercase
+    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), [](unsigned char c) -> unsigned {
+        if(c < 128)
+            return std::tolower(c);
+        else
+            return c;
+    });
     return lowerStr;
 }
 

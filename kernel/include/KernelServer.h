@@ -42,6 +42,9 @@ private:
     std::shared_ptr<SqliteConnection> sqliteConnection = nullptr; // sqlite connection
     void initializeSqlite();
 
+    // read settings from disk, if needed write to sqlite
+    void readSettings();
+
     // method called by run()
     void transmitMessage(nlohmann::json& json); // handle message to session
     void handleMessage(nlohmann::json& json); // handle message to main thread
@@ -79,15 +82,11 @@ public:
     // methods below are interfaces for sessions to call, can be called in multiple threads
     // open a conversation
     std::shared_ptr<LLMConv> getLLMConv(const std::string &modelName);
-
     // get repos list, return repo name and repo path
     std::vector<std::pair<std::string, std::string>> getRepos();
-
     // get all generation model names
     std::vector<std::string> getGenerationModels();
-
     Repository::EmbeddingConfigList getEmbeddingConfigs();
-
     std::filesystem::path getRerankerConfigs();
 };
    

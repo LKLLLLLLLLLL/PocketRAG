@@ -60,6 +60,11 @@ void KernelServer::initializeSqlite()
     );
 }
 
+void readSettings()
+{
+    
+}
+
 KernelServer::~KernelServer()
 {
     stopAllFlag = true;

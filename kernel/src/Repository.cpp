@@ -181,7 +181,7 @@ void Repository::backgroundProcess()
             }
         }
 
-        if(!integrity)
+        if(!integrity && !stopThread)
         {
             std::cerr << "Database integrity check failed, reconstructing..." << std::endl;
             reConstruct();
@@ -280,7 +280,7 @@ void Repository::refreshDoc(std::queue<DocPipe> &docqueue)
         }, 
         stopThread); // pass the stop flag to the process function
 
-        if(doneReporter)
+        if(doneReporter && !stopThread)
             doneReporter(path); // report the document is done
     }
 }
