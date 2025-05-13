@@ -85,6 +85,7 @@ public:
     static void dropTable(SqliteConnection &sqlite, const std::string &tableName);
 };
 
+
 namespace jiebaTokenizer
 {
     extern cppjieba::Jieba *jieba; 
@@ -97,5 +98,9 @@ namespace jiebaTokenizer
     void register_jieba_tokenizer(sqlite3 *db);
 
     cppjieba::Jieba *get_jieba_ptr();
+
+    void cut(const std::string &text, std::vector<std::string> &words);
+
+    void cutForSearch(const std::string &text, std::vector<std::string> &words);
 }
 

@@ -18,6 +18,8 @@ if(MSVC)
     add_compile_definitions(NOMINMAX) # 禁用windows.h中的min/max宏，避免与std::min/max冲突
 endif()
 
+set(BUILD_SHARED_LIBS OFF)
+
 # 设置vcpkg工具链文件
 include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
 include(CMakeFindDependencyMacro)
@@ -64,6 +66,17 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 # 导入cmark
 find_package(cmark CONFIG REQUIRED)
+
+# # 导入cmark-gfm
+# set(CMARK_TESTS OFF)
+# set(CMARK_SHARED OFF)
+# set(CMARK_STATIC ON)
+# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/cmark-gfm)
+# include_directories(
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external/cmark-gfm/src
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external/cmark-gfm/extensions
+#     ${CMAKE_BINARY_DIR}/external/cmark-gfm/src
+# )
 
 # 导入xxhash
 find_package(xxHash CONFIG REQUIRED)
@@ -139,6 +152,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     nlohmann_json::nlohmann_json
     cmark::cmark
     xxHash::xxhash
+    # libcmark-gfm
+    # libcmark-gfm-extensions
 )    
 
 # -------------拷贝动态链接库--------------
@@ -174,17 +189,3 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         )
     endforeach()
 endif()
-# add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-#     # # 复制vcpkg提供的DLL
-#     # COMMAND ${CMAKE_COMMAND} -E copy_directory
-#     #     "${VCPKG_DLL_DIR}"
-#     #     $<TARGET_FILE_DIR:${PROJECT_NAME}>
-#     # 复制ONNX Runtime DLL
-#     COMMAND ${CMAKE_COMMAND} -E copy_directory
-#         "${ONNXRUNTIME_DIR}/lib/"
-#         $<TARGET_FILE_DIR:${PROJECT_NAME}>  
-#     # 复制cuDNN DLL
-#     COMMAND ${CMAKE_COMMAND} -E copy_directory
-#         "${CUDNN_DLL_DIR}"
-#         $<TARGET_FILE_DIR:${PROJECT_NAME}>
-# )

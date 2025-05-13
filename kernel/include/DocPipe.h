@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS chunks (
     embedding_id INTEGER NOT NULL,
     chunk_index INTEGER NOT NULL,   -- index in one document with one embedding 
     content_hash TEXT NOT NULL, -- hash of the content and metadata
+    begin_line INTEGER, 
+    end_line INTEGER, 
 
     -- UNIQUE(doc_id, embedding_id, chunk_index),
 

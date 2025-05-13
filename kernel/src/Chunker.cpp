@@ -1,66 +1,125 @@
 #include "Chunker.h"
 
-#include <iostream>
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <regex>
-
-#include "Utils.h"
 
 const double Chunker::min_chunk_length_ratio = 0.85;
-const std::vector<std::vector<std::string>> Chunker::split_table =
+const std::vector<std::vector<Chunker::Flag>> Chunker::split_table =
 {
-    {"\n\n"}, // paragraph
-    {"```"}, //code block
-    {"---", "___", "****"}, // thematic break
-    {"\n+", "\n-", "\n*"}, //list
-    {"\n\"", "\"\n", "    “", "”\n"}, // quote
-    {"\n"}, // line
-    {". ", "! ", "? ", "... ", "。", "！", "？", "……"}, // sentence
-    {";", "；"}, // semicolon
-    {",", "，"}, // comma
-    {" "} // space
+    {{"\n\n", false}}, // paragraph
+    {{"```", false}}, //code block
+    {{"---", true}, {"___", true}, {"****", true}}, // thematic break
+    {{"\n+", true}, {"\n-", true}, {"\n*", true}}, //list
+    {{"\n\"", true}, {"\"\n", false}, {"\n“", true}, {"    “", true}, {"”\n", false}}, // quote
+    {{"\n", false}}, // line
+    {{". ", false}, {"! ", false}, {"? ", false}, {"... ", false}, {"。", false}, {"！", false}, {"？", false}, {"……", false}}, // sentence
+    {{";", false}, {"；", false}}, // semicolon
+    {{",", false}, {"，", false}}, // comma
+    {{" ", false}} // space
 };
 const Chunker::Chunk Chunker::document = {};
 
-Chunker::Chunker(const std::string &text, docType type, int max_length) : in_text(text), in_type(type), max_length(max_length)
+Chunker::Chunker(docType type, int max_length, std::function<int(const std::string&)> getLength) : getLength(getLength), type(type), max_length(max_length)
 {
-    auto normalized_text = Utils::normalizeLineEndings(in_text); // normalize line endings
-    
-    if(type == docType::Markdown)
+    min_length = static_cast<int>(max_length * min_chunk_length_ratio);
+}
+
+Chunker::~Chunker()
+{
+    if (ast != nullptr)
+    {
+        cmark_node_free(ast);
+    }
+}
+
+int Chunker::posToLine(int pos, int beginLine, const std::string &content) const
+{
+    for (auto i = content.begin(); i != content.end(); i++)
+    {
+        if (*i == '\n')
+        {
+            beginLine++;
+        }
+        if (i - content.begin() >= pos)
+        {
+            break;
+        }
+    }
+    return beginLine;
+}
+
+auto Chunker::operator()(const std::string &in_text, std::unordered_map<std::string, std::string> extraMeradata) -> std::vector<Chunk>
+{
+    auto text = Utils::normalizeLineEndings(in_text); // normalize line endings
+    if(ast)
+    {
+        cmark_node_free(ast);
+        ast = nullptr;
+    }
+
+    if (type == docType::Markdown)
     {
         // build AST
-        ast = cmark::cmark_parse_document(in_text.c_str(), in_text.length(), CMARK_OPT_DEFAULT);
+        ast = cmark::cmark_parse_document(text.c_str(), text.length(), CMARK_OPT_DEFAULT | CMARK_OPT_HARDBREAKS);
         if (ast == nullptr)
         {
             throw Exception(Exception::Type::parserError, "failed to parse markdown document");
         }
     }
 
-    // traverse AST to generate temp chunk vector
-    genBasicChunks();
-}
-
-Chunker::~Chunker()
-{
-    if(ast != nullptr)
+    // calculate begin bytes for each line
+    byteToLine.clear();
+    byteToLine.push_back(0);
+    for(auto i = text.begin(); i != text.end(); i++)
     {
-        cmark_node_free(ast);
+        if(*i == '\n')
+        {
+            byteToLine.push_back(i - text.begin() + 1);
+        }
     }
+    if (byteToLine.back() != text.length())
+    {
+        byteToLine.push_back(text.length());
+    }
+
+    // traverse AST to generate temp chunk vector
+    std::vector<Chunk> headingChunks;
+    parserHeadings(text, headingChunks);
+
+    std::vector<Chunk> chunks;
+    recursiveChunk(document, -1, headingChunks, chunks);
+
+    // add extra metadata
+    for(auto& chunk : chunks)
+    {
+        auto path = chunk.metadata;
+        chunk.metadata.clear();
+        for(auto& [key, value] : extraMeradata)
+        {
+            chunk.metadata += " <" + key + "> " + value + "\n";
+        }
+        chunk.metadata += " <Path> " + path; // add path to metadata
+    }
+
+    return chunks;
 }
 
-void Chunker::genBasicChunks()
+void Chunker::parserHeadings(const std::string &text, std::vector<Chunk> &chunks)
 {
     if(ast == nullptr) // doc is plain text
     {
         Chunk chunk;
-        chunk.content = in_text;
+        chunk.content = text;
         chunk.metadata = "plainText";
-        basic_chunks.push_back(chunk);
+        chunk.nestedLevel = 0;
+        chunk.beginLine = 0;
+        chunk.endLine = byteToLine.size();
+        chunks.push_back(chunk);
         return;
     }
 
+    std::vector<std::string> headingStack; // stack for heading
     auto node = cmark_node_first_child(ast);
     while(node != nullptr)
     {
@@ -73,12 +132,16 @@ void Chunker::genBasicChunks()
             
             // get title
             std::string title;
-            getContent(node, title);
+            getNodeContent(node, title);
 
             // push to stack
             while(headingStack.size() > level)
             {
                 headingStack.pop_back();
+            }
+            while(headingStack.size() < level)
+            {
+                headingStack.push_back("");
             }
             headingStack.push_back(title);
 
@@ -88,65 +151,74 @@ void Chunker::genBasicChunks()
             {
                 // generate metadata
                 std::string metadata;
-                for(auto it = headingStack.begin(); it != headingStack.end(); ++it)
+                for (auto i = 0; i < headingStack.size(); i++)
                 {
-                    metadata += *it + ">";
+                    auto heading = headingStack[i];
+                    if (heading == "")
+                        continue;
+                    if (heading.back() == '\n')
+                        heading.pop_back();
+                    metadata += heading + ">";
                 }
                 if(!metadata.empty())
                     metadata.pop_back(); // remove last '>'
 
                 // add chunk
-                basic_chunks.push_back({title, metadata});
+                Chunk chunk;
+                chunk.content = title;
+                chunk.metadata = metadata;
+                chunk.nestedLevel = headingStack.size();
+                chunk.beginLine = cmark_node_get_start_line(node) - 1;
+                chunk.endLine = cmark_node_get_end_line(node);
+                chunks.push_back(chunk);
             }
         }
         else
         {
             // get content
             std::string content;
-            getContent(node, content);
+            getNodeContent(node, content);
 
             // generate metadata
             std::string metadata;
-            for(auto it = headingStack.begin(); it != headingStack.end(); ++it)
+            for(auto i = 0; i < headingStack.size(); i++)
             {
-                metadata += *it + ">";
+                auto heading = headingStack[i];
+                if(heading == "")
+                    continue;
+                if(heading.back() == '\n')
+                    heading.pop_back();
+                metadata += heading + ">";
             }
             if(!metadata.empty())
                 metadata.pop_back(); // remove last '>'
-            
-            basic_chunks.push_back({content, metadata});
+
+            // add chunk
+            Chunk chunk;
+            chunk.content = content;
+            chunk.metadata = metadata;
+            chunk.nestedLevel = headingStack.size();
+            chunk.beginLine = cmark_node_get_start_line(node) - 1;
+            chunk.endLine = cmark_node_get_end_line(node);
+            chunks.push_back(chunk);
         }
 
         node = cmark::cmark_node_next(node);
     }
-    
 }
 
-void Chunker::getContent(cmark::cmark_node *node, std::string &content)
+void Chunker::getNodeContent(cmark::cmark_node *node, std::string &content)
 {
     if(node == nullptr)
         return;
-
     content = cmark::cmark_render_commonmark(node, CMARK_OPT_DEFAULT, 0);
 }
 
-std::string Chunker::getNodeContent(cmark::cmark_node *node)
+void Chunker::recursiveChunk(const Chunk &chunk, int split_table_index, const std::vector<Chunk>& headingChunks, std::vector<Chunk> &final_chunks)
 {
-    if (node == nullptr)
-        return "";
-
-    char *markdown = cmark::cmark_render_commonmark(node, CMARK_OPT_DEFAULT, 0);
-    if (markdown == nullptr)
-        return "";
-    std::string result(markdown);
-
-    return result;
-}
-
-void Chunker::splitChunk(const Chunk& chunk, int split_table_index)
-{
-    auto min_length = static_cast<int>(max_length * min_chunk_length_ratio);
-
+    auto beginLine = chunk.beginLine;
+    auto nestedLevel = chunk.nestedLevel;
+    
     // check if split table has been used up
     if(split_table_index != -1 && split_table_index >= split_table.size())
     {
@@ -154,8 +226,9 @@ void Chunker::splitChunk(const Chunk& chunk, int split_table_index)
         auto length = chunk.content.length();
         auto sub_chunk1 = chunk.content.substr(0, length / 2);
         auto sub_chunk2 = chunk.content.substr(length / 2);
-        final_chunks.push_back({sub_chunk1, chunk.metadata});
-        final_chunks.push_back({sub_chunk2, chunk.metadata});
+        auto splitLine = posToLine(length, beginLine, chunk.content);
+        final_chunks.push_back({sub_chunk1, chunk.metadata, nestedLevel + 1, beginLine, splitLine});
+        final_chunks.push_back({sub_chunk2, chunk.metadata, nestedLevel + 1, splitLine, chunk.endLine});
         return;
     }
 
@@ -163,7 +236,7 @@ void Chunker::splitChunk(const Chunk& chunk, int split_table_index)
     std::vector<Chunk> sub_chunks;
     if(split_table_index == -1) // split document
     {
-        sub_chunks = basic_chunks;
+        sub_chunks = headingChunks;
     }
     else
     {
@@ -173,23 +246,36 @@ void Chunker::splitChunk(const Chunk& chunk, int split_table_index)
         for(auto& flag : split_table[split_table_index])
         {
             size_t pos = 0;
-            pos = chunk.content.find(flag, pos);
+            pos = chunk.content.find(flag.flag, pos);
             while(pos != std::string::npos)
             {
-                split_pos.push_back(pos + flag.length()); // add split pos
-                pos += flag.length();
-                pos = chunk.content.find(flag, pos);
+                auto actual_split_pos = pos;
+                if(!flag.splitBefore)
+                {
+                    actual_split_pos += flag.flag.length();
+                }
+                split_pos.push_back(actual_split_pos); // add split pos
+                pos += flag.flag.length();
+                pos = chunk.content.find(flag.flag, pos);
             }
         }
         split_pos.push_back(chunk.content.length()); // add last pos
         std::sort(split_pos.begin(), split_pos.end());
         split_pos.erase(std::unique(split_pos.begin(), split_pos.end()), split_pos.end()); // remove duplicate pos
+        std::vector<int> splitLine;
+        splitLine.push_back(beginLine);
+        for(auto i = split_pos.begin(); i != split_pos.end(); i++)
+        {
+            auto line = posToLine(*i, beginLine, chunk.content);
+            splitLine.push_back(line);
+        }
+        splitLine.push_back(chunk.endLine); // add last line
 
         // split content by split pos
-        for(auto i = split_pos.begin(); i != split_pos.end() - 1; i++)
+        for(auto i = 0; i < split_pos.size(); i++)
         {
-            auto sub_chunk = chunk.content.substr(*i, *(i + 1) - *i);
-            sub_chunks.push_back({sub_chunk, chunk.metadata});
+            auto sub_chunk = chunk.content.substr(i, (i + 1) - i);
+            sub_chunks.push_back({sub_chunk, chunk.metadata, nestedLevel + 1, splitLine[i], splitLine[i + 1]});
         }
 
         // if no split pos found, just add the chunk to sub_chunks
@@ -204,25 +290,39 @@ void Chunker::splitChunk(const Chunk& chunk, int split_table_index)
     {
         auto sub_chunk = *i;
         // suitable length, add to result
-        if (sub_chunk.content.length() < max_length && sub_chunk.content.length() >= min_length) 
+        if (getLength(sub_chunk.content) < max_length && getLength(sub_chunk.content) >= min_length) 
         {
             final_chunks.push_back(sub_chunk);
             continue;
         }
         // too long, split again
-        if(sub_chunk.content.length() > max_length) 
+        if(getLength(sub_chunk.content) > max_length) 
         {
-            splitChunk(sub_chunk, split_table_index + 1);
+            recursiveChunk(sub_chunk, split_table_index + 1, headingChunks, final_chunks);
             continue;
         }
 
         // too short, try to append next chunk
         auto next_pos = i + 1;
-        while(next_pos != sub_chunks.end() && i->metadata == next_pos->metadata) // only append chunk with same metadata(under same heading)
+        while(next_pos != sub_chunks.end() && i->nestedLevel == next_pos->nestedLevel) // only append chunk with same metadata(under same heading)
         {
-            if(sub_chunk.content.length() + next_pos->content.length() < max_length)
+            if(getLength(sub_chunk.content) + getLength(next_pos->content) < max_length)
             {
                 sub_chunk.content += next_pos->content;
+                // generate publie metadata
+                auto seperatorPos = 0;
+                for(auto index = 0; index < i->metadata.size(); index++)
+                {
+                    if(i->metadata[index] == '>')
+                    {
+                        seperatorPos = index - 1;
+                    }
+                    if(i->metadata[index] != next_pos->metadata[index])
+                    {
+                        i->metadata = i->metadata.substr(0, seperatorPos);
+                        break;
+                    }
+                }
                 next_pos++;
             }
             else
@@ -232,20 +332,11 @@ void Chunker::splitChunk(const Chunk& chunk, int split_table_index)
         }
 
         // if the chunk is too short, ignore it
-        if(sub_chunk.content.length() < min_length)
+        if(getLength(sub_chunk.content) < minimumLength)
         {
             continue;
         }
         final_chunks.push_back(sub_chunk);
         i = next_pos - 1; 
     }
-}
-
-std::vector<Chunker::Chunk> Chunker::getChunks()
-{
-    // generate chunks
-    splitChunk(document, -1);
-
-    // return final chunks
-    return final_chunks;
 }

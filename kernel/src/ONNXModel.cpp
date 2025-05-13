@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <filesystem>
 #include <algorithm>
+#include <fstream>
 
 #include <onnxruntime_cxx_api.h>
 

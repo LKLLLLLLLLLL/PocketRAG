@@ -25,6 +25,15 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
+        },
+        {
+            "name" : "ninja-release-debInfo",
+            "inherits": "ninja-release",
+            "displayName" : "ninja-release-debInfo",
+            "description" : "设置 Ninja 生成器、版本和安装目录",
+            "cacheVariables" : {
+                "CMAKE_BUILD_TYPE" : "RelWithDebInfo"
+            }
         }
     ],
     "buildPresets": [
@@ -34,12 +43,17 @@
             "targets": [
                 "PocketRAG_kernel"
             ],
-            "jobs" : 0
+            "jobs" : 16
         },
         {
             "name" : "ninja-release",
             "inherits": "ninja",
             "configurePreset": "ninja-release"
+        },
+        {
+            "name" : "ninja-release-debInfo",
+            "inherits": "ninja",
+            "configurePreset": "ninja-release-debInfo"
         }
     ]
 }

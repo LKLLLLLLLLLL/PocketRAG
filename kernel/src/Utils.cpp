@@ -6,7 +6,6 @@
 #include <string>
 #include <codecvt>
 #include <regex>
-#include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <queue>
@@ -119,6 +118,13 @@ std::string Utils::toLower(const std::string &str)
     std::string lowerStr = str;
     std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower); // convert to lowercase
     return lowerStr;
+}
+
+int Utils::utf8Length(const std::string& str)
+{
+    return std::count_if(str.begin(), str.end(), [](unsigned char c) {
+        return (c & 0xC0) != 0x80;
+    });
 }
 
 //--------------------------CallbackManager--------------------------//

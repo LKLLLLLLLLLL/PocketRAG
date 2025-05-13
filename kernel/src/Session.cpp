@@ -129,6 +129,8 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
                 resultJson["content"] = result.content;
                 resultJson["metadata"] = result.metadata;
                 resultJson["filePath"] = result.filePath;
+                resultJson["beginLine"] = result.beginLine;
+                resultJson["endLine"] = result.endLine;
                 resultJson["highlightedContent"] = result.highlightedContent;
                 resultJson["highlightedMetadata"] = result.highlightedMetadata;
                 resultsJson.push_back(resultJson);

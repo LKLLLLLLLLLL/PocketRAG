@@ -4,7 +4,6 @@
 #include <filesystem>
 #include <stdexcept>
 #include <thread>
-#include <unordered_set>
 #include <vector>
 #include <queue>
 
@@ -65,6 +64,8 @@ void Repository::initializeSqlite()
         "embedding_id INTEGER NOT NULL, "
         "chunk_index INTEGER, "
         "content_hash TEXT NOT NULL, "
+        "begin_line INTEGER, "
+        "end_line INTEGER, "
         ""
         "UNIQUE(doc_id, embedding_id, chunk_index), " // constraints
         "FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE, "
@@ -404,7 +405,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
     for (auto &result : allResults) 
     {
         auto [content, metadata] = textTable->getContent(result.chunkId);
-        if (!content.empty() && !metadata.empty()) 
+        if (!content.empty() || !metadata.empty()) 
         {
             result.content = content;
             result.metadata = metadata;
@@ -424,13 +425,28 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
 
     // remove duplicates
     std::vector<searchResult> uniqueResults;
-    std::unordered_set<std::string> uniqueContents;
     for (const auto &result : allResults) 
     {
-        if (uniqueContents.find(result.content + result.metadata) == uniqueContents.end()) // not duplicate
+        bool found = false;
+        for(auto &uniqueResult : uniqueResults) 
+        {
+            bool isSubstr = (uniqueResult.content.find(result.content) != std::string::npos);
+            if(isSubstr) // found string include current result
+            {
+                found = true;
+                break;
+            }
+            bool isSuperstr = (result.content.find(uniqueResult.content) != std::string::npos);
+            if(isSuperstr) // found current result include string in unique result
+            {
+                uniqueResult = result; // replace it
+                found = true;
+                break;
+            }
+        }
+        if(!found) // not found
         {
             uniqueResults.push_back(result);
-            uniqueContents.insert(result.content + result.metadata);
         }
     }
 
@@ -467,6 +483,23 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
             std::runtime_error("Error: chunk not found in documents table, chunk_id: " + std::to_string(result.chunkId));
         }
         stmt.reset();
+    }
+
+    // get begin and end line from database
+    auto lineStmt = sqlite->getStatement("SELECT begin_line, end_line FROM chunks WHERE chunk_id = ?;");
+    for (auto &result : uniqueResults)
+    {
+        lineStmt.bind(1, result.chunkId);
+        if (lineStmt.step())
+        {
+            result.beginLine = lineStmt.get<int>(0);
+            result.endLine = lineStmt.get<int>(1);
+        }
+        else
+        {
+            std::runtime_error("Error: chunk not found in chunks table, chunk_id: " + std::to_string(result.chunkId));
+        }
+        lineStmt.reset();
     }
 
     return uniqueResults;

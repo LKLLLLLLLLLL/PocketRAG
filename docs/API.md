@@ -341,6 +341,8 @@ return:
                 "highlightedContent" : "highlighted content",
                 "metadata" : "metadata",
                 "highlightedMetadata" : "highlighted metadata",
+                "beginLine" : 0,
+                "endLine" : 10,
                 "filePath" : "/path/to/file",
                 "score" : 0.9
             },

@@ -26,7 +26,9 @@ public:
         std::string highlightedContent = "";
         std::string metadata = "";
         std::string highlightedMetadata = "";
-        std::string filePath = ""; // file path
+        std::string filePath = "";
+        int beginLine = 0; 
+        int endLine = 0; 
     };
 
     using Embedding = DocPipe::Embedding; 

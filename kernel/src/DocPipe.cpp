@@ -317,11 +317,10 @@ void DocPipe::updateToTable(Progress &progress, std::atomic<bool> &stopFlag)
 void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::atomic<bool> &stopFlag)
 {
     // 1. split content to chunks
+    auto chunkLength = std::min(embedding->model->getMaxLength(), embedding->inputLength); // get max length
     std::vector<Chunker::Chunk> newChunks;
-    {
-        Chunker chunker(content, docType, std::min(embedding->model->getMaxLength(), embedding->inputLength)); // create chunker
-        newChunks = chunker.getChunks();           // get chunks from chunker
-    }
+    Chunker chunker(docType, chunkLength); // create chunker
+    newChunks = chunker(content, {{"FilePath", docPath.string()}}); 
     progress.updateSubprocess(0.01); 
 
     // 2. get existing chunks
@@ -404,10 +403,12 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         auto &chunk = newChunks[index - 1]; // get chunk from new chunks
 
         // update chunks table
-        auto sql = "UPDATE chunks SET chunk_index = ? WHERE chunk_id = ?;";
+        auto sql = "UPDATE chunks SET chunk_index = ?, begin_line = ?, end_line = ? WHERE chunk_id = ?;";
         auto stmt = sqlite.getStatement(sql); // prepare statement
         stmt.bind(1, index);                  // bind new index
         stmt.bind(2, chunkid);                // bind chunk id
+        stmt.bind(3, chunk.beginLine);        // bind begin line
+        stmt.bind(4, chunk.endLine);          // bind end line
         stmt.step();                          // execute statement
         if (stmt.changes() == 0)              // check if updated
             throw Exception(Exception::Type::sqlError, "Failed to update chunk in database: " + std::to_string(chunkid));
@@ -428,12 +429,14 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         auto hash = Utils::calculateHash(chunk.content + chunk.metadata); // calculate hash for new chunk
 
         // add chunk to chunks table
-        auto sql = "INSERT INTO chunks (doc_id, embedding_id, chunk_index, content_hash) VALUES (?, ?, ?, ?);";
+        auto sql = "INSERT INTO chunks (doc_id, embedding_id, chunk_index, content_hash, begin_line, end_line) VALUES (?, ?, ?, ?, ?, ?);";
         auto stmt = sqlite.getStatement(sql); // prepare statement
         stmt.bind(1, docId); // bind doc id
         stmt.bind(2, embedding->embeddingId); // bind embedding id
         stmt.bind(3, index); // bind chunk index
         stmt.bind(4, hash); // bind content hash
+        stmt.bind(5, chunk.beginLine); // bind begin line
+        stmt.bind(6, chunk.endLine); // bind end line
         stmt.step(); // execute statement
         if(stmt.changes() == 0) // check if added
             throw Exception(Exception::Type::sqlError, "Failed to add chunk to database: " + std::to_string(docId));

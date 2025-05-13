@@ -1,10 +1,6 @@
 #pragma once
-#include <iostream>
 #include <filesystem>
-#include <fstream>
 #include <string>
-#include <codecvt>
-#include <regex>
 #include <functional>
 #include <mutex>
 #include <queue>
@@ -46,6 +42,9 @@ namespace Utils
     std::string chunkTosequence(const std::string& content, const std::string& metadata);
 
     std::string toLower(const std::string& str);
+
+    // calculate the number of characters encoded in UTF-8
+    int utf8Length(const std::string& str);
 
     // a thread-safe callback manager
     class CallbackManager
