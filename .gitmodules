@@ -10,9 +10,3 @@
 [submodule "kernel/external/faiss"]
 	path = kernel/external/faiss
 	url = https://github.com/facebookresearch/faiss.git
-[submodule "cmark-gfm"]
-	path = cmark-gfm
-	url = https://github.com/github/cmark-gfm.git
-[submodule "kernel/external/cmark-gfm"]
-	path = kernel/external/cmark-gfm
-	url = https://github.com/github/cmark-gfm.git
