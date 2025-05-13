@@ -44,6 +44,7 @@ private:
 
     // read settings from disk, if needed write to sqlite
     void readSettings();
+    std::string initSettins();
 
     // method called by run()
     void transmitMessage(nlohmann::json& json); // handle message to session

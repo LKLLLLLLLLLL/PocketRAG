@@ -90,5 +90,5 @@ public:
     Chunker(Chunker&&) = delete; // disable move constructor
     Chunker& operator=(Chunker&&) = delete; // disable move assignment
 
-    std::vector<Chunk> operator()(const std::string &text, std::unordered_map<std::string, std::string> extraMeradata = {});
+    std::vector<Chunk> operator()(const std::string &text, std::unordered_map<std::string, std::string> extraMetadata = {});
 };

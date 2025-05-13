@@ -290,6 +290,46 @@ return:
 - REPO_NAME_NOT_MATCH 仓库名与路径中的仓库名不匹配
 - REPO_NAME_EXIST 仓库名已存在
 
+## kernelServer -> main
+
+### ready
+kernel server准备完成，开始监听消息。
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "ready"
+    }
+}
+```
+
+return:
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : true,
+
+    "message" : {
+        "type" : "ready"
+    },
+
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
 ## window -> session
 
 ### search

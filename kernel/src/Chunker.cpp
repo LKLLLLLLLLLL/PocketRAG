@@ -18,7 +18,7 @@ const std::vector<std::vector<Chunker::Flag>> Chunker::split_table =
     {{",", false}, {"，", false}}, // comma
     {{"、", false}, {"：", false}, {": ", false}, {"“", true}, {"”", false}, {"《", true}, {"》", false}, {"——", true}, {"(", true}, {")", false}, {"（", true}, {"）", false}}, // in sentense separator
     {{" ", false}}, // space
-    {{":", false}, {"-", true}, {"/", true}, {"\\", true}} // inword separator
+    {{":", false}, {"-", true}, {"/", true}, {"\\", true}, {".", false}} // inword separator
 };
 const Chunker::Chunk Chunker::document = {};
 
@@ -37,15 +37,12 @@ Chunker::~Chunker()
 
 int Chunker::posToLine(int pos, int beginLine, const std::string &content) const
 {
-    if(pos > content.length())
-    {
-        pos = content.length();
-    }
+    pos = std::min(pos, static_cast<int>(content.length()));
     beginLine += std::count_if(content.begin(), content.begin() + pos, [](char c) { return c == '\n'; });
     return beginLine;
 }
 
-auto Chunker::operator()(const std::string &in_text, std::unordered_map<std::string, std::string> extraMeradata) -> std::vector<Chunk>
+auto Chunker::operator()(const std::string &in_text, std::unordered_map<std::string, std::string> extraMetadata) -> std::vector<Chunk>
 {
     auto text = Utils::normalizeLineEndings(in_text); // normalize line endings
     if(ast)
@@ -67,12 +64,11 @@ auto Chunker::operator()(const std::string &in_text, std::unordered_map<std::str
     // calculate begin bytes for each line
     byteToLine.clear();
     byteToLine.push_back(0);
-    for(auto i = text.begin(); i != text.end(); i++)
+    auto it = std::find(text.begin(), text.end(), '\n');
+    while(it != text.end())
     {
-        if(*i == '\n')
-        {
-            byteToLine.push_back(i - text.begin() + 1);
-        }
+        byteToLine.push_back(it - text.begin() + 1);
+        it = std::find(it + 1, text.end(), '\n');
     }
     if (byteToLine.back() != text.length())
     {
@@ -87,15 +83,15 @@ auto Chunker::operator()(const std::string &in_text, std::unordered_map<std::str
     recursiveChunk(document, -1, headingChunks, chunks);
 
     // add extra metadata
+    std::string extraMetadataStr = "";
+    for (auto &[key, value] : extraMetadata)
+    {
+        extraMetadataStr += " <" + key + "> " + value + "\n";
+    }
     for(auto& chunk : chunks)
     {
         auto path = chunk.metadata;
-        chunk.metadata.clear();
-        for(auto& [key, value] : extraMeradata)
-        {
-            chunk.metadata += " <" + key + "> " + value + "\n";
-        }
-        chunk.metadata += " <Path> " + path; // add path to metadata
+        chunk.metadata = extraMetadataStr + " <Path> " + path;
     }
 
     return chunks;
@@ -316,29 +312,22 @@ void Chunker::recursiveChunk(const Chunk &chunk, int split_table_index, const st
         auto next_pos = i + 1;
         while(next_pos != sub_chunks.end() && i->nestedLevel == next_pos->nestedLevel) // only append chunk with same metadata(under same heading)
         {
-            if(getLength(sub_chunk.content) + getLength(next_pos->content) < max_length)
-            {
-                sub_chunk.content += next_pos->content;
-                // generate publie metadata
-                auto seperatorPos = 0;
-                for(auto index = 0; index < i->metadata.size(); index++)
-                {
-                    if(i->metadata[index] == '>')
-                    {
-                        seperatorPos = index - 1;
-                    }
-                    if(i->metadata[index] != next_pos->metadata[index])
-                    {
-                        i->metadata = i->metadata.substr(0, seperatorPos);
-                        break;
-                    }
-                }
-                next_pos++;
-            }
-            else
-            {
+            if(getLength(sub_chunk.content) + getLength(next_pos->content) >= max_length)
                 break;
+
+            sub_chunk.content += next_pos->content;
+            // generate publie metadata
+            auto seperatorPos = 0;
+            for (auto index = 0; index < i->metadata.size(); index++)
+            {
+                if (i->metadata[index] != next_pos->metadata[index])
+                {
+                    i->metadata = i->metadata.substr(0, seperatorPos);
+                    break;
+                }
+                seperatorPos = index - 1;
             }
+            next_pos++;
         }
 
         // if the chunk is too short, ignore it

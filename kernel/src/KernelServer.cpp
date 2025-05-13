@@ -2,6 +2,7 @@
 #include "Utils.h"
 
 #include <iostream>
+#include <fstream>
 
 //--------------------------KernelServer--------------------------//
 KernelServer::KernelServer()
@@ -60,9 +61,28 @@ void KernelServer::initializeSqlite()
     );
 }
 
-void readSettings()
+void KernelServer::readSettings()
 {
-    
+    std::filesystem::path settingsPath = userDataPath / "settings.json";
+    if(!std::filesystem::exists(settingsPath))
+    {
+        std::ofstream settingsFile(settingsPath);
+        if(!settingsFile)
+        {
+            throw std::runtime_error("Failed to create settings file: " + settingsPath.string());
+        }
+        settingsFile << initSettins();
+        settingsFile.close();
+    }
+    std::ifstream settingsFile(settingsPath);
+    if(!settingsFile)
+    {
+        throw std::runtime_error("Failed to open settings file: " + settingsPath.string());
+    }
+    nlohmann::json settingsJson;
+    settingsFile >> settingsJson;
+    settingsFile.close();
+
 }
 
 KernelServer::~KernelServer()
@@ -95,6 +115,14 @@ void KernelServer::stopAllSessions()
 
 void KernelServer::run()
 {  
+    // sent message to frontend
+    nlohmann::json initMessage;
+    initMessage["sessionId"] = -1;
+    initMessage["toMain"] = true;
+    initMessage["isReply"] = false;
+    initMessage["callbackId"] = 0;
+    initMessage["message"]["type"] = "ready";
+    sendMessage(std::make_shared<Utils::MessageQueue::Message>(-1, std::move(initMessage)));
     // receive message
     std::string input(2048, '\0'); // max input size: 2048Byte
     while(std::cin.getline(input.data(), input.size()))
