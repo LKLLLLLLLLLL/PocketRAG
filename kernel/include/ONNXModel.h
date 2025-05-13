@@ -65,11 +65,13 @@ class EmbeddingModel : public ONNXModel
 {
 private:
     int embeddingDimension; // embedding dimension, get from model
+    int maxLength = 0;
+    constexpr static int defaultMaxLength = 512; // default max length of input text, if the model does not have max length, set to 512
     std::shared_ptr<sentencepiece::SentencePieceProcessor> tokenizer = nullptr; // tokenizer of embedding model, use sentencepiece
 
     // tokenize input string to ids and attention mask
     // input string must be encoded in utf-8
-    // asume that the embedding model needs input sentences like <BOS>content<EOS>
+    // asssume that the embedding model needs input sentences like <BOS>content<EOS> and <BOS> == <CLS>
     std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> tokenize(const std::string &text) const;
 
     // tokenize batch of strings to ids and attention mask
@@ -83,6 +85,7 @@ public:
 
     // get embedding dimension
     inline int getDimension() const { return embeddingDimension; }
+    inline int getMaxLength() const { return maxLength; }
 
     // generate embedding for a single string
     // input string must be encoded in utf-8
@@ -96,7 +99,23 @@ public:
 This class are designed to handle embedding models.
 Derived from ONNXModel.
 */
-class RerankingModel : public ONNXModel
+class RerankerModel : public ONNXModel
 {
-    // TODO
+private:
+    int maxLength = 0;
+    constexpr static int defaultMaxLength = 512; // default max length of input text, if the model does not have max length, set to 512
+    std::shared_ptr<sentencepiece::SentencePieceProcessor> tokenizer = nullptr;
+
+    // assume that input sequence is like <BOS>query_content<EOS>doc_content<EOS> and <BOS> == <CLS>
+    std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> tokenize(const std::string& query, const std::string& content) const;
+    std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> tokenize(const std::string& query, const std::vector<std::string>& contents) const;
+
+public:
+    RerankerModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+
+    inline int getMaxLength() const { return maxLength; }
+
+    // score all input contents with query
+    float rank(const std::string &query, const std::string &content) const;
+    std::vector<float> rank(const std::string &query, const std::vector<std::string> &contents) const;
 };

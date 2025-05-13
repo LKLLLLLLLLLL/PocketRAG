@@ -1,11 +1,8 @@
 #pragma once
-#include <iostream>
 #include <thread>
-#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <queue>
 #include <memory>
 
 #include <nlohmann/json.hpp>
@@ -14,13 +11,13 @@
 #include "Session.h"
 #include "Utils.h"
 
-struct Repository::EmbeddingConfig;
+class Repository;
 
 /*
 This class can only be instantiated once.
 It will handle all requests from the frontend.
 It will open thread to handle messages from frontend and sessions.
-It is a single-thread class.
+It is a single-thread class, only some interface can be called in multiple threads.
 */
 class KernelServer
 {
@@ -29,6 +26,7 @@ public:
 
 private:
     const std::filesystem::path userDataPath = "./UserData";
+    const std::filesystem::path userDataDBPath = userDataPath / "db";
 
     // messagequeue for frontend and backend communication
     std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server 
@@ -43,6 +41,10 @@ private:
 
     std::shared_ptr<SqliteConnection> sqliteConnection = nullptr; // sqlite connection
     void initializeSqlite();
+
+    // read settings from disk, if needed write to sqlite
+    void readSettings();
+    std::string initSettins();
 
     // method called by run()
     void transmitMessage(nlohmann::json& json); // handle message to session
@@ -78,14 +80,14 @@ public:
         kernelMessageQueue->push(message);
     }
 
-    // method for sessions to open a conversation
+    // methods below are interfaces for sessions to call, can be called in multiple threads
+    // open a conversation
     std::shared_ptr<LLMConv> getLLMConv(const std::string &modelName);
-
     // get repos list, return repo name and repo path
     std::vector<std::pair<std::string, std::string>> getRepos();
-
     // get all generation model names
     std::vector<std::string> getGenerationModels();
-
     Repository::EmbeddingConfigList getEmbeddingConfigs();
+    std::filesystem::path getRerankerConfigs();
 };
+   

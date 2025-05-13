@@ -1,5 +1,4 @@
 # pragma once
-#include <iostream>
 #include <filesystem>
 #include <functional>
 
@@ -8,7 +7,6 @@
 #include "TextSearchTable.h"
 #include "Chunker.h"
 #include "ONNXModel.h"
-#include "Utils.h"
 
 /*
 This class handles the document processing pipeline.
@@ -32,6 +30,8 @@ CREATE TABLE IF NOT EXISTS chunks (
     embedding_id INTEGER NOT NULL,
     chunk_index INTEGER NOT NULL,   -- index in one document with one embedding 
     content_hash TEXT NOT NULL, -- hash of the content and metadata
+    begin_line INTEGER, 
+    end_line INTEGER, 
 
     -- UNIQUE(doc_id, embedding_id, chunk_index),
 
@@ -63,8 +63,8 @@ public:
     {
         int embeddingId;
         std::string embeddingName;
-        int maxInputLength;
         int dimension;
+        int inputLength;
         std::shared_ptr<EmbeddingModel> model;
     };
 

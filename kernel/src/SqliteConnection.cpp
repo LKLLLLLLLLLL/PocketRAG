@@ -1,12 +1,9 @@
 #include "SqliteConnection.h"
 
 #include <string>
-#include <vector>
 #include <filesystem>
 #include <iostream>
-#include <stdexcept>
 #include <stack>
-#include <memory>
 #include <mutex>
 #include <sqlite3.h>
 #include <cppjieba/Jieba.hpp>
@@ -246,6 +243,36 @@ SqliteConnection::Transaction::~Transaction()
     {
         std::cerr << "[FATAL ERROR] Failed to rollback transaction: " << e.what() << std::endl;
     }
+}
+
+SqliteConnection::Transaction::Transaction(Transaction &&other) : sqlite(other.sqlite), isActive(other.isActive), transactionName(other.transactionName), threadId(other.threadId)
+{
+    other.isActive = false;
+    other.transactionName = "";
+}
+
+auto SqliteConnection::Transaction::operator=(Transaction &&other) -> Transaction&
+{
+    if (this != &other) 
+    { 
+        if (isActive) 
+        {
+            this->rollback();
+        }
+
+        if (&sqlite != &other.sqlite) 
+        {
+            throw Exception{Exception::Type::transactionError, "Cannot move transaction between different connections"};
+        }
+
+        isActive = other.isActive;
+        transactionName = other.transactionName;
+        threadId = other.threadId;
+
+        other.isActive = false;
+        other.transactionName = "";
+    }
+    return *this;
 }
 
 void SqliteConnection::Transaction::commit()

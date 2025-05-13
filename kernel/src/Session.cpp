@@ -1,5 +1,7 @@
 #include "Session.h"
 #include "KernelServer.h"
+#include "Repository.h"
+#include "Utils.h"
 
 void Session::docStateReporter(std::vector<std::string> docs)
 {
@@ -20,9 +22,7 @@ void Session::progressReporter(std::string path, double progress)
 {
     // for debug
     auto now = std::chrono::steady_clock::now();
-    static auto lastProgress = 0.0;
-    static std::chrono::steady_clock::time_point lastprintTime;
-    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastprintTime).count();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastprintTime.load()).count();
     auto progressDiff = progress - lastProgress;
     if (elapsed < 1 && progress <= 0.99 && progress >= 0.03 && progressDiff < 0.15) // print progress every second
         return;
@@ -57,6 +57,7 @@ Session::Session(int sessionId, std::string repoName, std::filesystem::path repo
     auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
     auto doneReporter_wrap = [this](std::string path) { doneReporter(path); };
     repository = std::make_shared<Repository>(repoName, repoPath, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
+    config();
 }
 
 Session::~Session()
@@ -71,7 +72,7 @@ void Session::sendBack(nlohmann::json& json)
     kernelServer.sendMessage(message);
 }
 
-void Session::send(nlohmann::json &json, Utils::CallbackManager::Callback callback)
+void Session::send(nlohmann::json& json, Utils::CallbackManager::Callback callback)
 {
     auto callbackId = callbackManager->registerCallback(callback);
     json["callbackId"] = callbackId;
@@ -80,7 +81,7 @@ void Session::send(nlohmann::json &json, Utils::CallbackManager::Callback callba
     kernelServer.sendMessage(message);
 }
 
-void Session::execCallback(nlohmann::json &json, int callbackId)
+void Session::execCallback(nlohmann::json& json, int callbackId)
 {
     callbackManager->callCallback(callbackId, json);
 }
@@ -99,47 +100,62 @@ void Session::run()
     auto message = sessionMessageQueue->pop();
     while (message != nullptr)
     {
-        try
+        handleMessage(*message);
+    }
+}
+
+void Session::handleMessage(Utils::MessageQueue::Message& message)
+{
+    auto& json = message.data;
+    try 
+    {
+        bool isReply = message.data["isReply"].get<bool>();
+        if (isReply) 
         {
-            auto type = message->data["message"]["type"].get<std::string>();
-            if(type == "search")
-            {
-                auto query = message->data["message"]["query"].get<std::string>();
-                auto limit = message->data["message"]["limit"].get<int>();
-                auto results = repository->search(query, limit);
-                auto resultsJson = nlohmann::json::array();
-                for(auto& embeddingResults: results)
-                {
-                    for (auto &result : embeddingResults)
-                    {
-                        nlohmann::json resultJson;
-                        resultJson["score"] = result.score;
-                        resultJson["content"] = result.content;
-                        resultJson["metadata"] = result.metadata;
-                        resultsJson.push_back(resultJson);
-                    }
-                }
-                sendBack(json);
-            }
-            else
-            {
-                json["status"]["code"] = "INVALID_TYPE";
-                json["status"]["message"] = "Invalid message type: " + type;
-                sendBack(json);
-            }
+            execCallback(message.data, message.data["callbackId"].get<int>());
+            return;
         }
-        catch (nlohmann::json::exception &e)
+        auto type = message.data["message"]["type"].get<std::string>();
+        if (type == "search") 
         {
-            json["status"]["code"] = "WRONG_PARAM";
-            json["status"]["message"] = "Invalid message format, parser error: " + std::string(e.what());
+            auto query = message.data["message"]["query"].get<std::string>();
+            auto limit = message.data["message"]["limit"].get<int>();
+            auto results = repository->search(query, Repository::searchAccuracy::low, limit);
+            auto resultsJson = nlohmann::json::array();
+            for (auto &result : results) 
+            {
+                nlohmann::json resultJson;
+                resultJson["score"] = result.score;
+                resultJson["content"] = result.content;
+                resultJson["metadata"] = result.metadata;
+                resultJson["filePath"] = result.filePath;
+                resultJson["beginLine"] = result.beginLine;
+                resultJson["endLine"] = result.endLine;
+                resultJson["highlightedContent"] = result.highlightedContent;
+                resultJson["highlightedMetadata"] = result.highlightedMetadata;
+                resultsJson.push_back(resultJson);
+            }
+            sendBack(json);
+        } 
+        else 
+        {
+            json["status"]["code"] = "INVALID_TYPE";
+            json["status"]["message"] = "Invalid message type: " + type;
             sendBack(json);
         }
-        catch (std::exception &e)
-        {
-            json["status"]["code"] = "UNKNOWN_ERROR";
-            json["status"]["message"] = "Unknown error: " + std::string(e.what());
-            sendBack(json);
-        }
+    } 
+    catch (nlohmann::json::exception& e) 
+    {
+        json["status"]["code"] = "WRONG_PARAM";
+        json["status"]["message"] =
+            "Invalid message format, parser error: " + std::string(e.what());
+        sendBack(json);
+    } 
+    catch (std::exception &e) 
+    {
+        json["status"]["code"] = "UNKNOWN_ERROR";
+        json["status"]["message"] = "Unknown error: " + std::string(e.what());
+        sendBack(json);
     }
 }
 
@@ -147,4 +163,20 @@ void Session::stop()
 {
     // stopConversationThread();
     sessionMessageQueue->shutdown();
+}
+
+void Session::config()
+{
+    // update embedding config
+    auto embeddingConfig = kernelServer.getEmbeddingConfigs();
+    repository->configEmbedding(embeddingConfig);
+
+    // update reranker config
+    auto rerankerConfig = kernelServer.getRerankerConfigs();
+    repository->configReranker(rerankerConfig);
+}
+
+void Session::sendMessage(const std::shared_ptr<Utils::MessageQueue::Message>& message)
+{
+    sessionMessageQueue->push(message);
 }

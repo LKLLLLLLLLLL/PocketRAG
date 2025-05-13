@@ -1,8 +1,14 @@
 # pragma once
+#include "Utils.h"
+#include <functional>
 #include <string>
 #include <vector>
-#include <iostream>
 #include <exception>
+
+// namespace cmark_gfm
+// {
+//     #include <cmark-gfm.h>
+// }
 
 namespace cmark
 {
@@ -22,6 +28,9 @@ public:
     {
         std::string content;
         std::string metadata;
+        int nestedLevel = 0;
+        int beginLine = 0;
+        int endLine = 0;
     };
 
     struct Exception : public std::exception
@@ -35,38 +44,44 @@ public:
     };
 
 private:
-    const std::string& in_text;
-    const docType in_type;
+    const docType type;
 
-    int max_length; // max bytes length of each chunk, return chunks might be shorter than this value, UTF-8 char may be longer than 1 bytes
+    int max_length; // max length of each chunk, return chunks might be shorter than this value, calculated by getLength
+    int min_length;
 
-    static const int min_length = 4; // if the chunk length is less than this value, it will be ignored
+    // function to get length of string, used for different encoding or tokenizer
+    std::function<int(const std::string&)> getLength = Utils::utf8Length;
+
+    static const int minimumLength = 4; // if the chunk length is less than this value, it will be ignored
 
     static const double min_chunk_length_ratio; // min chunk length ratio, but there is no guarantee that the chunk length will be greater than this value
-    static const std::vector<std::vector<std::string>> split_table; // char table for splitting, only support ch-zh and en now
+    
+    struct Flag
+    {
+        std::string flag;
+        bool splitBefore;
+    };
+    static const std::vector<std::vector<Flag>> split_table; // char table for splitting, only support ch-zh and en now
 
     cmark::cmark_node* ast = nullptr; // AST root node
 
-    std::vector<Chunk> basic_chunks; //Vector containing chunks after basic chunking 
-    std::vector<Chunk> final_chunks; //Vector containing chunks after final chunking
-    std::vector<std::string> headingStack; // stack for generating chunk metadata
+    std::vector<int> byteToLine; // byte to line map, used for calculating begin and end line of each chunk
+    // calculate line number of pos from beginLine
+    int posToLine(int pos, int beginLine, const std::string& content) const;
 
-    // transverse AST to generate basic chunk vector
-    void genBasicChunks(); 
+    // transverse AST to parse nested headings and generate metadata
+    void parserHeadings(const std::string& text, std::vector<Chunk>& chunks);
 
     // recursive function to get content below the node
-    static void getContent(cmark::cmark_node *node, std::string &content);
-
-    // helper function to get content from node
-    static std::string getNodeContent(cmark::cmark_node *node);
+    static void getNodeContent(cmark::cmark_node *node, std::string &content);
 
     static const Chunk document; // abstruact chunk for recursive function
 
     // recursive function to split one chunk into chunks
-    void splitChunk(const Chunk& chunk, int split_table_index);
+    void recursiveChunk(const Chunk& chunk, int split_table_index, const std::vector<Chunk>& headingChunks, std::vector<Chunk>& final_chunks);
 
 public:
-    Chunker(const std::string &text, docType type, int max_length);
+    Chunker(docType type, int max_length, std::function<int(const std::string&)> getLength = Utils::utf8Length);
     ~Chunker();
 
     Chunker(const Chunker&) = delete; // disable copy constructor
@@ -75,7 +90,5 @@ public:
     Chunker(Chunker&&) = delete; // disable move constructor
     Chunker& operator=(Chunker&&) = delete; // disable move assignment
 
-    // get chunks
-    std::vector<Chunk> getChunks();
-
+    std::vector<Chunk> operator()(const std::string &text, std::unordered_map<std::string, std::string> extraMetadata = {});
 };

@@ -13,7 +13,8 @@
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../vcpkg/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
                 "CMAKE_C_COMPILER": "cl.exe",
-                "CMAKE_CXX_COMPILER": "cl.exe"
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "USE_GPU" : "OFF"
             }
         },
         {
@@ -24,6 +25,15 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
+        },
+        {
+            "name" : "ninja-release-debInfo",
+            "inherits": "ninja-release",
+            "displayName" : "ninja-release-debInfo",
+            "description" : "设置 Ninja 生成器、版本和安装目录",
+            "cacheVariables" : {
+                "CMAKE_BUILD_TYPE" : "RelWithDebInfo"
+            }
         }
     ],
     "buildPresets": [
@@ -33,12 +43,17 @@
             "targets": [
                 "PocketRAG_kernel"
             ],
-            "jobs" : 0
+            "jobs" : 16
         },
         {
             "name" : "ninja-release",
             "inherits": "ninja",
             "configurePreset": "ninja-release"
+        },
+        {
+            "name" : "ninja-release-debInfo",
+            "inherits": "ninja",
+            "configurePreset": "ninja-release-debInfo"
         }
     ]
 }

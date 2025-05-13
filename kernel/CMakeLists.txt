@@ -18,11 +18,7 @@ if(MSVC)
     add_compile_definitions(NOMINMAX) # 禁用windows.h中的min/max宏，避免与std::min/max冲突
 endif()
 
-if(MSVC)
-    string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-    string(REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
-endif()
+set(BUILD_SHARED_LIBS OFF)
 
 # 设置vcpkg工具链文件
 include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
@@ -70,6 +66,17 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 # 导入cmark
 find_package(cmark CONFIG REQUIRED)
+
+# # 导入cmark-gfm
+# set(CMARK_TESTS OFF)
+# set(CMARK_SHARED OFF)
+# set(CMARK_STATIC ON)
+# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/cmark-gfm)
+# include_directories(
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external/cmark-gfm/src
+#     ${CMAKE_CURRENT_SOURCE_DIR}/external/cmark-gfm/extensions
+#     ${CMAKE_BINARY_DIR}/external/cmark-gfm/src
+# )
 
 # 导入xxhash
 find_package(xxHash CONFIG REQUIRED)
@@ -145,17 +152,19 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     nlohmann_json::nlohmann_json
     cmark::cmark
     xxHash::xxhash
+    # libcmark-gfm
+    # libcmark-gfm-extensions
 )    
 
 # -------------拷贝动态链接库--------------
 # 拷贝dll到输出目录，解决依赖问题
 set(VCPKG_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/bin")
 
-# 收集所有 ONNX Runtime DLL 文件
-file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/*.dll")
-# 收集所有 cuDNN DLL 文件
 if(USE_GPU)
-    file(GLOB CUDNN_DLL_FILES "${CUDNN_DLL_DIR}/*.dll")
+    file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/*.dll") # 收集所有 ONNX Runtime DLL 文件
+    file(GLOB CUDNN_DLL_FILES "${CUDNN_DLL_DIR}/*.dll") # 收集所有 cuDNN DLL 文件
+else()
+    file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/onnxruntime.dll") # 只收集 onnxruntime.dll 文件
 endif()
 # 为每个找到的DLL文件创建复制命令
 foreach(DLL_FILE ${ONNXRUNTIME_DLL_FILES} ${CUDNN_DLL_FILES})
@@ -180,17 +189,3 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         )
     endforeach()
 endif()
-# add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-#     # # 复制vcpkg提供的DLL
-#     # COMMAND ${CMAKE_COMMAND} -E copy_directory
-#     #     "${VCPKG_DLL_DIR}"
-#     #     $<TARGET_FILE_DIR:${PROJECT_NAME}>
-#     # 复制ONNX Runtime DLL
-#     COMMAND ${CMAKE_COMMAND} -E copy_directory
-#         "${ONNXRUNTIME_DIR}/lib/"
-#         $<TARGET_FILE_DIR:${PROJECT_NAME}>  
-#     # 复制cuDNN DLL
-#     COMMAND ${CMAKE_COMMAND} -E copy_directory
-#         "${CUDNN_DLL_DIR}"
-#         $<TARGET_FILE_DIR:${PROJECT_NAME}>
-# )

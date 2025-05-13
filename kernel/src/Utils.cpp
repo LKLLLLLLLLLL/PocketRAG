@@ -6,7 +6,6 @@
 #include <string>
 #include <codecvt>
 #include <regex>
-#include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <queue>
@@ -99,6 +98,38 @@ int Utils::getTimeStamp()
 int Utils::randomInt(int min, int max)
 {
     return std::rand() % (max - min + 1) + min; // generate a random integer between min and max
+}
+
+float Utils::sigmoid(float x)
+{
+    return 1.0f / (1.0f + std::exp(-x));
+}
+
+std::string Utils::chunkTosequence(const std::string& content, const std::string& metadata)
+{
+    std::string seq = "";
+    seq += "[METADATA]" + metadata + "\n";
+    seq += "[CONTENT]" + content + "\n";
+    return seq;
+}
+
+std::string Utils::toLower(const std::string &str)
+{
+    std::string lowerStr = str;
+    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), [](unsigned char c) -> unsigned {
+        if(c < 128)
+            return std::tolower(c);
+        else
+            return c;
+    });
+    return lowerStr;
+}
+
+int Utils::utf8Length(const std::string& str)
+{
+    return std::count_if(str.begin(), str.end(), [](unsigned char c) {
+        return (c & 0xC0) != 0x80;
+    });
 }
 
 //--------------------------CallbackManager--------------------------//

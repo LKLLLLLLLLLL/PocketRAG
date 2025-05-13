@@ -1,6 +1,5 @@
 #include "TextSearchTable.h"
-
-#include <iostream>
+#include "Utils.h"
 
 // helper function to register the jieba tokenizer to SQLite database
 namespace jiebaTokenizer
@@ -25,7 +24,7 @@ namespace jiebaTokenizer
         std::vector<std::string> words;
 
         // tokenize
-        jieba->Cut(text, words);
+        cut(text, words);
 
         // output each token result
         int offset = 0;
@@ -101,9 +100,31 @@ namespace jiebaTokenizer
 
 };
 
+void jiebaTokenizer::cut(const std::string &text, std::vector<std::string> &words)
+{
+    if (jieba == nullptr)
+    {
+        get_jieba_ptr();
+    }
+    std::lock_guard<std::mutex> lock(jiebaMutex);
+    auto ltext = Utils::toLower(text);
+    jieba->Cut(ltext, words);
+}
+
+void jiebaTokenizer::cutForSearch(const std::string &text, std::vector<std::string> &words)
+{
+    if(jieba == nullptr)
+    {
+        get_jieba_ptr();
+    }
+    std::lock_guard<std::mutex> lock(jiebaMutex);
+    auto ltext = Utils::toLower(text);
+    jieba->CutForSearch(ltext, words);
+}
+
 //-----------------------TextSearchTable---------------------
-const std::string TextSearchTable::ResultChunk::HIGHLIGHT_BEGINS = "<b>";
-const std::string TextSearchTable::ResultChunk::HIGHLIGHT_ENDS = "</b>";
+const std::string TextSearchTable::ResultChunk::HIGHLIGHT_BEGINS = "<mark>";
+const std::string TextSearchTable::ResultChunk::HIGHLIGHT_ENDS = "</mark>";
 
 TextSearchTable::TextSearchTable(SqliteConnection &sqlite, const std::string &tableName): sqlite(sqlite), tableName(tableName)
 {
@@ -127,21 +148,23 @@ void TextSearchTable::addChunk(const Chunk &chunk)
     query.bind(1, chunk.chunkId);
     query.step();
     int count = query.get<int>(0);
+    auto content = chunk.content;
+    auto metadata = chunk.metadata;
 
     assert(count <= 1); // should not have more than one chunk with the same chunkId 
     if(count == 1) // existint chunk, update it
     {
         auto update = sqlite.getStatement("UPDATE " + tableName + " SET content = ?, metadata = ? WHERE chunkId = ?");
-        update.bind(1, chunk.content);
-        update.bind(2, chunk.metadata);
+        update.bind(1, content);
+        update.bind(2, metadata);
         update.bind(3, chunk.chunkId);
         update.step();
     }
     else // new chunk, insert it
     {
         auto insert = sqlite.getStatement("INSERT INTO " + tableName + " (content, metadata, chunkId) VALUES (?, ?, ?)");
-        insert.bind(1, chunk.content);
-        insert.bind(2, chunk.metadata);
+        insert.bind(1, content);
+        insert.bind(2, metadata);
         insert.bind(3, chunk.chunkId);
         insert.step();
     }
@@ -164,7 +187,7 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
 {
     // tokenize the query using jieba
     std::vector<std::string> keywords;
-    jiebaTokenizer::jieba->CutForSearch(query, keywords); 
+    jiebaTokenizer::cutForSearch(query, keywords); 
 
     if(keywords.empty())
     {
@@ -181,6 +204,7 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
                 safeKeyword += c;
             }
         }
+        safeKeyword = safeKeyword;
         
         if (!safeKeyword.empty()) 
         {

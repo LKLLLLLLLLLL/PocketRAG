@@ -5,11 +5,10 @@
 #include <vector>
 #include <stdexcept>
 #include <memory>
-#include <unordered_set>
-#include <codecvt>
+#include <unordered_map>
 #include <filesystem>
 #include <algorithm>
-#include <numeric>
+#include <fstream>
 
 #include <onnxruntime_cxx_api.h>
 
@@ -53,7 +52,7 @@ void printTensorData(const Ort::Value &tensor, const std::string &name, int maxS
     }
 }
 
-// ------------------------ ONNXModel ------------------------
+// ------------------------ ONNXModel ------------------------ //
 bool ONNXModel::is_initialized = false;
 std::shared_ptr<Ort::Env> ONNXModel::env;
 
@@ -191,7 +190,7 @@ ONNXModel::~ONNXModel()
     }
 }
 
-// ------------------------ EmbeddingModel ------------------------
+// ------------------------ EmbeddingModel ------------------------ //
 EmbeddingModel::EmbeddingModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf) : ONNXModel(targetModelDirPath, dev, perf)
 {
     // load tokenizer
@@ -210,6 +209,23 @@ EmbeddingModel::EmbeddingModel(std::filesystem::path targetModelDirPath, device 
         Ort::TypeInfo typeInfo = session->GetOutputTypeInfo(1);
         embeddingDimension = typeInfo.GetTensorTypeAndShapeInfo().GetShape().back(); // get the last dimension of the output shape
     }
+
+    //get max input length
+    auto configPath = targetModelDirPath / "config.json";
+    if(std::filesystem::exists(configPath))
+    {
+        nlohmann::json config;
+        std::ifstream configFile(configPath);
+        try
+        {
+            maxLength = config["max_position_embeddings"];
+        }
+        catch(...){}
+    } 
+    if(maxLength == 0)
+    {
+        maxLength = defaultMaxLength;
+    }
 }
 
 std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> EmbeddingModel::tokenize(const std::string &text) const
@@ -222,25 +238,23 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
     tokenizer->Encode(text, &tempTokenIds); // tokenize text to ids
 
     // get max length
-    int64_t maxLength = tempTokenIds.size() + 2; // +2 for [BOS] and [EOS]
-    if(maxLength > 8192)
+    int length = tempTokenIds.size() + 2; // +2 for [BOS] and [EOS]
+    if (length > maxLength)
     {
-        std::cout << "Warning: the input text is too long, will be truncated to 8192." << std::endl;
-        maxLength = 8192;
+        std::cout << "Warning: the input text is too long, will be truncated to " << std::to_string(maxLength) << " ." << std::endl;
+        length = maxLength;
     }
 
     // move token ids to tokenIds and add [BOS] and [EOS] tokens
-    std::vector<int64_t> tokenIds(maxLength, 0);
-    auto copySize = std::min(tempTokenIds.size(), static_cast<size_t>(maxLength - 2));
-    std::copy(tempTokenIds.begin(),
-              tempTokenIds.begin() + copySize,
-              tokenIds.begin() + 1);
+    std::vector<int64_t> tokenIds(length, tokenizer->pad_id());
+    auto copySize = std::min(static_cast<int>(tempTokenIds.size()), length - 2);
+    std::copy(tempTokenIds.begin(), tempTokenIds.begin() + copySize, tokenIds.begin() + 1);
     tokenIds[0] = tokenizer->bos_id(); // [BOS] token id
-    tokenIds[maxLength - 1] = tokenizer->eos_id(); // [EOS] token id
+    tokenIds[length - 1] = tokenizer->eos_id(); // [EOS] token id
     // generate attention mask
-    std::vector<int64_t> attentionMask(maxLength, 1); // all tokens are valid tokens
+    std::vector<int64_t> attentionMask(length, 1); // all tokens are valid tokens
     // generate shape
-    std::vector<int64_t> shape = {1, maxLength}; // 1 * max length
+    std::vector<int64_t> shape = {1, length}; // 1 * max length
 
     return {std::move(tokenIds), std::move(attentionMask), std::move(shape)}; // return token ids and attention mask and shape
 }
@@ -253,39 +267,38 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
         throw std::runtime_error("Input texts are empty.");
     
     // tokenize batch of texts to ids, and compute max length
-    int maxLength = 0;
+    int length = 0;
     std::vector<std::vector<int>> tempTokenIds;
     for (const auto &text : texts)
     {
         std::vector<int> tempTokenId;
         tokenizer->Encode(text, &tempTokenId);
-        maxLength = std::max(maxLength, static_cast<int>(tempTokenId.size()) + 2);
+        length = std::max(length, static_cast<int>(tempTokenId.size()) + 2);
         tempTokenIds.push_back(std::move(tempTokenId));
     }
 
-    // get max length
-    if(maxLength > 8192)
+    if(length > maxLength)
     {
-        std::cout << "Warning: the input text is too long, will be truncated to 8192." << std::endl;
-        maxLength = 8192;
+        std::cout << "Warning: the input text is too long, will be truncated to " << std::to_string(maxLength) << " ." << std::endl;
+        length = maxLength;
     }
 
     // move token ids to tokenIds and add [BOS] and [EOS] tokens, and generate attention mask
-    std::vector<int64_t> tokenIds(maxLength * tempTokenIds.size(), tokenizer->pad_id()); // all tokens are padding tokens
-    std::vector<int64_t> attentionMask(maxLength * tempTokenIds.size(), 0); // all tokens are padding tokens
+    std::vector<int64_t> tokenIds(length * tempTokenIds.size(), tokenizer->pad_id()); // all tokens are padding tokens
+    std::vector<int64_t> attentionMask(length * tempTokenIds.size(), 0); // all tokens are padding tokens
     for(int i = 0; i < tempTokenIds.size(); i++)
     {
-        int sequenceLength = std::min(static_cast<int>(tempTokenIds[i].size()), maxLength - 2);
+        auto copySize = std::min(static_cast<int>(tempTokenIds[i].size()), length - 2);
         std::copy(tempTokenIds[i].begin(),
-                  tempTokenIds[i].begin() + sequenceLength,
-                  tokenIds.begin() + i * maxLength + 1);
-        tokenIds[i * maxLength] = tokenizer->bos_id(); // [BOS] token id
-        tokenIds[i * maxLength + sequenceLength + 1] = tokenizer->eos_id(); // [EOS] token id
-        std::fill(attentionMask.begin() + i * maxLength,
-                  attentionMask.begin() + i * maxLength + sequenceLength + 2, 1); // set attention mask to 1 for real tokens
+                  tempTokenIds[i].begin() + copySize,
+                  tokenIds.begin() + i * length + 1);
+        tokenIds[i * length] = tokenizer->bos_id(); // [BOS] token id
+        tokenIds[i * length + length - 1] = tokenizer->eos_id(); // [EOS] token id
+        std::fill(attentionMask.begin() + i * length,
+                  attentionMask.begin() + i * length + length, 1); // set attention mask to 1 for real tokens
     }
     // generate shape
-    std::vector<int64_t> shape = {static_cast<int64_t>(tempTokenIds.size()), static_cast<int64_t>(maxLength)}; // batch size * max length
+    std::vector<int64_t> shape = {static_cast<int64_t>(tempTokenIds.size()), static_cast<int64_t>(length)}; // batch size * max length
 
     return {std::move(tokenIds), std::move(attentionMask),std::move(shape)}; // return token ids and attention mask
 }
@@ -357,4 +370,172 @@ std::vector<std::vector<float>> EmbeddingModel::embed(const std::vector<std::str
     }
 
     return embeddingVectors; // return the vector of embedding vectors
+}
+
+//------------------------- RerankerModel -------------------------//
+RerankerModel::RerankerModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf) : ONNXModel(targetModelDirPath, dev, perf)
+{
+    // load tokenizer
+    tokenizer = std::make_unique<sentencepiece::SentencePieceProcessor>();
+    std::string modelPath = (targetModelDirPath / "sentencepiece.bpe.model").string();
+    auto status = tokenizer->Load(modelPath.c_str());
+    if (!status.ok())
+    {
+        throw std::runtime_error("Failed to load tokenizer model: " + modelPath);
+    }
+
+    // get max input length
+    auto configPath = targetModelDirPath / "config.json";
+    if (std::filesystem::exists(configPath))
+    {
+        nlohmann::json config;
+        std::ifstream configFile(configPath);
+        if (configFile.is_open())
+        {
+            configFile >> config; // read json file
+        } 
+        try
+        {
+            maxLength = config["max_position_embeddings"];
+        }
+        catch (...) {}
+    }
+    if (maxLength == 0)
+    {
+        maxLength = defaultMaxLength;
+    }
+}
+
+std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> RerankerModel::tokenize(const std::string &query, const std::string &content) const
+{
+    if(query.empty() || content.empty())
+        throw std::runtime_error("Input query or content is empty.");
+    
+    // tokenize text to ids
+    std::vector<int> queryTokenIds;
+    tokenizer->Encode(query, &queryTokenIds);
+    std::vector<int> contentTokenIds;
+    tokenizer->Encode(content, &contentTokenIds);
+
+    // get length
+    int64_t length = queryTokenIds.size() + contentTokenIds.size() + 3; // +3 for [BOS] and [EOS]*2
+    if(length > maxLength)
+    {
+        std::cout << "Warning: the input text is too long, will be truncated to " << std::to_string(maxLength) << " ." << std::endl;
+        length = maxLength;
+    }
+
+    std::vector<int64_t> inputIds(length, tokenizer->pad_id());
+    std::copy(queryTokenIds.begin(), queryTokenIds.end(), inputIds.begin() + 1);
+    auto copySize = std::min(contentTokenIds.size(), length - queryTokenIds.size() - 3);
+    std::copy(contentTokenIds.begin(), contentTokenIds.begin() + copySize, inputIds.begin() + queryTokenIds.size() + 2);
+    inputIds[0] = tokenizer->bos_id();
+    inputIds[queryTokenIds.size() + 1] = tokenizer->eos_id();
+    inputIds[length - 1] = tokenizer->eos_id();
+
+    std::vector<int64_t> attentionMask(length, 1);
+    std::vector<int64_t> shape = {1, length}; 
+    return {std::move(inputIds), std::move(attentionMask), std::move(shape)};
+}
+
+std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> RerankerModel::tokenize(const std::string &query, const std::vector<std::string> &contents) const
+{
+    if (query.empty() || contents.empty())
+        throw std::runtime_error("Input query or content is empty.");
+
+    std::vector<int> queryToken;
+    tokenizer->Encode(query, &queryToken);
+    std::vector<std::vector<int>> contentTokens;
+    int length = 0;
+    for (const auto &content : contents)
+    {
+        std::vector<int> contentToken;
+        tokenizer->Encode(content, &contentToken);
+        length = std::max(length, static_cast<int>(queryToken.size()) + static_cast<int>(contentToken.size()) + 3); // +3 for [BOS] and [EOS]*2
+        contentTokens.push_back(std::move(contentToken));
+    }
+
+    if (length > maxLength)
+    {
+        std::cout << "Warning: the input text is too long, will be truncated to " << std::to_string(maxLength) << " ." << std::endl;
+        length = maxLength;
+    }
+
+    std::vector<int64_t> inputIds(length * contents.size(), tokenizer->pad_id());
+    std::vector<int64_t> attentionMask(length * contents.size(), 0);
+    for(int i = 0; i < contents.size(); i++)
+    {
+        std::copy(queryToken.begin(), 
+                  queryToken.end(), 
+                  inputIds.begin() + i * length + 1);
+        auto copySize = std::min(contentTokens[i].size(), length - queryToken.size() - 3);
+        std::copy(contentTokens[i].begin(), 
+                  contentTokens[i].begin() + copySize, 
+                  inputIds.begin() + i * length + queryToken.size() + 2);
+        inputIds[i * length] = tokenizer->bos_id();
+        inputIds[i * length + queryToken.size() + 1] = tokenizer->eos_id();
+        inputIds[i * length + length - 1] = tokenizer->eos_id();
+        std::fill(attentionMask.begin() + i * length, attentionMask.begin() + (i + 1) * length, 1);
+    }
+    std::vector<int64_t> shape = {static_cast<int64_t>(contents.size()), static_cast<int64_t>(length)}; // batch size * max length
+
+    return {std::move(inputIds), std::move(attentionMask), std::move(shape)}; // return token ids and attention mask
+}
+
+float RerankerModel::rank(const std::string &query, const std::string &content) const
+{
+    // tokenize input texts
+    auto [input_ids_vector, input_attention_mask_vector, shape] = tokenize(query, content);
+
+    // convert to Ort tensor
+    Ort::Value input_ids = Ort::Value::CreateTensor<int64_t>(*memoryInfo, input_ids_vector.data(), input_ids_vector.size(), shape.data(), shape.size());
+    Ort::Value input_attention_mask = Ort::Value::CreateTensor<int64_t>(*memoryInfo, input_attention_mask_vector.data(), input_attention_mask_vector.size(), shape.data(), shape.size());
+
+    // prepare input tensors
+    std::vector<Ort::Value> input_tensors;
+    input_tensors.push_back(std::move(input_ids));
+    input_tensors.push_back(std::move(input_attention_mask));
+
+    // prepare input names and output names
+    std::vector<const char *> inputNamesPtr = {inputNames[0].c_str(), inputNames[1].c_str()}; // assume that the first input is input_ids and the second is attention_mask
+    std::vector<const char *> outputNamesPtr = {outputNames[0].c_str()}; // assume that the first output is the score output
+
+    // run inference
+    std::vector<Ort::Value> output_tensors;
+    {
+        std::lock_guard<std::mutex> lock(*sessionMutex); // lock the mutex
+        output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesPtr.data(), input_tensors.data(), input_tensors.size(), outputNamesPtr.data(), outputNamesPtr.size());
+    }
+
+    auto scoreVectorPtr = output_tensors[0].GetTensorMutableData<float>(); // get the output tensor data
+    return Utils::sigmoid(scoreVectorPtr[0]); // return the score
+}
+
+std::vector<float> RerankerModel::rank(const std::string &query, const std::vector<std::string> &contents) const
+{
+    auto [input_ids_vector, input_attention_mask_vector, shape] = tokenize(query, contents);
+
+    // convert to Ort tensor
+    Ort::Value input_ids = Ort::Value::CreateTensor<int64_t>(*memoryInfo, input_ids_vector.data(), input_ids_vector.size(), shape.data(), shape.size());
+    Ort::Value input_attention_mask = Ort::Value::CreateTensor<int64_t>(*memoryInfo, input_attention_mask_vector.data(), input_attention_mask_vector.size(), shape.data(), shape.size());
+    // prepare input tensors
+    std::vector<Ort::Value> input_tensors;
+    input_tensors.push_back(std::move(input_ids));
+    input_tensors.push_back(std::move(input_attention_mask));
+    // prepare input names and output names
+    std::vector<const char *> inputNamesPtr = {inputNames[0].c_str(), inputNames[1].c_str()}; // assume that the first input is input_ids and the second is attention_mask
+    std::vector<const char *> outputNamesPtr = {outputNames[0].c_str()}; // assume that the first output is the score output
+    // run inference
+    std::vector<Ort::Value> output_tensors;
+    {
+        std::lock_guard<std::mutex> lock(*sessionMutex); // lock the mutex
+        output_tensors = session->Run(Ort::RunOptions{nullptr}, inputNamesPtr.data(), input_tensors.data(), input_tensors.size(), outputNamesPtr.data(), outputNamesPtr.size());
+    }
+    auto scoreVectorPtr = output_tensors[0].GetTensorMutableData<float>(); // get the output tensor data
+    std::vector<float> scores; // create a vector to store the scores
+    for(size_t i = 0; i < contents.size(); i++)
+    {
+        scores.push_back(Utils::sigmoid(scoreVectorPtr[i])); // copy the output tensor data to a vector
+    }
+    return scores; // return the scores
 }

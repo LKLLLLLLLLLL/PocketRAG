@@ -2,6 +2,7 @@
 #include "Utils.h"
 
 #include <iostream>
+#include <fstream>
 
 //--------------------------KernelServer--------------------------//
 KernelServer::KernelServer()
@@ -21,7 +22,7 @@ void KernelServer::initializeSqlite()
         std::filesystem::create_directory(userDataPath);
     }
 
-    sqliteConnection = std::make_shared<SqliteConnection>(userDataPath.string(), "kernel");
+    sqliteConnection = std::make_shared<SqliteConnection>(userDataDBPath.string(), "kernel");
 
     sqliteConnection->execute(
         "CREATE TABLE IF NOT EXISTS embedding_config("
@@ -29,7 +30,16 @@ void KernelServer::initializeSqlite()
         "config_name TEXT NOT NULL UNIQUE, "
         "model_name TEXT NOT NULL, "
         "model_path TEXT NOT NULL, "
-        "max_input_length INTEGER NOT NULL"
+        "input_length INTEGER NOT NULL"
+        ");"
+    );
+
+    sqliteConnection->execute(
+        "CREATE TABLE IF NOT EXISTS reranker_model("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "model_name TEXT NOT NULL UNIQUE, "
+        "model_path TEXT NOT NULL, "
+        "chosen BOOLEAN NOT NULL DEFAULT 0"
         ");"
     );
 
@@ -49,6 +59,30 @@ void KernelServer::initializeSqlite()
         "url TEXT NOT NULL"
         ");"
     );
+}
+
+void KernelServer::readSettings()
+{
+    std::filesystem::path settingsPath = userDataPath / "settings.json";
+    if(!std::filesystem::exists(settingsPath))
+    {
+        std::ofstream settingsFile(settingsPath);
+        if(!settingsFile)
+        {
+            throw std::runtime_error("Failed to create settings file: " + settingsPath.string());
+        }
+        settingsFile << initSettins();
+        settingsFile.close();
+    }
+    std::ifstream settingsFile(settingsPath);
+    if(!settingsFile)
+    {
+        throw std::runtime_error("Failed to open settings file: " + settingsPath.string());
+    }
+    nlohmann::json settingsJson;
+    settingsFile >> settingsJson;
+    settingsFile.close();
+
 }
 
 KernelServer::~KernelServer()
@@ -81,6 +115,14 @@ void KernelServer::stopAllSessions()
 
 void KernelServer::run()
 {  
+    // sent message to frontend
+    nlohmann::json initMessage;
+    initMessage["sessionId"] = -1;
+    initMessage["toMain"] = true;
+    initMessage["isReply"] = false;
+    initMessage["callbackId"] = 0;
+    initMessage["message"]["type"] = "ready";
+    sendMessage(std::make_shared<Utils::MessageQueue::Message>(-1, std::move(initMessage)));
     // receive message
     std::string input(2048, '\0'); // max input size: 2048Byte
     while(std::cin.getline(input.data(), input.size()))
@@ -92,7 +134,7 @@ void KernelServer::run()
         try
         {
             inputJson = nlohmann::json::parse(input);
-            windowId = inputJson["windowId"].get<int>();
+            windowId = inputJson["sessionId"].get<int>();
             toMain = inputJson["toMain"].get<bool>();
             messageType = inputJson["message"]["type"].get<std::string>();
         }
@@ -116,10 +158,10 @@ void KernelServer::run()
 
 void KernelServer::transmitMessage(nlohmann::json& json)
 {
-    int windowId = json["windowId"].get<int>();
+    int windowId = json["sessionId"].get<int>();
     auto it = windowIdToSessionId.find(windowId);
     int sessionId = -1;
-    if(it != windowIdToSessionId.end())
+    if (it != windowIdToSessionId.end()) 
     {
         sessionId = it->second;
     }
@@ -166,7 +208,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
         else if(type == "openRepo") // open a session with repo name
         {
             auto repoName = json["message"]["repoName"].get<std::string>();
-            auto windowId = json["message"]["windowId"].get<int>();
+            auto windowId = json["message"]["sessionId"].get<int>();
             auto stmt = sqliteConnection->getStatement("SELECT repo_path FROM repository WHERE repo_name = ?");
             stmt.bind(1, repoName);
             if(stmt.step())
@@ -249,7 +291,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
         }
         else if(type == "closeRepo")
         {
-            auto windowId = json["message"]["windowId"].get<int>();
+            auto windowId = json["message"]["sessionId"].get<int>();
             auto it = windowIdToSessionId.find(windowId);
             if(it != windowIdToSessionId.end())
             {
@@ -325,16 +367,16 @@ void KernelServer::messageSender()
     auto message = kernelMessageQueue->pop();
     while(message != nullptr)
     {
-        if(message->data.contains("windowId"))
+        if(message->data.contains("sessionId"))
         {
             auto it = sessionIdToWindowId.find(message->sessionId);
             if(it != sessionIdToWindowId.end())
             {
-                message->data["windowId"] = it->second;
+                message->data["sessionId"] = it->second;
             }
             else
             {
-                message->data["windowId"] = -1;
+                message->data["sessionId"] = -1;
             }
         }
         std::cout << message->data.dump() << std::endl;
@@ -384,4 +426,30 @@ std::vector<std::string> KernelServer::getGenerationModels()
         models.push_back(modelName);
     }
     return models;
+}
+
+Repository::EmbeddingConfigList KernelServer::getEmbeddingConfigs()
+{
+    auto stmt = sqliteConnection->getStatement("SELECT config_name, model_name, model_path, input_length FROM embedding_config");
+    Repository::EmbeddingConfigList configs;
+    while(stmt.step())
+    {
+        Repository::EmbeddingConfig config;
+        config.configName = stmt.get<std::string>(0);
+        config.modelName = stmt.get<std::string>(1);
+        config.modelPath = stmt.get<std::string>(2);
+        config.inputLength = stmt.get<int>(3);
+        configs.push_back(config);
+    }
+    return configs;
+}
+
+std::filesystem::path KernelServer::getRerankerConfigs()
+{
+    auto stmt = sqliteConnection->getStatement("SELECT model_path FROM reranker_model WHERE chosen = 1");
+    if(stmt.step())
+    {
+        return std::filesystem::path(stmt.get<std::string>(0));
+    }
+    return "";
 }

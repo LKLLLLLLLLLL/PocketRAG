@@ -1,73 +1,67 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import MainWindow from './views/MainWindow/MainWindow';
-import StartWindow from './views/StartWindow/StartWindow';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import MainWindow from './views/MainWindow/MainWindow.jsx'
 
 // 获取当前窗口类型
-// const urlParams = new URLSearchParams(window.location.search);
-// const windowType = urlParams.get('windowType') || 'main';
-const windowType = 'main';
+const urlParams = new URLSearchParams(window.location.search)
+const windowType = urlParams.get('windowType') || 'main'
 
 // 根据窗口类型选择不同的组件
 const getWindowRenderFunc = () => {
-    switch (windowType) {
-        case 'start':{
-            return StartWindow();
-        }
-        case 'main':{
-            return MainWindow();
-        }
-        default:{
-            return StartWindow();
-        }
+  switch (windowType) {
+      case 'main':
+        return MainWindow()
+      // case 'repoList':
+      //   return RepoListWindow()
+      default:
+        return MainWindow()
     }
-};
+}
 
-const renderWindow = getWindowRenderFunc();
+const renderWindow = getWindowRenderFunc()
 
 // 渲染窗口
 ReactDOM.createRoot(document.getElementById('root')).render(
     renderWindow()
-);
+)
 
 
-// const newWindowBtn = document.getElementById('newWindow')
-// const repo = document.getElementById('repo')
-// const querybtn = document.getElementById('querybtn')
-// let currentRepo = undefined
-// let currentEmbeddingModel = undefined
-// const callbacks = new Map()
+const callbacks = new Map()
 
 
-// window.electronAPI.onKernelData((data) => {
-//   const type = data.type
-//   switch(type) {
-//     case 'embedding':
-//       const embeddingEvent = new CustomEvent('embedding', {detail : data})
-//       window.dispatchEvent(embeddingEvent)
-//       break
-//     case 'queryResult':
-//       const queryResultEvent = new CustomEvent('queryResult', {detail : data})
-//       window.dispatchEvent(queryResultEvent)
-//       break
-//   }
-// })
+const callbackRegister = (callback) => {
+  const callbackId = Date.now()
+  callbacks.set(callbackId, callback)
+  return callbackId
+}
+
+
+window.electronAPI.onKernelData((data) => {
+  const type = data.message.type
+  switch(type) {
+    case 'getRepos':
+      if(data.status.code === 'SUCCESS'){
+        const getReposResultEvent = new CustomEvent('getReposResult', {detail : data.data.repoList})
+        window.dispatchEvent(getReposResultEvent)
+      }
+      else {
+        console.error(data.status.message)
+      }
+      break
+    case 'embedding':
+      const embeddingEvent = new CustomEvent('embedding', {detail : data})
+      window.dispatchEvent(embeddingEvent)
+      break
+    case 'queryResult':
+      const queryResultEvent = new CustomEvent('queryResult', {detail : data})
+      window.dispatchEvent(queryResultEvent)
+      break
+  }
+})
 
 
 // window.addEventListener('embedding',(event) => {
 //   console.log(event.detail)
-// })
-
-
-// newWindowBtn.addEventListener('click', async () => {
-//   await window.electronAPI.createNewWindow()
-// })
-
-
-// repo.addEventListener('click', async () => {
-//   let temp = await window.electronAPI.selectRepo()
-//   if(temp !== undefined) currentRepo = temp
-//   console.log(currentRepo)
 // })
 
 
@@ -111,3 +105,65 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // }
 
 // querybtn.addEventListener('click', queryHandler)
+
+
+switch(windowType){
+  case 'main':
+    const repoInitializePromise = new Promise((resolve, reject) => {
+      window.electronAPI.onRepoInitialized(() => {
+        resolve()
+      })
+    }).then()
+
+
+    const createNewWindow = async () => {
+      await window.electronAPI.createNewWindow()
+    }
+
+    const openRepoListWindow = async () => {
+      await window.electronAPI.createNewWindow('repoList')
+    }
+
+    break
+  
+
+  case 'repoList':
+    const getRepos = async () => {
+      const callbackId = callbackRegister(() => {})
+      try{
+        const repoList = await new Promise((resolve, reject) => {
+          let timeout
+          const listener = (event) => {
+            clearTimeout(timeout)
+            resolve(event.detail)
+          }
+          window.addEventListener('getReposResult', listener, {once : true})
+          window.electronAPI.getRepos(callbackId)
+          timeout = setTimeout(() => {
+            window.removeEventListener('getReposResult', listener)
+            reject(new Error('getRepos Failed'))
+          }, 10000)
+        })          
+      } 
+      catch(err){
+        console.error(err)
+      }
+      finally {
+        callbacks.delete(callbackId)
+      }
+    }
+
+    const openRepo = async (repoName) => {
+      const sessionId = await window.electronAPI.createNewWindow('main')
+      window.electronAPI.openRepo(sessionId, repoName)
+    }
+
+    const createRepo = () =>{
+      const callbackId = callbackRegister(() => {})
+      window.electronAPI.createRepo(callbackId)
+    }
+    // console.log(await getRepos())
+    // openRepo('123')
+    // createRepo()
+    break
+}
