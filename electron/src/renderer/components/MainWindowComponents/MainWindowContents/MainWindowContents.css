@@ -1,0 +1,16 @@
+.main-window-contents{
+    display: flex;
+    flex-grow: 1;
+}
+/* .panelgroup{
+    flex-grow: 1;
+}
+.doclist-panel{
+    align-items: stretch;
+}
+.maindemo-panel{
+    align-items: stretch;
+}
+.seperator{
+    width: 5px;
+} */

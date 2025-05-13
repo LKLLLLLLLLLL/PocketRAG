@@ -22,7 +22,8 @@
   },
   "dependencies": {
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-resizable-panels": "^3.0.2"
   },
   "build": {
     "appId": "com.example.pocketrag",

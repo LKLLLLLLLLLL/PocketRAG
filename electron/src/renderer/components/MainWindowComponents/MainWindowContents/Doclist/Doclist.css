@@ -1,0 +1,10 @@
+.Doclist-container{
+    /* display: flex; */
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    /* border-left: 4px solid #ddd;
+    border-right: 4px solid #ddd; */
+    background-color: #424242;
+}

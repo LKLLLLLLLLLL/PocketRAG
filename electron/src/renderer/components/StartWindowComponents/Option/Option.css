@@ -1,0 +1,42 @@
+.option-container{
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: grey;
+}
+.new-container{
+    height: 30%;
+    display: flex;
+}
+.open-container{
+    height: 30%;
+    display: flex;
+}
+.other-container{
+    height: 30%;
+    display: flex;
+}
+.new-button{
+    height: 50%;
+    width: 50px;
+    margin-left: auto;
+}
+.open-button{
+    height: 50%;
+    width: 50px;
+    margin-left: auto;
+}
+.other-button{
+    height: 50%;
+    width: 50px;
+    margin-left: auto;
+}
+.new-description{
+    flex-grow: 1;
+}
+.open-description{
+    flex-grow: 1;
+}
+.other-description{
+    flex-grow: 1;
+}
