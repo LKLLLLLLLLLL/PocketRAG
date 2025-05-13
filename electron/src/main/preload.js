@@ -2,13 +2,19 @@ const { contextBridge, ipcRenderer} = require('electron/renderer')
 //import electron modules
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  selectRepo: () => ipcRenderer.invoke('selectRepo'),
-  // select the repository path
+  getRepos: (callbackId) => ipcRenderer.send('getRepos', callbackId),
+
+  openRepo: (sessionId, RepoName) => ipcRenderer.send('openRepo', sessionId, RepoName),
+
+  onRepoInitialized: (callback) => ipcRenderer.on('repoInitialized', callback()),
+
+  createRepo: (callbackId) => ipcRenderer.send('createRepo', callbackId),
+
   query: (query) => ipcRenderer.send('query', query),
-  // send a query
-  createNewWindow: () => ipcRenderer.invoke('createNewWindow'),
-  // create a new window
-  onKernelData: (callback) =>ipcRenderer.on('kernelData', (_, result) => callback(result))
-  // receive data from the kernel
+
+  createNewWindow: (windowType) => ipcRenderer.invoke('createNewWindow', windowType),
+
+  onKernelData: (callback) =>ipcRenderer.on('kernelData', (_, result) => callback(result)),
+
 })
 //expose apis to the renderer process 
