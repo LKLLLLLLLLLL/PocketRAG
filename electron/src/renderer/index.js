@@ -1,20 +1,24 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import MainWindow from './views/MainWindow/MainWindow.jsx'
+import StartWindow from './views/StartWindow/StartWindow.jsx'
+import SettingsWindow from './views/SettingsWindow/SettingsWindow.jsx'
 
 // 获取当前窗口类型
 const urlParams = new URLSearchParams(window.location.search)
-const windowType = urlParams.get('windowType') || 'main'
+const windowType = urlParams.get('windowType')
 
 // 根据窗口类型选择不同的组件
 const getWindowRenderFunc = () => {
   switch (windowType) {
       case 'main':
         return MainWindow()
-      // case 'repoList':
-      //   return RepoListWindow()
+      case 'repoList':
+        return StartWindow()
+      case 'settings':
+        return SettingsWindow()
       default:
-        return MainWindow()
+        return StartWindow()
     }
 }
 
@@ -115,11 +119,6 @@ switch(windowType){
       })
     }).then()
 
-
-    // const createNewWindow = async () => {
-    //   await window.electronAPI.createNewWindow()
-    // }
-
     const openRepoListWindow = async () => {
       await window.electronAPI.createNewWindow('repoList')
     }
@@ -142,7 +141,7 @@ switch(windowType){
           timeout = setTimeout(() => {
             window.removeEventListener('getReposResult', listener)
             reject(new Error('getRepos Failed'))
-          }, 10000)
+          }, 3000)
         })
         return repoList          
       } 
@@ -163,9 +162,9 @@ switch(windowType){
       const callbackId = callbackRegister(() => {})
       window.electronAPI.createRepo(callbackId)
     }
-    console.log(await getRepos())
+    setTimeout(async () => {console.log(await getRepos())}, 5000)
     createRepo()
-    console.log(await getRepos())
+    setTimeout(async () => {console.log(await getRepos())}, 10000)
     setTimeout(() => {openRepo('123')}, 20000)
     
     break

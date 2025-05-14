@@ -1,13 +1,15 @@
 const { app, BrowserWindow, ipcMain, dialog} = require('electron/main')
 const path = require('node:path')
 const {spawn} = require('node:child_process')
+const EventEmitter = require('events')
+const { error } = require('node:console')
 //import electron and node modules
 
 
 const kernelPath = path.join(__dirname, '../../../kernel/bin/PocketRAG_kernel.exe')
 const kernel = spawn(kernelPath, [], {
   cwd: path.dirname(kernelPath) // set work directory to the same as the kernel path
-});
+})
 let isKernelRunning = true
 kernel.on('error', (err) => {
   console.error('Failed to start kernel:', err)
@@ -21,11 +23,17 @@ kernel.on('exit', (code, signal) => {
 })
 kernel.stdout.on('data', stdoutListener)//kernel stdout listener
 kernel.stderr.on('data', (err) => {
-  console.error(err)
+  console.error(err.toString())
 })
 
 const windows = new Map()
 const callbacks = new Map()
+const eventEmitter = new EventEmitter()
+const readyPromise = new Promise((resolve, reject) => {
+  eventEmitter.on('kernelReady', () => {
+    resolve()
+  })
+})
 
 const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
 
@@ -37,70 +45,93 @@ const callbackRegister = (callback) => {
 }
 
 
+let buffer = ''
 async function stdoutListener (data) {
-  const result = JSON.parse(data.toString())
-  console.log(result)
-  if(result.toMain){
-    switch(result.message.type) {
-      case 'stopAll':
-        if(result.status.code === 'SUCCESS'){
-          callbacks.delete(result.callbackId)
-        }
-        else {
-          console.error(result.status.message)
-          callbacks.delete(result.callbackId)
-        }
-        break
-      case 'getRepos':
-        const window = windows.get(result.message.windowId)
-        if(!window){
-          console.error('Window not found from windowId: ' + result.message.windowId)
-        }
-        else {
-          window.webContents.send('kernelData', result)
-        }
-        break
-      case 'openRepo':
-        if(result.status.code === 'SUCCESS'){
-          const callback = callbacks.get(result.callbackId)
-          callback(result.data.repoName, result.data.path)
-          callbacks.delete(result.callbackId)
-        }
-        else {
-          console.error(result.status.message)
-          callbacks.delete(result.callbackId)
-        }
-        break
-      case 'closeRepo':
-        if(result.status.code === 'SUCCESS'){
-          callbacks.delete(result.callbackId)
-        }
-        else {
-          console.error(result.status.message)
-          callbacks.delete(result.callbackId)
-        }
-        break
-      case 'createRepo':
-        if(result.status.code === 'SUCCESS'){
-          callbacks.delete(result.callbackId)
-        }
-        else {
-          console.error(result.status.message)
-          callbacks.delete(result.callbackId)
-        }
-        break
-      
-    }
-  }
-  else {
-    const window = windows.get(result.windowId)
+  buffer += data.toString()
+  let lines = buffer.split('\n')
+  buffer = lines.pop()
 
-    if(!window) {
-      console.error('Window not found from windowId: ' + result.windowId)
+  for(const line of lines){
+    if(line.trim()){
+      try{
+        console.log(line)
+        const result = JSON.parse(line)
+        console.log(result)
+        if(result.toMain){
+          switch(result.message.type) {
+            case 'stopAll':
+              if(result.status.code === 'SUCCESS'){
+                callbacks.delete(result.callbackId)
+              }
+              else {
+                console.error(result.status.message)
+                callbacks.delete(result.callbackId)
+              }
+              break
+            case 'getRepos':
+              const window = windows.get(result.message.sessionId)
+              if(!window){
+                console.error('Window not found from sessionId: ' + result.message.sessionId)
+              }
+              else {
+                window.webContents.send('kernelData', result)
+              }
+              break
+            case 'openRepo':
+              if(result.status.code === 'SUCCESS'){
+                const callback = callbacks.get(result.callbackId)
+                callback(result.data.repoName, result.data.path)
+                callbacks.delete(result.callbackId)
+              }
+              else {
+                console.error(result.status.message)
+                callbacks.delete(result.callbackId)
+              }
+              break
+            case 'closeRepo':
+              if(result.status.code === 'SUCCESS'){
+                callbacks.delete(result.callbackId)
+              }
+              else {
+                console.error(result.status.message)
+                callbacks.delete(result.callbackId)
+              }
+              break
+            case 'createRepo':
+              if(result.status.code === 'SUCCESS'){
+                callbacks.delete(result.callbackId)
+              }
+              else {
+                console.error(result.status.message)
+                callbacks.delete(result.callbackId)
+              }
+              break
+            case 'ready':
+              let reply = result
+              eventEmitter.emit('kernelReady')
+              reply.isReply = true
+              reply.status = {
+                code : 'SUCCESS',
+                message : ""
+              }
+              kernel.stdin.write(JSON.stringify(reply) + '\n')
+              console.log(JSON.stringify(reply) + '\n')
+          }
+        }
+        else {
+          const window = windows.get(result.sessionId)
+
+          if(!window) {
+            console.error('Window not found from sessionId: ' + result.sessionId)
+          }
+          else {
+            window.webContents.send('kernelData', result)
+          } 
+        }
+      } catch(err){
+        console.error(err)
+      }
     }
-    else {
-     window.webContents.send('kernelData', result)
-    } 
   }
 
 }
@@ -118,18 +149,18 @@ function getRepos (event, callbackId) {
   
     message : {
       type : 'getRepos',
-      windowId : windowId
+      sessionId : windowId
     }
   }
   kernel.stdin.write(JSON.stringify(getRepos) + '\n')
+  console.log(JSON.stringify(getRepos) + '\n')
 }
 
 
 function openRepo (event, sessionId, repoName){
   const callbackId = callbackRegister(async (repoName, repoPath) => {
     await initializeRepo(sessionId, repoName, repoPath)
-    const sessionWindow = windows.get(sessionId)
-    sessionWindow.close()
+    BrowserWindow.fromWebContents(event.sender).close()
   })
 
   const openRepo = {
@@ -146,16 +177,22 @@ function openRepo (event, sessionId, repoName){
     }
   }
   kernel.stdin.write(JSON.stringify(openRepo) + '\n')
+  console.log(JSON.stringify(openRepo) + '\n')
 }
 
 
 async function initializeRepo (sessionId, repoName, repoPath){
   const window = windows.get(sessionId)
-  await window.webContents.executeJavaScript(`
-    window.repoName = ${repoName};
-    window.repoPath = ${repoPath};
-    `)
-  window.webContents.send('repoInitialized')
+  if(window){
+    await window.webContents.executeJavaScript(`
+      window.repoName = ${JSON.stringify(repoName)};
+      window.repoPath = ${JSON.stringify(repoPath)};
+      `)
+    window.webContents.send('repoInitialized')    
+  }
+  else {
+    console.error('Window not found from sessionId: ', sessionId)
+  }
 }
 
 
@@ -177,6 +214,7 @@ async function createRepo (event, callbackId) {
       }
     }
     kernel.stdin.write(JSON.stringify(createRepo) + '\n')    
+    console.log(JSON.stringify(createRepo) + '\n')
   }
 }
 //select the repository path
@@ -226,6 +264,7 @@ function createWindow (event, windowType = 'repoList') {
           }
         }
         kernel.stdin.write(JSON.stringify(closeRepo) + '\n')
+        console.log(JSON.stringify(closeRepo) + '\n')
         windows.delete(windowId)
       })
     break
@@ -238,6 +277,10 @@ function createWindow (event, windowType = 'repoList') {
           preload: path.join(__dirname, 'preload.js')
         }
       })
+      window.on('closed', () => {
+        windows.delete(windowId)
+      })
+      break
   }
 
   const startUrl = isDev
@@ -245,9 +288,6 @@ function createWindow (event, windowType = 'repoList') {
       : `file://${path.join(__dirname, '../../build/index.html')}?windowType=${windowType}&windowId=${windowId}`  
 
   windows.set(windowId, window)//add the window to the map
-  window.on('closed', () => {
-    windows.delete(windowId)
-  })//delete the window from the map when closed
 
   window.loadURL(startUrl)
 
@@ -266,7 +306,9 @@ function getWindowId (window) {
 //get the windowId from the window object
 
 
-app.whenReady().then(() => {
+
+app.whenReady().then(async () => {
+  await readyPromise
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
   ipcMain.on('openRepo', openRepo)
@@ -301,6 +343,7 @@ app.on('will-quit', (event) => {
       }
     }
     kernel.stdin.write(JSON.stringify(stopAll) + '\n')
+    console.log(JSON.stringify(stopAll) + '\n')
     event.preventDefault()
   }
 })
