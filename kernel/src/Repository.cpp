@@ -340,7 +340,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
     std::shared_lock readlock(mutex); // lock for reading embedding models and vector tables
     
     int vectorLimit = limit * 2;
-    int fts5Limit = limit * 4;
+    int fts5Limit = limit * 2 * embeddings.size();
 
     std::vector<searchResult> allResults; // for all results
 

@@ -71,7 +71,7 @@ void KernelServer::readSettings()
         {
             throw std::runtime_error("Failed to create settings file: " + settingsPath.string());
         }
-        settingsFile << initSettins();
+        settingsFile << initializeSettings();
         settingsFile.close();
     }
     std::ifstream settingsFile(settingsPath);
@@ -82,7 +82,29 @@ void KernelServer::readSettings()
     nlohmann::json settingsJson;
     settingsFile >> settingsJson;
     settingsFile.close();
+    nlohmann::json::value_type embeddingConfigs;
+    nlohmann::json::value_type rerankConfigs;
+    nlohmann::json::value_type conversationModels;
+    try
+    {
+        embeddingConfigs = settingsJson["searchSettings"]["embeddingConfig"]["configs"];
+        rerankConfigs = settingsJson["searchSettings"]["rerankgConfig"]["configs"];
+        conversationModels = settingsJson["conversationSettings"]["generationModel"];
+    }
+    catch(std::exception& e)
+    {
+        throw std::runtime_error("Failed to read settings file: " + std::string(e.what()));
+    }
+}
 
+std::string KernelServer::initializeSettings()
+{
+    nlohmann::json settingsJson;
+    auto emptyConfigs = nlohmann::json::array();
+    settingsJson["searchSettings"]["embeddingConfig"]["configs"] = emptyConfigs;
+    settingsJson["searchSettings"]["rerankConfig"]["configs"] = emptyConfigs;
+    settingsJson["conversationSettings"]["generationModel"] = emptyConfigs;
+    return settingsJson.dump(4);
 }
 
 KernelServer::~KernelServer()
@@ -122,11 +144,15 @@ void KernelServer::run()
     initMessage["isReply"] = false;
     initMessage["callbackId"] = 0;
     initMessage["message"]["type"] = "ready";
-    sendMessage(std::make_shared<Utils::MessageQueue::Message>(-1, std::move(initMessage)));
+    send(initMessage, nullptr);
     // receive message
     std::string input(2048, '\0'); // max input size: 2048Byte
     while(std::cin.getline(input.data(), input.size()))
     {
+        if(input.empty())
+        {
+            continue;
+        }
         nlohmann::json inputJson;
         int windowId;
         bool toMain;
@@ -180,6 +206,12 @@ void KernelServer::handleMessage(nlohmann::json& json)
 {
     try
     {
+        auto isReply = json["isReply"].get<bool>();
+        if(isReply)
+        {
+            execCallback(json, json["callbackId"].get<int>());
+            return;
+        }
         auto type = json["message"]["type"].get<std::string>();
         if(type == "stopAll")
         {
@@ -331,6 +363,20 @@ void KernelServer::handleMessage(nlohmann::json& json)
     }
 }
 
+void KernelServer::execCallback(nlohmann::json& json, int callbackId)
+{
+    callbackManager->callCallback(callbackId, json);
+}
+
+void KernelServer::send(nlohmann::json& json, Utils::CallbackManager::Callback callback)
+{
+    auto callbackId = callbackManager->registerCallback(callback);
+    json["callbackId"] = callbackId;
+    json["isReply"] = false;
+    auto message = std::make_shared<Utils::MessageQueue::Message>(-1, std::move(json));
+    sendMessage(message);
+}
+
 void KernelServer::sendBack(nlohmann::json& json)
 {
     json["isReply"] = true;
@@ -367,17 +413,18 @@ void KernelServer::messageSender()
     auto message = kernelMessageQueue->pop();
     while(message != nullptr)
     {
-        if(message->data.contains("sessionId"))
+        if(message->data.empty())
         {
-            auto it = sessionIdToWindowId.find(message->sessionId);
-            if(it != sessionIdToWindowId.end())
-            {
-                message->data["sessionId"] = it->second;
-            }
-            else
-            {
-                message->data["sessionId"] = -1;
-            }
+            continue;
+        }
+        auto it = sessionIdToWindowId.find(message->sessionId);
+        if(message->sessionId != -1 || it != sessionIdToWindowId.end())
+        {
+            message->data["sessionId"] = it->second;
+        }
+        else
+        {
+            message->data["sessionId"] = -1; // message from kernel server
         }
         std::cout << message->data.dump() << std::endl;
         message = kernelMessageQueue->pop();

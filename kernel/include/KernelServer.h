@@ -44,11 +44,16 @@ private:
 
     // read settings from disk, if needed write to sqlite
     void readSettings();
-    std::string initSettins();
+    std::string initializeSettings();
 
     // method called by run()
     void transmitMessage(nlohmann::json& json); // handle message to session
     void handleMessage(nlohmann::json& json); // handle message to main thread
+
+    // method for callback
+    std::shared_ptr<Utils::CallbackManager> callbackManager = std::make_shared<Utils::CallbackManager>();
+    void execCallback(nlohmann::json& json, int callbackId); // execute callback
+    void send(nlohmann::json& json, Utils::CallbackManager::Callback callback); // send message to session
     void sendBack(nlohmann::json& json); // send message from server to frontend, will set "isReply" to true
 
     void openSession(int windowId, const std::string& repoName, const std::string& repoPath);

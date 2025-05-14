@@ -290,6 +290,33 @@ return:
 - REPO_NAME_NOT_MATCH 仓库名与路径中的仓库名不匹配
 - REPO_NAME_EXIST 仓库名已存在
 
+### updateSettings
+更新设置，设置的内容为settings.json的内容。
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "updateSettings"
+    }
+}
+```
+return:
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
 ## kernelServer -> main
 
 ### ready
@@ -457,6 +484,130 @@ return:
     "status" : {
         "code" : "SUCCESS",
         "message" : ""
+    }
+}
+```
+
+# 关于设置
+
+## 一般设置
+通过写入userData/settings.json来设置，这些设置是全局的，各个仓库共享。
+settings.json如下：
+```json
+{
+    "searchSettings" : {
+        "embeddingConfig": {
+            "configs" : [ // 可以由多个被选中
+                {
+                    "name" : "bge-m3-512",
+                    "modelName" : "bge-m3",
+                    "path" : "/path/to/bge-m3-512",
+                    "inputLength" : 512,
+                    "selected" : true
+                },
+                {
+                    "name" : "bge-m3-1024",
+                    "modelName" : "bge-m3",
+                    "path" : "/path/to/bge-m3-1024",
+                    "inputLength" : 1024,
+                    "selected" : true
+                }
+            ]
+        },
+        "rerankConfig" : {
+            "configs" : [ // 注意，只能由一个被选中
+                {
+                    "modelName" : "bge-reranker-v2-m3",
+                    "path" : "/path/to/bge-reranker-v2-m3",
+                    "selected" : true
+                }
+                {
+                    "modelName" : "bge-reranker-m3",
+                    "path" : "/path/to/bge-reranker-v2-m4",
+                    "selected" : false
+                }
+            ]
+        }
+    },
+    "conversationSettings" : {
+        "generationModel" : [
+            {
+                "name" : "deepseek",
+                "modelName" : "deepseek",
+                "url" : "http://...",
+                "setApiKey" : true // api key is stored in the database
+            },
+            {
+                ...
+            }
+        ]
+    }
+}
+```
+
+### 更新设置
+当settings.json更新后，发送消息给kernel server；否则kernel server只会在每次启动时读取一次settings.json。
+
+详见[updateSettings](#updateSettings)
+
+## 敏感信息
+如api key等信息。
+在更改后直接向后端发送，写入数据库。
+### 写入apiKey
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "setApiKey",
+        "name" : "deepseek",
+        "apiKey" : "apiKey",
+    }
+}
+```
+return:
+
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
+### 读取apiKey
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "getApiKey",
+        "name" : "deepseek"
+    }
+}
+```
+return:
+
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    },
+
+    "data" : {
+        "apiKey" : "apiKey"
     }
 }
 ```
