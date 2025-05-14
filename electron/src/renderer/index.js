@@ -116,9 +116,9 @@ switch(windowType){
     }).then()
 
 
-    const createNewWindow = async () => {
-      await window.electronAPI.createNewWindow()
-    }
+    // const createNewWindow = async () => {
+    //   await window.electronAPI.createNewWindow()
+    // }
 
     const openRepoListWindow = async () => {
       await window.electronAPI.createNewWindow('repoList')
@@ -143,7 +143,8 @@ switch(windowType){
             window.removeEventListener('getReposResult', listener)
             reject(new Error('getRepos Failed'))
           }, 10000)
-        })          
+        })
+        return repoList          
       } 
       catch(err){
         console.error(err)
@@ -162,8 +163,10 @@ switch(windowType){
       const callbackId = callbackRegister(() => {})
       window.electronAPI.createRepo(callbackId)
     }
-    // console.log(await getRepos())
-    // openRepo('123')
-    // createRepo()
+    console.log(await getRepos())
+    createRepo()
+    console.log(await getRepos())
+    setTimeout(() => {openRepo('123')}, 20000)
+    
     break
 }
