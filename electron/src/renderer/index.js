@@ -60,9 +60,9 @@ window.electronAPI.onKernelData((data) => {
 })
 
 
-window.addEventListener('embedding',(event) => {
-  console.log(event.detail)
-})
+// window.addEventListener('embedding',(event) => {
+//   console.log(event.detail)
+// })
 
 
 // const queryHandler = async () => {

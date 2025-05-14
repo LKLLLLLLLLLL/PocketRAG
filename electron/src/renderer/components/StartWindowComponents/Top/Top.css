@@ -1,0 +1,18 @@
+.top-container{
+    height: 50px;
+    display: flex;
+    justify-content: flex-end;
+}
+.top-button-container{
+    height: 100%;
+    width: 100px;
+    margin-left: auto;
+}
+.minimize{
+    height: 100%;
+    width: 50%;
+}
+.close{
+    height: 100%;
+    width: 50%;
+}

@@ -1,0 +1,19 @@
+.pocketrag-container{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 40%;
+}
+.icon-container{
+    height: 80%;
+    width: 200px;
+    background-color: grey;
+}
+.version-container{
+    height: 20%;
+    width: 100%;
+    color: white;
+    background-color: grey;
+    text-align: center;
+}
