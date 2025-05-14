@@ -1,0 +1,9 @@
+.rightscreen-container{
+    height: 100%;
+    flex-grow: 1;
+    background-color: #aeaeae;
+    color: white;
+    overflow-y: auto;
+    min-height: 0;
+    border: 2px solid red;
+}

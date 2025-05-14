@@ -1,0 +1,6 @@
+.settingswindow-container{
+    height: 100vh;
+    display: flex;
+    background-color: #424242;
+    color: white;
+}
