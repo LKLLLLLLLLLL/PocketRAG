@@ -38,7 +38,9 @@ Chunker::~Chunker()
 int Chunker::posToLine(int pos, int beginLine, const std::string &content) const
 {
     pos = std::min(pos, static_cast<int>(content.length()));
-    beginLine += std::count_if(content.begin(), content.begin() + pos, [](char c) { return c == '\n'; });
+    beginLine += std::count_if(content.begin(), content.begin() + pos, [](char c) {
+        return c == '\n'; 
+    });
     return beginLine;
 }
 

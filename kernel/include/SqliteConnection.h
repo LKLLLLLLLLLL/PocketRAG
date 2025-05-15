@@ -193,6 +193,8 @@ public:
             sqlite3_bind_double(stmt, index, value);
         else if constexpr (std::is_same_v<T, std::string>)
             sqlite3_bind_text(stmt, index, value.c_str(), -1, SQLITE_TRANSIENT);
+        else if constexpr (std::is_same_v<T, bool>)
+            sqlite3_bind_int(stmt, index, value ? 1 : 0);
         else
             static_assert(std::is_same_v<T, void>, "Unsupported type for SQLite binding.");
     }

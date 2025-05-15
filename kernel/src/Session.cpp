@@ -51,14 +51,9 @@ void Session::doneReporter(std::string path)
     send(json, nullptr);
 }
 
-Session::Session(int sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer &kernelServer) : sessionId(sessionId), kernelServer(kernelServer)
-{
-    auto docStateReporter_wrap = [this](std::vector<std::string> docs) { docStateReporter(docs); };
-    auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
-    auto doneReporter_wrap = [this](std::string path) { doneReporter(path); };
-    repository = std::make_shared<Repository>(repoName, repoPath, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
-    config();
-}
+// lazy initialization
+Session::Session(int sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer &kernelServer) : sessionId(sessionId), kernelServer(kernelServer), repoName(repoName), repoPath(repoPath)
+{}
 
 Session::~Session()
 {
@@ -88,6 +83,11 @@ void Session::execCallback(nlohmann::json& json, int callbackId)
 
 void Session::run()
 {
+    auto docStateReporter_wrap = [this](std::vector<std::string> docs) { docStateReporter(docs); };
+    auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
+    auto doneReporter_wrap = [this](std::string path) { doneReporter(path); };
+    repository = std::make_shared<Repository>(repoName, repoPath, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
+    config();
     // send done message
     nlohmann::json json;
     json["toMain"] = false;

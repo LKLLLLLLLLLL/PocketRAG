@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <string>
 #include <thread>
 
 #include "Repository.h"
@@ -16,6 +17,9 @@ class Session
 {
 private:
     int sessionId;
+
+    std::string repoName;
+    std::filesystem::path repoPath;
 
     std::thread conversationThread; // thread for LLMConv
 

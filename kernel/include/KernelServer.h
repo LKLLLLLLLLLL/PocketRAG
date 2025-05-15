@@ -9,6 +9,7 @@
 
 #include "LLMConv.h"
 #include "Session.h"
+#include "SqliteConnection.h"
 #include "Utils.h"
 
 class Repository;
@@ -25,7 +26,7 @@ public:
     using Json = nlohmann::json;
 
 private:
-    const std::filesystem::path userDataPath = "./UserData";
+    const std::filesystem::path userDataPath = "./userData";
     const std::filesystem::path userDataDBPath = userDataPath / "db";
 
     // messagequeue for frontend and backend communication
@@ -41,10 +42,6 @@ private:
 
     std::shared_ptr<SqliteConnection> sqliteConnection = nullptr; // sqlite connection
     void initializeSqlite();
-
-    // read settings from disk, if needed write to sqlite
-    void readSettings();
-    std::string initializeSettings();
 
     // method called by run()
     void transmitMessage(nlohmann::json& json); // handle message to session
@@ -67,6 +64,13 @@ private:
     void stopMessageSender();
     void messageSender();
 
+    class Settings;
+    friend class Settings;
+    std::shared_ptr<Settings> settings = nullptr;
+    // update settings from json file and update sqlite
+    void updateSettings();
+    // interface for settings class
+    std::string getApiKey(const std::string &modelName);
 public:
     // initialize a server and return a instance.
     static KernelServer& openServer()
@@ -74,12 +78,12 @@ public:
         static KernelServer instance; 
         return instance; 
     }
-
     ~KernelServer();
 
     // start the server and open a thread to handle messages from sessions.
     void run();
 
+    // send Message to frontend, thread safe
     void sendMessage(const std::shared_ptr<Utils::MessageQueue::Message>& message)
     {
         kernelMessageQueue->push(message);
@@ -96,3 +100,89 @@ public:
     std::filesystem::path getRerankerConfigs();
 };
    
+/*
+This class is used to manage settings from settings.json file.
+*/
+class KernelServer::Settings
+{
+public:
+    // has same structure as the json file
+    struct SettingsCache
+    {
+        struct SearchSettings
+        {
+            int searchLimit;
+            struct EmbeddingConfig
+            {
+                struct Config
+                {
+                    std::string name;
+                    std::string modelName;
+                    int inputLength;
+                    bool selected;
+                };
+                std::vector<Config> configs;
+            } embeddingConfig; 
+            struct RrankConfig
+            {
+                struct Config
+                {
+                    std::string modelName;
+                    bool selected;
+                };
+                std::vector<Config> configs;
+            } rerankConfig;
+        } searchSettings;
+        struct LocalModelManagement
+        {
+            struct Model
+            {
+                std::string name;
+                std::string path;
+                std::string type;  // embedding, rerank, generation
+                int fileSize;      // in MB
+            };
+            std::vector<Model> models;
+        } localModelManagement;
+        struct ConversationSettings
+        {
+            struct GenerationModel
+            {
+                std::string name;
+                std::string modelName;
+                std::string url;
+                bool setApiKey;
+                bool lastUsed;
+            };
+            std::vector<GenerationModel> generationModel;
+        } conversationSettings;
+    };
+private:
+    std::filesystem::path settingsPath;
+    SettingsCache settingsCache;
+    KernelServer& kernelServer;
+    SettingsCache readSettings(std::filesystem::path path = "") const;
+
+public:
+    Settings(std::filesystem::path path, KernelServer& kernelServer) : settingsPath(path), kernelServer(kernelServer) {}
+    // check if settings.json is valid, will throw exception if not
+    void checkSettingsValidity() const;
+    void saveSettings();
+
+    std::vector<SettingsCache::ConversationSettings::GenerationModel> getGenerationModels() const
+    {
+        return settingsCache.conversationSettings.generationModel;
+    }
+    std::vector<SettingsCache::LocalModelManagement::Model> getLocalModels() const
+    {
+        return settingsCache.localModelManagement.models;
+    }
+    std::vector<SettingsCache::SearchSettings::EmbeddingConfig::Config> getEmbeddingConfigs() const
+    {
+        return settingsCache.searchSettings.embeddingConfig.configs;
+    }
+    std::vector<SettingsCache::SearchSettings::RrankConfig::Config> getRerankConfigs() const
+    {
+        return settingsCache.searchSettings.rerankConfig.configs;
+    }
+};

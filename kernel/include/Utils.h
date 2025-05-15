@@ -34,9 +34,16 @@ namespace Utils
     // return a int timestamp, seconds since epoch
     int getTimeStamp();
 
-    int randomInt(int min, int max);
+    // generate a random integer between min and max
+    inline int randomInt(int min, int max)
+    {
+        return std::rand() % (max - min + 1) + min;
+    }
 
-    float sigmoid(float x);
+    inline float sigmoid(float x)
+    {
+        return 1.0f / (1.0f + std::exp(-x));
+    }
 
     // convert chunk content and metadata to a sequence which can be used by models
     std::string chunkTosequence(const std::string& content, const std::string& metadata);
@@ -44,7 +51,12 @@ namespace Utils
     std::string toLower(const std::string& str);
 
     // calculate the number of characters encoded in UTF-8
-    int utf8Length(const std::string& str);
+    inline int utf8Length(const std::string &str)
+    {
+        return std::count_if(str.begin(), str.end(), [](unsigned char c) { 
+            return (c & 0xC0) != 0x80; 
+        });
+    }
 
     // a thread-safe callback manager
     class CallbackManager

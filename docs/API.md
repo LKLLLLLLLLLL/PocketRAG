@@ -317,6 +317,36 @@ return:
 }
 ```
 
+### checkSettings
+检查设置，设置的内容为settings-modified.json的内容。
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "checkSettings"
+    }
+}
+```
+return:
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
+**可能的错误：**
+- INVALID_SETTINGS 无效的消息类型
+
 ## kernelServer -> main
 
 ### ready
@@ -496,46 +526,66 @@ settings.json如下：
 ```json
 {
     "searchSettings" : {
+        "searchLimit" : 10, // 搜索结果数
         "embeddingConfig": {
-            "configs" : [ // 可以由多个被选中
+            "configs" : [ // 可以有多个被选中
                 {
-                    "name" : "bge-m3-512",
-                    "modelName" : "bge-m3",
-                    "path" : "/path/to/bge-m3-512",
+                    "name" : "bge-m3-512", // unique name
+                    "modelName" : "bge-m3", // refer to localModelManagement
                     "inputLength" : 512,
                     "selected" : true
                 },
                 {
                     "name" : "bge-m3-1024",
                     "modelName" : "bge-m3",
-                    "path" : "/path/to/bge-m3-1024",
                     "inputLength" : 1024,
                     "selected" : true
                 }
             ]
         },
         "rerankConfig" : {
-            "configs" : [ // 注意，只能由一个被选中
+            "configs" : [ // 注意，只能有一个被选中
                 {
-                    "modelName" : "bge-reranker-v2-m3",
-                    "path" : "/path/to/bge-reranker-v2-m3",
+                    "modelName" : "bge-reranker-v2-m3", // refer to localModelManagement
                     "selected" : true
-                }
+                },
                 {
                     "modelName" : "bge-reranker-m3",
-                    "path" : "/path/to/bge-reranker-v2-m4",
                     "selected" : false
                 }
             ]
         }
     },
+    "localModelManagement" : {
+        "models" : [
+            {
+                "name" : "bge-m3", // unique name
+                "path" : "/path/to/bge-m3", // dir must exist
+                "type" : "embedding", // embedding or rerank or generation
+                "fileSize" : 2200, // in MB, calculated by frontend
+            },
+            {
+                "name" : "bge-reranker-v2-m3",
+                "path" : "/path/to/bge-reranker-v2-m3",
+                "type" : "rerank",
+                "fileSize" : 2200
+            },
+            {
+                "name": "bge-reranker-m3",
+                "path": "/path/to/bge-reranker-m3",
+                "type": "rerank",
+                "fileSize": 2200
+            }
+        ]
+    },
     "conversationSettings" : {
         "generationModel" : [
             {
-                "name" : "deepseek",
+                "name" : "deepseek", // unique name
                 "modelName" : "deepseek",
                 "url" : "http://...",
-                "setApiKey" : true // api key is stored in the database
+                "setApiKey" : true, // api key is stored in the database, must be set by message when commit settings
+                "lastUsed" : true // last used model, only one can be true
             },
             {
                 ...
@@ -544,11 +594,12 @@ settings.json如下：
     }
 }
 ```
+为了可读性，该文档可以不用格式化为一行。
 
 ### 更新设置
-当settings.json更新后，发送消息给kernel server；否则kernel server只会在每次启动时读取一次settings.json。
-
-详见[updateSettings](#updateSettings)
+当settings.json更新后，前端应当分三步与kernel server进行通信：
+1. 先将设置写入临时文件"settings-modified.json"发送消息"checkSettings"，检查临时设置是否正确。详见[checkSettings](#checkSettings)
+2. 移动"settings-modified.json"到"settings.json"，覆盖原设置文件，发送消息"updateSettings"，更新设置。详见[updateSettings](#updateSettings)
 
 ## 敏感信息
 如api key等信息。
@@ -556,8 +607,8 @@ settings.json如下：
 ### 写入apiKey
 ```json
 {
-    "sessionId" : 120,
-    "toMain" : false,
+    "sessionId" : -1,
+    "toMain" : true,
 
     "callbackId" : 42,
     "isReply" : false,
@@ -565,7 +616,7 @@ settings.json如下：
     "message" : {
         "type" : "setApiKey",
         "name" : "deepseek",
-        "apiKey" : "apiKey",
+        "apiKey" : "apiKey"
     }
 }
 ```
@@ -584,8 +635,8 @@ return:
 ### 读取apiKey
 ```json
 {
-    "sessionId" : 120,
-    "toMain" : false,
+    "sessionId" : -1,
+    "toMain" : true,
 
     "callbackId" : 42,
     "isReply" : false,
@@ -611,3 +662,6 @@ return:
     }
 }
 ```
+
+**可能的错误：**
+- API_KEY_NOT_FOUND 未找到该模型名对应的数据，或该模型还未设置过apikey
