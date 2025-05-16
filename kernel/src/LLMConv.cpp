@@ -1,9 +1,7 @@
 #include <LLMConv.h>
 
-#include <iostream>
 #include <string>
 #include <vector>
-#include <set>
 #include <thread>
 #include <chrono>
 
@@ -11,7 +9,42 @@
 #include <nlohmann/json.hpp>
 
 //---------------------------HttpClient---------------------------//
-size_t HttpClient::curlCallBack(void *ptr, size_t size, size_t nmemb, void *in_buffer)
+bool HttpClient::httpResult::needRetry(int http_code) // check if need retry
+{
+    if (http_code == 429 || http_code == 500 || http_code == 502 || http_code == 503 || http_code == 504)
+        return true; // retry for these status codes
+    return false;
+}
+
+std::string HttpClient::httpResult::getErrorMessage(int http_code) // generate error_message
+{
+    switch (http_code)
+    {
+    case 400:
+        return "Bad Request";
+    case 401:
+        return "Unauthorized";
+    case 403:
+        return "Forbidden";
+    case 404:
+        return "Not Found";
+    case 429:
+        return "Too Many Requests";
+    case 500:
+        return "Internal Server Error";
+    case 502:
+        return "Bad Gateway";
+    case 503:
+        return "Service Unavailable";
+    }
+    if (http_code >= 400 && http_code < 500)
+        return "Client Error";
+    if (http_code >= 500 && http_code < 600)
+        return "Server Error";
+    return "Unknown Error";
+}
+
+size_t HttpClient::nonStresamCallBack(void *ptr, size_t size, size_t nmemb, void *in_buffer)
 {
     auto buffer = static_cast<std::string *>(in_buffer);
     size_t realsize = size * nmemb;
@@ -22,13 +55,17 @@ size_t HttpClient::curlCallBack(void *ptr, size_t size, size_t nmemb, void *in_b
 struct HttpClient::CallbackWrapper
 {
     std::function<size_t(void *, size_t, size_t, void *)> func;
+    HttpClient* client;
     void *originalBuffer;
 
     // static callback function, can be called by function ptr
     static size_t curlBridgeCallback(void *ptr, size_t size, size_t nmemb, void *userdata)
     {
         auto wrapper = static_cast<CallbackWrapper *>(userdata);
-        return wrapper->func(ptr, size, nmemb, wrapper->originalBuffer); // call the original callback function
+        auto returnSize =  wrapper->func(ptr, size, nmemb, wrapper->originalBuffer); // call the original callback function
+        if(wrapper->client->stop)
+            return 0;
+        return returnSize;
     }
 };
 
@@ -42,7 +79,7 @@ HttpClient::httpResult HttpClient::curlRequest(std::function<size_t(void *, size
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, connect_timeout); // connect timeout 10 seconds
 
     // set callback
-    std::shared_ptr<HttpClient::CallbackWrapper> wrapper = std::make_shared<CallbackWrapper>(CallbackWrapper{callback, buffer});
+    std::shared_ptr<HttpClient::CallbackWrapper> wrapper = std::make_shared<CallbackWrapper>(CallbackWrapper{callback, this, buffer});
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &CallbackWrapper::curlBridgeCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, wrapper.get());
 
@@ -52,6 +89,10 @@ HttpClient::httpResult HttpClient::curlRequest(std::function<size_t(void *, size
     {
         // send request
         CURLcode res = curl_easy_perform(curl);
+        if (res == CURLE_WRITE_ERROR) // interupt by user
+        {
+            return {200, "User interrupt", retried, ""}; // return the error message
+        }
         if (res != CURLE_OK)
             return{0, "CURL error: " + std::string(curl_easy_strerror(res)), retried, ""}; // return the error message
         
@@ -155,14 +196,16 @@ HttpClient::~HttpClient()
 
 HttpClient::httpResult HttpClient::sendRequest(const std::string &request_body)
 {
+    stop = false;
     std::string response_buffer; // buffer for response
-    auto result = curlRequest(curlCallBack, &response_buffer, request_body); // send request and handle error in uniform way
+    auto result = curlRequest(nonStresamCallBack, &response_buffer, request_body); // send request and handle error in uniform way
     result.response = response_buffer; // set response to result
     return result;
 }
 
 HttpClient::httpResult HttpClient::sendStreamRequest(const std::string &request_body, streamResponseParser parser, std::function<void(const std::string &)> callback)
 {
+    stop = false;
     std::string buffer;            // buffer for incomplete events
     std::string complete_response; // buffer for complete response
     auto callback_func = callback ? &callback : nullptr; // callback function
@@ -187,13 +230,12 @@ HttpClient::httpResult HttpClient::sendStreamRequest(const std::string &request_
 std::shared_ptr<LLMConv> LLMConv::createConv(
     type modelType,
     const std::string &modelName,
-    const Config &config,
-    bool stream)
+    const Config &config)
 {
     if(modelType == type::OpenAIapi)
     {
         // Create an OpenAI API conversation object
-        return std::shared_ptr<LLMConv>(new OpenAIConv(modelName, config, stream));
+        return std::shared_ptr<LLMConv>(new OpenAIConv(modelName, config));
     }
     else if(modelType == type::LlamaCpp)
     {
@@ -210,11 +252,10 @@ std::shared_ptr<LLMConv> LLMConv::createConv(
 std::shared_ptr<LLMConv> LLMConv::resetModel(
     type modelType,
     const std::string &modelName,
-    const Config &config,
-    bool stream)
+    const Config &config)
 {
     // create new instance of LLMConv with the new model name and config
-    auto newConv = createConv(modelType, modelName, config, stream);
+    auto newConv = createConv(modelType, modelName, config);
 
     // copy the conversation history from the current instance to the new instance
     // do not copy strightly, because subclasses may have their own implement
@@ -222,14 +263,6 @@ std::shared_ptr<LLMConv> LLMConv::resetModel(
     newConv->importHistory(history);
 
     return newConv;
-}
-
-std::shared_ptr<LLMConv> LLMConv::resetModel(
-    type modelType,
-    const std::string &modelName,
-    const Config &config)
-{
-    return resetModel(modelType, modelName, config, this->stream);
 }
 
 void LLMConv::setMessage(const std::string &role, const std::string &content)
@@ -310,7 +343,7 @@ std::string OpenAIConv::OpenAIResponseParser::parseFullResponse(const std::strin
 }
 
 
-OpenAIConv::OpenAIConv(const std::string &modelName, const Config &config, bool stream) : LLMConv(modelName, stream)
+OpenAIConv::OpenAIConv(const std::string &modelName, const Config &config) : LLMConv(modelName)
 {
     auto api_key = getStringConfig(config, "api_key", "", true);
     auto api_url = getStringConfig(config, "api_url", "", true);
@@ -326,7 +359,17 @@ OpenAIConv::OpenAIConv(const std::string &modelName, const Config &config, bool 
     // init request.json
     request = nlohmann::json::object();
     request["model"] = modelName;
-    request["stream"] = stream; // enable streaming
+}
+
+bool OpenAIConv::test() const
+{
+    auto tempRequest = request;
+    tempRequest["max_tokens"] = 1;
+    tempRequest["messages"] = nlohmann::json::array({ { {"role", "user"}, {"content", "Hello"} } });
+    tempRequest["stream"] = false;
+    auto result = httpClient->sendRequest(tempRequest.dump());
+    handleHttpResult(result);
+    return true; 
 }
 
 void OpenAIConv::setOptions(const std::string& key, const std::string& value)
@@ -394,38 +437,32 @@ std::string OpenAIConv::getResponse()
 {
     // set request body
     request["messages"] = history_json;
+    request["stream"] = false;
 
-    std::string response;
-    if(stream) // stream mode
-    {
-        auto result = httpClient->sendStreamRequest(request.dump(), OpenAIResponseParser::parseStreamChunk);
-        response = handleHttpResult(result); // handle http result and return the response
-        if (!response.empty())
-            setMessage("assistant", response);
-    }
-    else // non-stream mode
-    {
-        auto result = httpClient->sendRequest(request.dump()); // send request and handle error in uniform way
-        auto content = handleHttpResult(result); // handle http result and return the response
-        // parse response
-        response = OpenAIResponseParser::parseFullResponse(content);
-        if(!response.empty())
-            setMessage("assistant", response);
-    }
+    auto result = httpClient->sendRequest(request.dump()); // send request and handle error in uniform way
+    auto content = handleHttpResult(result); // handle http result and return the response
+    // parse response
+    auto response = OpenAIResponseParser::parseFullResponse(content);
+    if(!response.empty())
+        setMessage("assistant", response);
     return response;
 }
 
-void OpenAIConv::getStreamResponse(streamCallbackFunc callBack)
+std::string OpenAIConv::getStreamResponse(streamCallbackFunc callBack)
 {
-    if(!stream)
-        throw Error(Error::ErrorType::InvalidArgument,"Stream mode is not enabled, please set stream to true when creating the conversation object.");
     // set request body
     request["messages"] = history_json;
+    request["stream"] = true;
 
     auto result = httpClient->sendStreamRequest(request.dump(), OpenAIResponseParser::parseStreamChunk, callBack); // send request and handle error in uniform way
     std::string response = handleHttpResult(result); // handle http result and return the response
     
     if (!response.empty())
         setMessage("assistant", response);
+    return response; 
 }
 
+void OpenAIConv::stopConnection()
+{
+    httpClient->stopConnection();
+}

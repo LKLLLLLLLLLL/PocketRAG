@@ -4,7 +4,7 @@
 
 #include <filesystem>
 #include <iostream>
-#include <fstream>
+#include <mutex>
 
 //--------------------------KernelServer--------------------------//
 KernelServer::KernelServer()
@@ -82,6 +82,7 @@ void KernelServer::stopAllSessions()
 
 void KernelServer::run()
 {  
+    updateSettings();
     // sent message to frontend
     nlohmann::json initMessage;
     initMessage["sessionId"] = -1;
@@ -164,7 +165,6 @@ void KernelServer::handleMessage(nlohmann::json& json)
             stopMessageSender();
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
-            sendBack(json);
         }
         else if(type == "getRepos") // get repos list
         {
@@ -180,7 +180,6 @@ void KernelServer::handleMessage(nlohmann::json& json)
             json["data"]["repoList"] = repoList;
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
-            sendBack(json);
         }
         else if(type == "openRepo") // open a session with repo name
         {
@@ -202,7 +201,6 @@ void KernelServer::handleMessage(nlohmann::json& json)
                 json["status"]["code"] = "REPO_NOT_FOUND";
                 json["status"]["message"] = "Cannot find repo with name: " + repoName;
             }
-            sendBack(json);
         }
         else if(type == "createRepo")
         {
@@ -218,22 +216,16 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Invalid path: " + repoPath + ", parser error: " + std::string(e.what());
-                sendBack(json);
-                return;
             }
             if(!repoPathobj.is_absolute())
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Path is not absolute: " + repoPath;
-                sendBack(json);
-                return;
             }
             if(!std::filesystem::exists(repoPathobj))
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Path does not exist: " + repoPath;
-                sendBack(json);
-                return;
             }
             // check if repo name equals to repo name in path
             std::string repoNameInPath = repoPathobj.filename().string();
@@ -241,8 +233,6 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "REPO_NAME_NOT_MATCH";
                 json["status"]["message"] = "Repo name in path: " + repoNameInPath + " not match with repo name: " + repoName;
-                sendBack(json);
-                return;
             }
             // find if repo name exists
             auto stmt = sqliteConnection->getStatement("SELECT * FROM repository WHERE repo_name = ?");
@@ -251,8 +241,6 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "REPO_NAME_EXISTS";
                 json["status"]["message"] = "Repo name already exists: " + repoName;
-                sendBack(json);
-                return;
             }
             else // valid create repo
             {
@@ -262,8 +250,6 @@ void KernelServer::handleMessage(nlohmann::json& json)
                 stmt.step();
                 json["status"]["code"] = "SUCCESS";
                 json["status"]["message"] = "";
-                sendBack(json);
-                return;
             }
         }
         else if(type == "closeRepo")
@@ -285,7 +271,6 @@ void KernelServer::handleMessage(nlohmann::json& json)
                 json["status"]["code"] = "SESSION_NOT_FOUND";
                 json["status"]["message"] = "Session not found, with windowId: " + std::to_string(windowId);
             }
-            sendBack(json);
         }
         else if(type == "checkSettings")
         {
@@ -300,14 +285,12 @@ void KernelServer::handleMessage(nlohmann::json& json)
                 json["status"]["code"] = "INVALID_SETTINGS";
                 json["status"]["message"] = "Failed in checking settings: " + std::string(e.what());
             }
-            sendBack(json);
         }
         else if(type == "updateSettings")
         {
             updateSettings();
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
-            sendBack(json);
         }
         else if (type == "setApiKey")
         {
@@ -349,6 +332,22 @@ void KernelServer::handleMessage(nlohmann::json& json)
                 json["data"]["apiKey"] = apiKey;
             }
         }
+        else if(type == "testApi")
+        {
+            auto modelName = json["message"]["name"].get<std::string>();
+            auto apiKey = json["message"]["apiKey"].get<std::string>();
+            auto url = json["message"]["url"].get<std::string>();
+            auto conv = LLMConv::createConv(LLMConv::type::OpenAIapi, modelName, {{"api_key", apiKey}, {"url", url}});
+            try
+            {
+                conv->test();
+            }
+            catch(std::exception& e)
+            {
+                json["status"]["code"] = "TEST_FAILED";
+                json["status"]["message"] = "Test failed: " + std::string(e.what());
+            }
+        }
         else if(type == "getGenerationModels")
         {
             auto models = getGenerationModels();
@@ -368,20 +367,18 @@ void KernelServer::handleMessage(nlohmann::json& json)
             json["status"]["code"] = "INVALID_TYPE";
             json["status"]["message"] = "Invalid message type: " + type;
         }
-        sendBack(json);
     }
     catch(nlohmann::json::exception& e)
     {
         json["status"]["code"] = "WRONG_PARAM";
         json["status"]["message"] = "Invalid message format, parser error: " + std::string(e.what());
-        sendBack(json);
     }
     catch(std::exception& e)
     {
         json["status"]["code"] = "UNKNOWN_ERROR";
         json["status"]["message"] = "Unknown error: " + std::string(e.what());
-        sendBack(json);
     }
+    sendBack(json);
 }
 
 void KernelServer::execCallback(nlohmann::json& json, int callbackId)
@@ -487,7 +484,7 @@ void KernelServer::updateSettings()
     trans.commit();
 }
 
-std::string KernelServer::getApiKey(const std::string &modelName)
+std::string KernelServer::getApiKey(const std::string &modelName) const
 {
     auto stmt = sqliteConnection->getStatement("SELECT api_key FROM generation_model WHERE model_name = ?");
     stmt.bind(1, modelName);
@@ -498,7 +495,7 @@ std::string KernelServer::getApiKey(const std::string &modelName)
     return "";
 }
 
-std::shared_ptr<LLMConv> KernelServer::getLLMConv(const std::string& modelName)
+std::shared_ptr<LLMConv> KernelServer::getLLMConv(const std::string& modelName) const
 {
     // get api key from sqlite
     auto stmt = sqliteConnection->getStatement("SELECT api_key FROM generation_model WHERE model_name = ?");
@@ -527,11 +524,15 @@ std::shared_ptr<LLMConv> KernelServer::getLLMConv(const std::string& modelName)
     {
         throw std::runtime_error("Model url not found: " + modelName);
     }
-    auto conv = LLMConv::createConv(LLMConv::type::OpenAIapi, modelName,{{"api_key", apiKey}, {"url", url}});
+    LLMConv::Config config;
+    config["api_key"] = apiKey;
+    config["url"] = url;
+    config["connect_timeout"] = 5;
+    auto conv = LLMConv::createConv(LLMConv::type::OpenAIapi, modelName, config);
     return conv;
 }
 
-std::vector<std::pair<std::string, std::string>> KernelServer::getRepos()
+std::vector<std::pair<std::string, std::string>> KernelServer::getRepos() const
 {
     auto stmt = sqliteConnection->getStatement("SELECT repo_name, repo_path FROM repository");
     std::vector<std::pair<std::string, std::string>> repos;
@@ -544,7 +545,7 @@ std::vector<std::pair<std::string, std::string>> KernelServer::getRepos()
     return repos;
 }
 
-std::vector<std::string> KernelServer::getGenerationModels()
+std::vector<std::string> KernelServer::getGenerationModels() const
 {
     auto genModels = settings->getGenerationModels();
     std::vector<std::string> models;
@@ -555,7 +556,7 @@ std::vector<std::string> KernelServer::getGenerationModels()
     return models;
 }
 
-Repository::EmbeddingConfigList KernelServer::getEmbeddingConfigs()
+Repository::EmbeddingConfigList KernelServer::getEmbeddingConfigs() const
 {
     auto embeddingConfigs = settings->getEmbeddingConfigs();
     Repository::EmbeddingConfigList configs;
@@ -574,7 +575,7 @@ Repository::EmbeddingConfigList KernelServer::getEmbeddingConfigs()
     return configs;
 }
 
-std::filesystem::path KernelServer::getRerankerConfigs()
+std::filesystem::path KernelServer::getRerankerConfigs() const
 {
     auto rerankConfigs = settings->getRerankConfigs();
     int selectedCount = 0;
@@ -601,6 +602,11 @@ std::filesystem::path KernelServer::getRerankerConfigs()
     }
 }
 
+int KernelServer::getSearchLimit() const
+{
+    return settings->getSearchLimit();
+}
+
 //--------------------------Settings--------------------------//
 void KernelServer::Settings::checkSettingsValidity() const
 {
@@ -610,14 +616,7 @@ void KernelServer::Settings::checkSettingsValidity() const
 auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> SettingsCache
 {
     // 1. try to read settings file
-    std::ifstream settingsFile(path);
-    if(!settingsFile)
-    {
-        throw std::runtime_error("Failed to open settings file: " + path.string());
-    }
-    nlohmann::json settingsJson;
-    settingsFile >> settingsJson;
-    settingsFile.close();
+    auto settingsJson = Utils::readJsonFile(path);
 
     // 2. try to parse settings.json
     SettingsCache tempCache;
@@ -749,5 +748,33 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
 
 void KernelServer::Settings::saveSettings()
 {
-    settingsCache = readSettings(settingsPath / "settings.json");
+    auto cache = readSettings(settingsPath / "settings.json");
+    std::lock_guard<std::mutex> lock(settingsMutex);
+    settingsCache = cache;
+}
+
+auto KernelServer::Settings::getGenerationModels() const
+    -> std::vector<SettingsCache::ConversationSettings::GenerationModel>
+{
+    return settingsCache.conversationSettings.generationModel;
+}
+auto KernelServer::Settings::getLocalModels() const
+    -> std::vector<SettingsCache::LocalModelManagement::Model>
+{
+    return settingsCache.localModelManagement.models;
+}
+auto KernelServer::Settings::getEmbeddingConfigs() const
+    -> std::vector<SettingsCache::SearchSettings::EmbeddingConfig::Config>
+{
+    return settingsCache.searchSettings.embeddingConfig.configs;
+}
+auto KernelServer::Settings::getRerankConfigs() const 
+    -> std::vector<SettingsCache::SearchSettings::RrankConfig::Config>
+{
+    return settingsCache.searchSettings.rerankConfig.configs;
+}
+
+int KernelServer::Settings::getSearchLimit() const
+{
+    return settingsCache.searchSettings.searchLimit;
 }

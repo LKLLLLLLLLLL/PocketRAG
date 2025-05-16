@@ -67,7 +67,7 @@ std::string Utils::normalizeLineEndings(const std::string &input)
 {
     std::string result(input.size(), '\0');
     std::transform(input.begin(), input.end(), result.begin(), [](unsigned char c) -> unsigned {
-        return (c == 'r') ? ' ' : c;
+        return (c == '\r') ? ' ' : c;
     });
     return result;
 }
@@ -108,9 +108,42 @@ std::string Utils::toLower(const std::string &str)
 {
     std::string lowerStr = str;
     std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), [](unsigned char c) -> unsigned {
-        return (c < 128) ? c : tolower(c);
+        return (c < 128) ? tolower(c) : c;
     });
     return lowerStr;
+}
+
+std::vector<std::string> Utils::splitLine(const std::string &str)
+{
+    std::vector<std::string> lines;
+    std::istringstream iss(str);
+    std::string line;
+    while (std::getline(iss, line))
+    {
+        if(line.empty())
+            continue;
+        lines.push_back(line);
+    }
+    return lines;
+}
+
+nlohmann::json Utils::readJsonFile(const std::filesystem::path &path)
+{
+    std::ifstream file(path);
+    if (!file)
+    {
+        throw std::runtime_error("Failed to open file: " + path.string());
+    }
+    nlohmann::json json;
+    try
+    {
+        file >> json;
+    }
+    catch (const nlohmann::json::parse_error &e)
+    {
+        throw std::runtime_error("JSON parse error in file " + path.string() + ": " + e.what());
+    }
+    return json;
 }
 
 //--------------------------CallbackManager--------------------------//

@@ -50,13 +50,12 @@
 - INVALID_TYPE 无效的消息类型
 - SESSION_NOT_FOUND 未找到与该windowId对应的session
 
-# 消息具体内容
+# 消息具体分类以及内容
 
-## main.js -> kernel server
-
-### stopAll
-
-析构所有对象并安全退出。收到信息后立即返回，需要通过捕捉退出信号来确定是否成功退出。
+## 启动与停止相关
+### stopAll  
+main.js -> kernel server  
+析构所有对象并安全退出。收到信息后立即返回，需要通过捕捉退出信号来确定是否成功退出。  
 
 ```json
 {
@@ -93,8 +92,80 @@ return:
 }
 ```
 
-### getRepos
+### ready
+kernel server -> main.js  
+kernel server准备完成，开始监听消息。  
 
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "ready"
+    }
+}
+```
+
+return:
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : true,
+
+    "message" : {
+        "type" : "ready"
+    },
+
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
+### sessionPrepared
+session -> window  
+当Session初始化完成后，发送该消息给对应的窗口。  
+
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "sessionPrepared",
+        "repoName" : "name",
+        "path" : "/path/to/repo"
+    }
+}
+```
+
+return:
+
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
+## 仓库管理相关
+### getRepos
+main.js -> kernel server
 获取仓库列表，返回全部仓库列表。
 
 ```json
@@ -146,8 +217,8 @@ return:
 ```
 
 ### openRepo
-
-打开一个仓库并创建对应的session，并返回仓库路径。返回SUCCESS并不代表Session初始化成功，只有当窗口收到sessionPrepared消息后，才保证Session能够访问。
+main.js -> kernel server  
+打开一个仓库并创建对应的session，并返回仓库路径。返回SUCCESS并不代表Session初始化成功，只有当窗口收到sessionPrepared消息后，才保证Session能够访问。  
 
 ```json
 {
@@ -197,8 +268,8 @@ return:
 - REPO_NOT_FOUND 仓库不存在
 
 ### closeRepo
-
-关闭一个窗口对应的仓库并销毁对应的session。
+main.js -> kernel server  
+关闭一个窗口对应的仓库并销毁对应的session。  
 
 ```json
 {
@@ -242,8 +313,8 @@ return:
 - SESSION_NOT_FOUND 未找到与该windowId对应的session
 
 ### createRepo
-
-创建一个新的仓库，不会创建Session。需要再次调用openRepo来打开对应的Session。
+main.js -> kernel server  
+创建一个新的仓库，不会创建Session。需要再次调用openRepo来打开对应的Session。  
 
 ```json
 {
@@ -290,108 +361,159 @@ return:
 - REPO_NAME_NOT_MATCH 仓库名与路径中的仓库名不匹配
 - REPO_NAME_EXIST 仓库名已存在
 
-### updateSettings
-更新设置，设置的内容为settings.json的内容。
+## 对话相关
+### 对话历史记录
+所有对话历史记录都应储存在`/userData/conversations`目录下，文件名为`<conversationId>.json`。  
+前端可以直接读取该文件来获取历史记录，但写入由后端完成。历史记录文件中存储的内容应与对话时前端显示的内容一致。
+```json
+{
+    "conversationId" : 1,
+    "topic" : "topic",
+    "history" : [
+        { // 一轮对话
+            "query" : "query string", // 用户输入
+            "retrieval":[ // 多轮检索
+                {
+                    "annotation" : "explain the purpose of this retrieval", // 检索的目的
+                    "search" : [  // 本次检索模型生成的搜索关键词
+                        "keryword1",
+                        "keryword2"
+                    ],
+                    "result" : [  // 搜索结果
+                        {
+                            "content" : "chunk content",
+                            "metadata" : "metadata",
+                            "beginLine" : 0,
+                            "endLine" : 10,
+                            "filePath" : "/path/to/file",
+                            "score" : 0.9
+                        },
+                        {
+                            ...
+                        }
+                    ]
+                },
+                {
+                    ...
+                }
+            ],
+            "answer" : "answer string", // LLM生成的回答
+            "time" : 1234567890 // 时间戳
+        },
+        {
+            ...
+        }
+    ]
+}
+```
+
+### beginConversation
+window -> session
+发送对话消息，后端会流式返回结果。
 
 ```json
 {
-    "sessionId" : -1,
-    "toMain" : true,
+    "sessionId" : 120,
+    "toMain" : false,
 
     "callbackId" : 42,
     "isReply" : false,
 
     "message" : {
-        "type" : "updateSettings"
+        "type" : "beginConversation",
+        "modelName" : "deepseek", // refer to localModelManagement
+        "conversationId" : 1, // id to find history file
+        "query" : "query string"
     }
 }
 ```
 return:
-```json
-{
-    ...
-    "status" : {
-        "code" : "SUCCESS",
-        "message" : ""
-    }
-}
-```
-
-### checkSettings
-检查设置，设置的内容为settings-modified.json的内容。
 
 ```json
 {
-    "sessionId" : -1,
-    "toMain" : true,
-
-    "callbackId" : 42,
-    "isReply" : false,
-
-    "message" : {
-        "type" : "checkSettings"
-    }
-}
-```
-return:
-```json
-{
-    ...
-    "status" : {
-        "code" : "SUCCESS",
-        "message" : ""
-    }
-}
-```
-
-**可能的错误：**
-- INVALID_SETTINGS 无效的消息类型
-
-## kernelServer -> main
-
-### ready
-kernel server准备完成，开始监听消息。
-
-```json
-{
-    "sessionId" : -1,
-    "toMain" : true,
-
-    "callbackId" : 42,
-    "isReply" : false,
-
-    "message" : {
-        "type" : "ready"
-    }
-}
-```
-
-return:
-
-```json
-{
-    "sessionId" : -1,
-    "toMain" : true,
+    "sessionId" : 120,
+    "toMain" : false,
 
     "callbackId" : 42,
     "isReply" : true,
 
     "message" : {
-        "type" : "ready"
+        "type" : "beginConversation",
+        "conversationId" : 1,
+        "query" : "query string"
     },
 
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    },
+
+    "data" : {
+        "type" : "search",
+        "content" : "content"
+    }
+}
+```
+
+```json
+{
+    ...
+    "data" : {
+        "type" : "result", // result 类型有着特殊的格式
+        "content" : {
+            "content" : "chunk content",
+            "metadata" : "metadata",
+            "beginLine" : 0,
+            "endLine" : 10,
+            "filePath" : "/path/to/file",
+            "score" : 0.9
+        }
+    }
+}
+```
+**共有几种类型的流式回复：**
+- "search" 模型生成的搜索关键词等
+- "annotation" 本次检索的目的
+- "result" 搜索结果
+- "answer" LLM生成的回答
+- "doenRetrieval" 完成一次检索
+- "done" 完成标志
+不同类型的消息应渲染在不同位置，消息类型的发送顺序不固定，eg. search1 -> result1 -> doneRetrieve -> search2 -> result2 -> doenRetrieve -> answer -> done
+如果出现错误，"status"字段会变成"NETWORK_ERROR"，并在"message"字段中返回错误信息。
+
+### stopConversation
+window -> session  
+终止对话，后端会停止返回结果，最后一次返回的data.type将变为"done"。
+
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "stopConversation",
+        "conversationId" : 1
+    }
+}
+```
+return:
+```json
+{
+    ...
     "status" : {
         "code" : "SUCCESS",
         "message" : ""
     }
 }
 ```
-
-## window -> session
+## 其他通信
 
 ### search
-
-在当前仓库中搜索，返回搜索结果
+window -> session  
+在当前仓库中搜索，返回搜索结果  
 
 ```json
 {
@@ -451,42 +573,11 @@ return:
 }
 ```
 
-## session -> window
 
-### sessionPrepared
 
-当Session初始化完成后，发送该消息给对应的窗口。
-
-```json
-{
-    "sessionId" : 120,
-    "toMain" : false,
-
-    "callbackId" : 42,
-    "isReply" : false,
-
-    "message" : {
-        "type" : "sessionPrepared",
-        "repoName" : "name",
-        "path" : "/path/to/repo"
-    }
-}
-```
-
-return:
-
-```json
-{
-    ...
-    "status" : {
-        "code" : "SUCCESS",
-        "message" : ""
-    }
-}
-```
 
 ### embeddingStatue
-
+session -> window
 嵌入进度
 
 ```json
@@ -519,7 +610,7 @@ return:
 ```
 
 # 关于设置
-
+这些全局设置都应该由main.js向kernel server发送消息。
 ## 一般设置
 通过写入userData/settings.json来设置，这些设置是全局的，各个仓库共享。
 settings.json如下：
@@ -596,15 +687,75 @@ settings.json如下：
 ```
 为了可读性，该文档可以不用格式化为一行。
 
-### 更新设置
+### 更新设置流程
 当settings.json更新后，前端应当分三步与kernel server进行通信：
 1. 先将设置写入临时文件"settings-modified.json"发送消息"checkSettings"，检查临时设置是否正确。详见[checkSettings](#checkSettings)
 2. 移动"settings-modified.json"到"settings.json"，覆盖原设置文件，发送消息"updateSettings"，更新设置。详见[updateSettings](#updateSettings)
+
+### updateSettings
+main.js -> kernel server
+更新设置，设置的内容为settings.json的内容。
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "updateSettings"
+    }
+}
+```
+return:
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
+### checkSettings
+main.js -> kernel server
+检查设置，设置的内容为settings-modified.json的内容。
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "checkSettings"
+    }
+}
+```
+return:
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+
+**可能的错误：**
+- INVALID_SETTINGS 无效的消息类型
 
 ## 敏感信息
 如api key等信息。
 在更改后直接向后端发送，写入数据库。
 ### 写入apiKey
+main.js -> kernel server
 ```json
 {
     "sessionId" : -1,
@@ -633,6 +784,7 @@ return:
 ```
 
 ### 读取apiKey
+main.js -> kernel server
 ```json
 {
     "sessionId" : -1,
@@ -665,3 +817,43 @@ return:
 
 **可能的错误：**
 - API_KEY_NOT_FOUND 未找到该模型名对应的数据，或该模型还未设置过apikey
+
+### 测试apikey, url, modelname正确性
+main.js -> kernel server  
+当用户输入后，可以提供一个按钮来测试是否正确。  
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "testApi",
+        "modelName" : "deepseek",
+        "url" : "http://...",
+        "api" : "apiKey"
+    }
+}
+```
+
+return:
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+或是：
+```json
+{
+    ...
+    "status" : {
+        "code" : "TESST_FAILED",
+        "message" : "http error message"
+    }
+}

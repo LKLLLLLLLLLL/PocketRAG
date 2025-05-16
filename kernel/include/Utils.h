@@ -58,6 +58,10 @@ namespace Utils
         });
     }
 
+    std::vector<std::string> splitLine(const std::string &str);
+
+    nlohmann::json readJsonFile(const std::filesystem::path &path);
+
     // a thread-safe callback manager
     class CallbackManager
     {

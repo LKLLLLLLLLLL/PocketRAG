@@ -13,12 +13,12 @@
 
 /*
 This class handles a repository.
-This is a thread-safe class, but it will fork treads when needed.
+This is a thread-safe class, and it will fork treads when needed.
 */
 class Repository
 {
 public:
-    struct searchResult
+    struct SearchResult
     {
         int64_t chunkId;
         double score; 
@@ -119,7 +119,7 @@ public:
     Repository(Repository&&) = delete; // disable move constructor
     Repository& operator=(Repository&&) = delete; // disable move assignment operator
 
-    std::vector<searchResult>search(const std::string &query, searchAccuracy acc, int limit = 10);
+    std::vector<SearchResult> search(const std::string &query, searchAccuracy acc, int limit = 10);
 
     // config embedding settings, if arg is empty, will read from sqlite table
     void configEmbedding(const EmbeddingConfigList &configs);

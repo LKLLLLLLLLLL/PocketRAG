@@ -335,21 +335,26 @@ void Repository::removeInvalidEmbedding()
     trans.commit();
 }
 
-auto Repository::search(const std::string &query, searchAccuracy acc, int limit) -> std::vector<searchResult>
+auto Repository::search(const std::string &query, searchAccuracy acc, int limit) -> std::vector<SearchResult>
 {
     std::shared_lock readlock(mutex); // lock for reading embedding models and vector tables
     
     int vectorLimit = limit * 2;
     int fts5Limit = limit * 2 * embeddings.size();
 
-    std::vector<searchResult> allResults; // for all results
+    std::vector<SearchResult> allResults; // for all results
+
+    if(query.empty())
+    {
+        return allResults;
+    }
 
     // search in text search table
     auto textResults = textTable->search(query, fts5Limit);
-    std::unordered_map<int64_t, searchResult> textSearchResultMap; // map to store results, chunkid -> Result
+    std::unordered_map<int64_t, SearchResult> textSearchResultMap; // map to store results, chunkid -> Result
     for(const auto& textResult : textResults)
     {
-        searchResult res;
+        SearchResult res;
         res.chunkId = textResult.chunkId;
         res.score = textResult.similarity;
         res.highlightedContent = textResult.content;
@@ -370,7 +375,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         // add to results
         for(int j = 0; j < vectorResults.first.size(); j++)
         {
-            searchResult res;
+            SearchResult res;
             res.chunkId = vectorResults.first[j];
             res.score = vectorResults.second[j];
             if (textSearchResultMap.find(res.chunkId) == textSearchResultMap.end()) // not found
@@ -389,7 +394,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
     }
     for(auto& textResult : textSearchResultMap)
     {
-        searchResult res;
+        SearchResult res;
         res.chunkId = textResult.first;
         res.score = combineScore(textResult.second.score, 0.0);
         res.highlightedContent = textResult.second.highlightedContent;
@@ -424,7 +429,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
     }
 
     // remove duplicates
-    std::vector<searchResult> uniqueResults;
+    std::vector<SearchResult> uniqueResults;
     for (const auto &result : allResults) 
     {
         bool found = false;
@@ -461,7 +466,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
     }
 
     // sort results by score and limit to top N
-    std::sort(uniqueResults.begin(), uniqueResults.end(), [](const searchResult &a, const searchResult &b) {
+    std::sort(uniqueResults.begin(), uniqueResults.end(), [](const SearchResult &a, const SearchResult &b) {
         return a.score > b.score;
     });
     if (uniqueResults.size() > limit)

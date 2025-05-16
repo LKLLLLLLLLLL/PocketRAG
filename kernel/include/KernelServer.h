@@ -70,7 +70,7 @@ private:
     // update settings from json file and update sqlite
     void updateSettings();
     // interface for settings class
-    std::string getApiKey(const std::string &modelName);
+    std::string getApiKey(const std::string &modelName) const;
 public:
     // initialize a server and return a instance.
     static KernelServer& openServer()
@@ -91,13 +91,14 @@ public:
 
     // methods below are interfaces for sessions to call, can be called in multiple threads
     // open a conversation
-    std::shared_ptr<LLMConv> getLLMConv(const std::string &modelName);
+    std::shared_ptr<LLMConv> getLLMConv(const std::string &modelName) const;
     // get repos list, return repo name and repo path
-    std::vector<std::pair<std::string, std::string>> getRepos();
+    std::vector<std::pair<std::string, std::string>> getRepos() const;
     // get all generation model names
-    std::vector<std::string> getGenerationModels();
-    Repository::EmbeddingConfigList getEmbeddingConfigs();
-    std::filesystem::path getRerankerConfigs();
+    std::vector<std::string> getGenerationModels() const;
+    Repository::EmbeddingConfigList getEmbeddingConfigs() const;
+    std::filesystem::path getRerankerConfigs() const;
+    int getSearchLimit() const;
 };
    
 /*
@@ -158,31 +159,20 @@ public:
         } conversationSettings;
     };
 private:
-    std::filesystem::path settingsPath;
+    const std::filesystem::path settingsPath;
     SettingsCache settingsCache;
     KernelServer& kernelServer;
     SettingsCache readSettings(std::filesystem::path path = "") const;
-
+    mutable std::mutex settingsMutex;
 public:
     Settings(std::filesystem::path path, KernelServer& kernelServer) : settingsPath(path), kernelServer(kernelServer) {}
     // check if settings.json is valid, will throw exception if not
     void checkSettingsValidity() const;
     void saveSettings();
 
-    std::vector<SettingsCache::ConversationSettings::GenerationModel> getGenerationModels() const
-    {
-        return settingsCache.conversationSettings.generationModel;
-    }
-    std::vector<SettingsCache::LocalModelManagement::Model> getLocalModels() const
-    {
-        return settingsCache.localModelManagement.models;
-    }
-    std::vector<SettingsCache::SearchSettings::EmbeddingConfig::Config> getEmbeddingConfigs() const
-    {
-        return settingsCache.searchSettings.embeddingConfig.configs;
-    }
-    std::vector<SettingsCache::SearchSettings::RrankConfig::Config> getRerankConfigs() const
-    {
-        return settingsCache.searchSettings.rerankConfig.configs;
-    }
+    int getSearchLimit() const;
+    std::vector<SettingsCache::ConversationSettings::GenerationModel> getGenerationModels() const;
+    std::vector<SettingsCache::LocalModelManagement::Model> getLocalModels() const;
+    std::vector<SettingsCache::SearchSettings::EmbeddingConfig::Config> getEmbeddingConfigs() const;
+    std::vector<SettingsCache::SearchSettings::RrankConfig::Config> getRerankConfigs() const;
 };

@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 #include <string>
 #include <vector>
 #include <map>
@@ -36,40 +35,9 @@ public:
         int retry_count; // retry count
         std::string response; // response content
 
-        static bool needRetry(int http_code) // check if need retry
-        {
-            if (http_code == 429 || http_code == 500 || http_code == 502 || http_code == 503 || http_code == 504)
-                return true; // retry for these status codes
-            return false;
-        }
+        static bool needRetry(int http_code); // check if need retry
         
-        static std::string getErrorMessage(int http_code) // generate error_message
-        {
-            switch (http_code)
-            {
-            case 400:
-                return "Bad Request";
-            case 401:
-                return "Unauthorized";
-            case 403:
-                return "Forbidden";
-            case 404:
-                return "Not Found";
-            case 429:
-                return "Too Many Requests";
-            case 500:
-                return "Internal Server Error";
-            case 502:
-                return "Bad Gateway";
-            case 503:
-                return "Service Unavailable";
-            }
-            if(http_code >= 400 && http_code < 500)
-                return "Client Error";
-            if(http_code >= 500 && http_code < 600)
-                return "Server Error";
-            return "Unknown Error";
-        }
+        static std::string getErrorMessage(int http_code); // generate error_message
     };
 
 private:
@@ -80,12 +48,15 @@ private:
     int connect_timeout = 10; // connect timeout, s, default 10s
     bool verbose = false; // verbose mode, default false
 
+    std::atomic<bool> stop = false; // stop flag, default false
+
     // join returned data to a string
-    static size_t curlCallBack(void *ptr, size_t size, size_t nmemb, void *in_buffer);
+    static size_t nonStresamCallBack(void *ptr, size_t size, size_t nmemb, void *in_buffer);
 
     // wrap std::function to be used as a function ptr
     // used in curlRequest()
     struct CallbackWrapper;
+    friend struct CallbackWrapper;
 
     // send request and handle error in uniform way
     HttpClient::httpResult curlRequest(std::function<size_t(void *, size_t, size_t, void *)> callback, void *buffer, const std::string &request);
@@ -130,6 +101,9 @@ public:
     // send request to api and call parser to parse response and then callback function when a new response is received
     // will return the complete response(parsed by parser) when the stream is finished
     HttpClient::httpResult sendStreamRequest(const std::string &request_body, streamResponseParser parser, std::function<void(const std::string &)> callback = nullptr);
+
+    // stop stream or retries and return http code 200
+    void stopConnection() { stop = true; }
 };
 
 /*
@@ -165,50 +139,39 @@ public:
 protected:
     std::string modelName; // the name of the model, must equal to the model name in api or in the model file
     std::vector<Message> history; // the conversation history
-    bool stream; // whether to use streaming or not
 
     // helper function for parsing config
     static std::string getStringConfig(const Config &config, const std::string &key, const std::string &default_value, bool required = false);
     static int getIntConfig(const Config &config, const std::string &key, int default_value, bool required = false);
 
-    LLMConv(std::string modelName, bool stream = true) : modelName(modelName), stream(stream) {}
+    LLMConv(std::string modelName) : modelName(modelName) {}
 public: 
     virtual ~LLMConv() {}
 
     // Get the model name
     std::string getModelName() const { return modelName; }
 
+    // test apikey url and model name
+    virtual bool test() const = 0;
+
     // factory function, create a LLMConv object based on the model name and config
-    static std::shared_ptr<LLMConv> createConv(
-        type modelType,
-        const std::string& modelName, 
-        const Config& config, 
-        bool stream = true
-    );
+    static std::shared_ptr<LLMConv> createConv(type modelType, const std::string& modelName, const Config& config);
 
     // change model
-    std::shared_ptr<LLMConv> resetModel(
-        type modelType,
-        const std::string &modelName,
-        const Config &config,
-        bool stream = true);
-    // change model but keep the stream option
-    std::shared_ptr<LLMConv> resetModel(
-        type modelType,
-        const std::string &modelName,
-        const Config &config);
+    std::shared_ptr<LLMConv> resetModel(type modelType, const std::string &modelName, const Config &config);
 
     virtual void setOptions(const std::string& key, const std::string& value) = 0;
     virtual void setOptions(const std::string& key, const std::vector<std::string>& values) = 0;
 
     virtual void setMessage(const std::string &role, const std::string &content);
     
-    // send message and get responde
-    // if stream = true, will return answer after the stream is finished
+    // send message and get responde, will automatically set stream to false
     virtual std::string getResponse() = 0;
     // send message and call streamCallBackFunc when a new response is received
-    // if stream = false, will throw an exception
-    virtual void getStreamResponse(streamCallbackFunc) = 0;
+    // will automatically set stream to true
+    virtual std::string getStreamResponse(streamCallbackFunc) = 0;
+
+    virtual void stopConnection() = 0;
 
     // export message histroy in a vector
     std::vector<Message> exportHistory() const {return history;} ;
@@ -229,7 +192,7 @@ private:
     nlohmann::json history_json; // the conversation history in json format
 
     // let openAIConv instance can only be created by LLMConv::createConv
-    OpenAIConv(const std::string &modelName, const Config &config, bool stream); // private constructor to prevent direct instantiation
+    OpenAIConv(const std::string &modelName, const Config &config); // private constructor to prevent direct instantiation
     friend class LLMConv; // allow LLMConv to access private members
 
     class OpenAIResponseParser // nested class to parse response
@@ -243,10 +206,14 @@ private:
 
     // handle http result and return the response
     // will throw an exception if http code is not 200
-    std::string handleHttpResult(const HttpClient::httpResult &result);
+    static std::string handleHttpResult(const HttpClient::httpResult &result);
 
 public: 
     ~OpenAIConv() = default;
+
+    // test apikey, url, model name, and network connection
+    // will throw an exception if test failed
+    bool test() const override;
 
     // set options in the request, this options will be sent to the api
     // cannot set options in Config, if need to set options in Config, please use resetModel()
@@ -257,17 +224,19 @@ public:
     // this method has no check, make sure the key and value are valid to the api
     void setOptions(const std::string& key, const std::vector<std::string>& values) override;
 
-    void setMessage(const std::string &role, const std::string &content);
+    void setMessage(const std::string &role, const std::string &content) override;
     
     // overloading function to save history both in vector and json
-    void importHistory(const std::vector<Message> &history);
+    void importHistory(const std::vector<Message> &history) override;
 
-    // will return the response message whether stream is true or false
-    // if stream is true, will return the response after the stream is finished
+    // will return the response message, and set stream to false
     std::string getResponse() override;
-    // will call streamCallBackFunc when a new response is received
-    // if stream is false, will throw an exception
-    void getStreamResponse(streamCallbackFunc callBack) override;
+    // will call streamCallBackFunc when a new response is received, set stream to true
+    std::string getStreamResponse(streamCallbackFunc callBack) override;
+
+    // stop connection and return received content
+    // safe to be called by other threads
+    void stopConnection() override;
 };
 
 /*

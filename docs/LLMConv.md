@@ -97,15 +97,14 @@ LLMConv库包含以下主要类：
 LLMConv::Config config;
 config["api_key"] = "YOUR_API_KEY";           // API密钥
 config["api_url"] = "https://api.openai.com/v1/chat/completions"; // API端点
-config["max_tokens"] = "1000";                // 最大输出tokens
+config["connect_timeout"] = "10";                // 最大等待时间
 config["max_retry"] = "3";                    // 请求失败重试次数
 
 // 创建对话实例
 auto conv = LLMConv::createConv(
     LLMConv::type::OpenAIapi,      // API类型 
     "gpt-3.5-turbo",               // 模型名称
-    config,                         // 配置
-    true                           // 是否使用流式传输
+    config                         // 配置
 );
 
 // 修改对话模型等参数
