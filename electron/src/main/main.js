@@ -50,6 +50,7 @@ async function stdoutListener (data) {
   buffer += data.toString()
   let lines = buffer.split('\n')
   buffer = lines.pop()
+  console.log('the buffer is: ', buffer)
 
   for(const line of lines){
     if(line.trim()){
@@ -60,69 +61,101 @@ async function stdoutListener (data) {
         if(result.toMain){
           switch(result.message.type) {
             case 'stopAll':
-              if(result.status.code === 'SUCCESS'){
-                callbacks.delete(result.callbackId)
+              if(result.isReply){
+                if(result.status.code === 'SUCCESS'){
+                  callbacks.delete(result.callbackId)
+                }
+                else {
+                  console.error(result.status.message)
+                  callbacks.delete(result.callbackId)
+                }                
               }
               else {
-                console.error(result.status.message)
-                callbacks.delete(result.callbackId)
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
               }
               break
             case 'getRepos':
-              const window = windows.get(result.message.sessionId)
-              if(!window){
-                console.error('Window not found from sessionId: ' + result.message.sessionId)
+              if(result.isReply){
+                const window = windows.get(result.message.sessionId)
+                if(!window){
+                  console.error('Window not found from sessionId: ' + result.message.sessionId)
+                }
+                else {
+                  window.webContents.send('kernelData', result)
+                }                
               }
               else {
-                window.webContents.send('kernelData', result)
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
               }
               break
             case 'openRepo':
-              if(result.status.code === 'SUCCESS'){
-                const callback = callbacks.get(result.callbackId)
-                callback(result.data.repoName, result.data.path)
-                callbacks.delete(result.callbackId)
+              if(result.isReply){
+                if(result.status.code === 'SUCCESS'){
+                  const callback = callbacks.get(result.callbackId)
+                  callback(result.data.repoName, result.data.path)
+                  callbacks.delete(result.callbackId)
+                }
+                else {
+                  console.error(result.status.message)
+                  callbacks.delete(result.callbackId)
+                }                
               }
               else {
-                console.error(result.status.message)
-                callbacks.delete(result.callbackId)
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
               }
               break
             case 'closeRepo':
-              if(result.status.code === 'SUCCESS'){
+              if(result.isReply){
+                if(result.status.code === 'SUCCESS'){
                 callbacks.delete(result.callbackId)
+                }
+                else {
+                  console.error(result.status.message)
+                  callbacks.delete(result.callbackId)
+                }                
               }
               else {
-                console.error(result.status.message)
-                callbacks.delete(result.callbackId)
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
               }
               break
             case 'createRepo':
-              if(result.status.code === 'SUCCESS'){
-                callbacks.delete(result.callbackId)
+              if(result.isReply){
+                if(result.status.code === 'SUCCESS'){
+                  callbacks.delete(result.callbackId)
+                }
+                else {
+                  console.error(result.status.message)
+                  callbacks.delete(result.callbackId)
+                }                
               }
               else {
-                console.error(result.status.message)
-                callbacks.delete(result.callbackId)
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
               }
               break
             case 'ready':
-              let reply = result
-              eventEmitter.emit('kernelReady')
-              reply.isReply = true
-              reply.status = {
-                code : 'SUCCESS',
-                message : ""
+              if(!result.isReply){
+                let reply = result
+                eventEmitter.emit('kernelReady')
+                reply.isReply = true
+                reply.status = {
+                  code : 'SUCCESS',
+                  message : ''
+                }
+                kernel.stdin.write(JSON.stringify(reply) + '\n')
+                console.log(JSON.stringify(reply) + '\n')                
               }
-              kernel.stdin.write(JSON.stringify(reply) + '\n')
-              console.log(JSON.stringify(reply) + '\n')
+              else {
+                console.error('isReply may be wrong, expected: false, but the result is: ', result)
+              }
+              break
+
           }
         }
         else {
           const window = windows.get(result.sessionId)
 
           if(!window) {
-            console.error('Window not found from sessionId: ' + result.sessionId)
+            console.error('Window not found from sessionId: ' + result.sessionId + ', the whole message is: ', result)
           }
           else {
             window.webContents.send('kernelData', result)
@@ -217,23 +250,33 @@ async function createRepo (event, callbackId) {
     console.log(JSON.stringify(createRepo) + '\n')
   }
 }
-//select the repository path
 
 
-function query(event, query) {
-  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
-  const result = {
-    type : 'query',
-    callback : true,
-    windowId : windowId,
-    content : query
+
+function search(event, callbackId, query, accuracy) {
+  const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const search = {
+    sessionId : sessionId,
+    toMain : false,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'search',
+      query : query,
+      accuracy : accuracy
+    }
   }
-  if(kernel.pid && !kernel.killed) {
-    console.log(JSON.stringify(result))
-    // kernel.stdin.write(JSON.stringify(result) + '\n')
-  }
+  kernel.stdin.write(JSON.stringify(search) + '\n')
+  console.log(JSON.stringify(search) + '\n')
 }
-//send a query to the kernel
+
+
+function sessionPreparedReply(event, reply){
+  kernel.stdin.write(JSON.stringify(reply) + '\n')
+  console.log(JSON.stringify(reply) + '\n')
+}
 
 
 function createWindow (event, windowType = 'repoList') {
@@ -306,14 +349,19 @@ function getWindowId (window) {
 //get the windowId from the window object
 
 
+async function getReadyPromise (){
+  return readyPromise
+}
+
 
 app.whenReady().then(async () => {
-  await readyPromise
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
   ipcMain.on('openRepo', openRepo)
   ipcMain.on('createRepo', createRepo)
-  ipcMain.on('query', query)
+  ipcMain.on('search', search)
+  ipcMain.on('sessionPreparedReply', sessionPreparedReply)
+  ipcMain.handle('kernelReadyPromise', getReadyPromise)
   //add the event listeners before the window is created
 
   createWindow()

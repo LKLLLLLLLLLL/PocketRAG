@@ -10,11 +10,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   createRepo: (callbackId) => ipcRenderer.send('createRepo', callbackId),
 
-  query: (query) => ipcRenderer.send('query', query),
+  search: (callbackId, query, accuracy) => ipcRenderer.send('search', callbackId, query, accuracy),
 
   createNewWindow: (windowType) => ipcRenderer.invoke('createNewWindow', windowType),
 
-  onKernelData: (callback) =>ipcRenderer.on('kernelData', (_, result) => callback(result)),
+  onKernelData: (callback) => ipcRenderer.on('kernelData', (_, result) => callback(result)),
 
+  sendSessionPreparedReply : (reply) => ipcRenderer.send('sessionPreparedReply', reply),
+
+  kernelReadyPromise : () => ipcRenderer.invoke('kernelReadyPromise')
 })
 //expose apis to the renderer process 

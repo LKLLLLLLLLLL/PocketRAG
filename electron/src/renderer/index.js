@@ -1,14 +1,18 @@
+/*************************react preprocess*********************************/
+//import react modules
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import MainWindow from './views/MainWindow/MainWindow.jsx'
 import StartWindow from './views/StartWindow/StartWindow.jsx'
 import SettingsWindow from './views/SettingsWindow/SettingsWindow.jsx'
 
-// 获取当前窗口类型
+
+// obtain the window type
 const urlParams = new URLSearchParams(window.location.search)
 const windowType = urlParams.get('windowType')
 
-// 根据窗口类型选择不同的组件
+
+// select different components based on different window types
 const getWindowRenderFunc = () => {
   switch (windowType) {
       case 'main':
@@ -22,14 +26,17 @@ const getWindowRenderFunc = () => {
     }
 }
 
+
 const renderWindow = getWindowRenderFunc()
 
-// 渲染窗口
+
+// render the window
 ReactDOM.createRoot(document.getElementById('root')).render(
     renderWindow()
 )
 
 
+/**************electron's render process********************/
 const callbacks = new Map()
 
 
@@ -56,78 +63,97 @@ window.electronAPI.onKernelData((data) => {
       const embeddingEvent = new CustomEvent('embedding', {detail : data})
       window.dispatchEvent(embeddingEvent)
       break
-    case 'queryResult':
-      const queryResultEvent = new CustomEvent('queryResult', {detail : data})
-      window.dispatchEvent(queryResultEvent)
+    case 'search':
+      if(data.isReply){
+        if(data.status.code === 'SUCCESS'){
+          const searchResultEvent = new CustomEvent('searchResult', {detail : data.data.results})
+          window.dispatchEvent(searchResultEvent)        
+        }
+        else {
+          console.error(data.status.message)
+        }        
+      }
+      else {
+        console.error('isReply may be wrong, expected: true, but the result is: ', data)
+      }
       break
+    case 'sessionPrepared':
+      if(!data.isReply){
+        const sessionPreparedEvent = new CustomEvent('sessionPrepared', {detail : data})
+        window.dispatchEvent(sessionPreparedEvent)
+      }
+      else {
+        console.error('isReply may be wrong, expected: false, but the result is: ', data)
+      }
   }
 })
 
-
-// window.addEventListener('embedding',(event) => {
-//   console.log(event.detail)
-// })
-
-
-// const queryHandler = async () => {
-//   querybtn.removeEventListener('click', queryHandler)
-  
-//   const query = document.getElementById('query').value
-
-//   if(currentRepo !== undefined && currentEmbeddingModel !== undefined && query !== '') {
-//     const result = await new Promise((resolve, reject) => {
-//       let timeout
-//       const callbackId = 1
-//       if(!callbacks.has(callbackId)){
-//         const listener = (result) =>{
-//           clearTimeout(timeout)
-//           resolve(result)
-//         }
-//         callbacks.set(callbackId, listener)
-//       }
-
-//       window.addEventListener('queryResult', callbacks.get(callbackId), {once: true})
-
-//       window.electronAPI.query(query)
-
-//       timeout = setTimeout(() => {
-//         window.removeEventListener('queryResult', callbacks.get(callbackId))
-//         reject(new Error('查询超时'))
-//       }, 10000)
-//     })
-//     .catch((err) => {
-//       console.error(err)
-//     })
-    
-//     console.log(result)
-//   }
-//   else if(currentRepo === undefined) alert('请先选择一个仓库')
-//   else if(currentEmbeddingModel === undefined) alert('请先选择一个嵌入模型')
-//   else alert('查询不能为空')
-
-//   querybtn.addEventListener('click', queryHandler)
-// }
-
-// querybtn.addEventListener('click', queryHandler)
-
-
+const kernelReadyPromise = window.electronAPI.kernelReadyPromise()
 switch(windowType){
   case 'main':
     const repoInitializePromise = new Promise((resolve, reject) => {
       window.electronAPI.onRepoInitialized(() => {
         resolve()
       })
-    }).then()
+    })
+    const sessionPreparedPromise = new Promise((resolve, reject) => {
+      const sessionPreparedListener = (event) => {
+        window.removeEventListener('sessionPrepared', sessionPreparedListener)
+        let reply = event.data
+        reply.isReply = true
+        reply.status = {
+          code : 'SUCCESS',
+          message : ''
+        }
+        window.electronAPI.sendSessionPreparedReply(reply)
+        resolve()
+      }
+      window.addEventListener('sessionPrepared', sessionPreparedListener)
+    })
+    const mainWindowPreprocessPromise = Promise.all([repoInitializePromise, sessionPreparedPromise, kernelReadyPromise])
 
     const openRepoListWindow = async () => {
       await window.electronAPI.createNewWindow('repoList')
     }
 
+    const search = async (query, accuracy = false) => {
+      await mainWindowPreprocessPromise
+      const callbackId = callbackRegister(() => {})
+      try{
+        const result = new Promise ((resolve, reject) => {
+          let timeout
+          const listener = (event) => {
+            clearTimeout(timeout)
+            resolve(event.detail)
+          }
+          window.addEventListener('searchResult', listener, {once : true})
+          window.electronAPI.search(callbackId, query, accuracy)
+          timeout = setTimeout(() => {
+            window.removeEventListener('searchResult', listener)
+            reject(new Error('search timeout'))
+          }, 10000);
+        })
+        return result
+      } catch(err){
+        console.error(err)
+      } finally {
+        callbacks.delete(callbackId)
+      }
+    }
+    // setTimeout(() => {
+    //   openRepoListWindow()
+    // }, 5000)
+    // setTimeout(() => {
+    //   search('三体')
+    // }, 10000);
     break
   
 
   case 'repoList':
+    const repoListWindowPreprocessPromise = Promise.all([kernelReadyPromise])
+
     const getRepos = async () => {
+      await repoListWindowPreprocessPromise
       const callbackId = callbackRegister(() => {})
       try{
         const repoList = await new Promise((resolve, reject) => {
@@ -154,18 +180,22 @@ switch(windowType){
     }
 
     const openRepo = async (repoName) => {
+      await repoListWindowPreprocessPromise
       const sessionId = await window.electronAPI.createNewWindow('main')
       window.electronAPI.openRepo(sessionId, repoName)
     }
 
-    const createRepo = () =>{
+    const createRepo = async () =>{
+      await repoListWindowPreprocessPromise
       const callbackId = callbackRegister(() => {})
       window.electronAPI.createRepo(callbackId)
     }
     setTimeout(async () => {console.log(await getRepos())}, 5000)
-    createRepo()
-    setTimeout(async () => {console.log(await getRepos())}, 10000)
-    setTimeout(() => {openRepo('123')}, 20000)
-    
+    // createRepo()
+    // setTimeout(async () => {console.log(await getRepos())}, 15000)
+    // setTimeout(() => {openRepo('123')}, 25000)
+
     break
+
+
 }
