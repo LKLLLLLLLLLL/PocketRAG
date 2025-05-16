@@ -2,7 +2,6 @@ const { app, BrowserWindow, ipcMain, dialog} = require('electron/main')
 const path = require('node:path')
 const {spawn} = require('node:child_process')
 const EventEmitter = require('events')
-const { error } = require('node:console')
 //import electron and node modules
 
 
@@ -279,6 +278,12 @@ function sessionPreparedReply(event, reply){
 }
 
 
+function embeddingStatusReply(event, reply){
+  kernel.stdin.write(JSON.stringify(reply) + '\n')
+  console.log(JSON.stringify(reply) + '\n')
+}
+
+
 function createWindow (event, windowType = 'repoList') {
   const windowId = Date.now()// use timestamp as windowId
   let window
@@ -287,6 +292,7 @@ function createWindow (event, windowType = 'repoList') {
       window = new BrowserWindow({
         width: 1000,
         height: 800,
+        autoHideMenuBar: true,
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
         }
@@ -316,6 +322,7 @@ function createWindow (event, windowType = 'repoList') {
       window = new BrowserWindow({
         width: 600,
         height: 700,
+        autoHideMenuBar: true,
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
         }
@@ -362,6 +369,7 @@ app.whenReady().then(async () => {
   ipcMain.on('search', search)
   ipcMain.on('sessionPreparedReply', sessionPreparedReply)
   ipcMain.handle('kernelReadyPromise', getReadyPromise)
+  ipcMain.on('embeddingStatusReply', embeddingStatusReply)
   //add the event listeners before the window is created
 
   createWindow()

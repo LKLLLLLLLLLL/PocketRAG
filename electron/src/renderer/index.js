@@ -50,7 +50,7 @@ const callbackRegister = (callback) => {
 window.electronAPI.onKernelData((data) => {
   const type = data.message.type
   switch(type) {
-    case 'getRepos':
+    case 'getRepos'://isReply check has been done in main.js 
       if(data.status.code === 'SUCCESS'){
         const getReposResultEvent = new CustomEvent('getReposResult', {detail : data.data.repoList})
         window.dispatchEvent(getReposResultEvent)
@@ -59,9 +59,14 @@ window.electronAPI.onKernelData((data) => {
         console.error(data.status.message)
       }
       break
-    case 'embedding':
-      const embeddingEvent = new CustomEvent('embedding', {detail : data})
-      window.dispatchEvent(embeddingEvent)
+    case 'embeddingStatus':
+      if(!data.isReply){
+        const embeddingEvent = new CustomEvent('embeddingStatus', {detail : data})
+        window.dispatchEvent(embeddingEvent)
+      }
+      else {
+        console.error('isReply may be wrong, expected: false, but the result is: ', data)
+      }
       break
     case 'search':
       if(data.isReply){
@@ -99,7 +104,7 @@ switch(windowType){
     const sessionPreparedPromise = new Promise((resolve, reject) => {
       const sessionPreparedListener = (event) => {
         window.removeEventListener('sessionPrepared', sessionPreparedListener)
-        let reply = event.data
+        let reply = event.detail
         reply.isReply = true
         reply.status = {
           code : 'SUCCESS',
@@ -111,6 +116,22 @@ switch(windowType){
       window.addEventListener('sessionPrepared', sessionPreparedListener)
     })
     const mainWindowPreprocessPromise = Promise.all([repoInitializePromise, sessionPreparedPromise, kernelReadyPromise])
+
+    window.addEventListener('embeddingStatus', (event) => {
+      let reply = event.detail
+      reply.isReply = true
+      reply.status = {
+        code : 'SUCCESS',
+        message : ''
+      }
+      window.electronAPI.sendEmbeddingStatusReply(reply)
+      const embeddingStatus = {
+        filePath : event.detail.message.filePath,
+        status : event.detail.message.status
+      }
+      console.log(embeddingStatus)
+      //应添加与react通信的内容
+    })
 
     const openRepoListWindow = async () => {
       await window.electronAPI.createNewWindow('repoList')

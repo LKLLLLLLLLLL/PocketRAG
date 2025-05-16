@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   sendSessionPreparedReply : (reply) => ipcRenderer.send('sessionPreparedReply', reply),
 
+  sendEmbeddingStatusReply : (reply) => ipcRenderer.send('embeddingStatusReply', reply),
+
   kernelReadyPromise : () => ipcRenderer.invoke('kernelReadyPromise')
 })
 //expose apis to the renderer process 
