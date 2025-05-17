@@ -93,6 +93,10 @@ window.electronAPI.onKernelData((data) => {
   }
 })
 
+const openSettingsWindow = async () => {
+  await window.electronAPI.createNewWindow('settings')
+}
+
 const kernelReadyPromise = window.electronAPI.kernelReadyPromise()
 switch(windowType){
   case 'main':
@@ -164,9 +168,10 @@ switch(windowType){
     // setTimeout(() => {
     //   openRepoListWindow()
     // }, 5000)
-    // setTimeout(() => {
-    //   search('三体')
-    // }, 10000);
+    setTimeout(async () => {
+      let a = await search('三体')
+      console.log(a)
+    }, 10000);
     break
   
 
@@ -212,11 +217,13 @@ switch(windowType){
       window.electronAPI.createRepo(callbackId)
     }
     setTimeout(async () => {console.log(await getRepos())}, 5000)
-    // createRepo()
-    // setTimeout(async () => {console.log(await getRepos())}, 15000)
-    // setTimeout(() => {openRepo('123')}, 25000)
+    createRepo()
+    setTimeout(async () => {console.log(await getRepos())}, 15000)
+    setTimeout(() => {openRepo('123')}, 25000)
 
     break
 
 
+  case 'settings':
+    
 }

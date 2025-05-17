@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog} = require('electron/main')
+const { app, BrowserWindow, ipcMain, dialog, screen} = require('electron/main')
 const path = require('node:path')
 const {spawn} = require('node:child_process')
 const EventEmitter = require('events')
@@ -285,19 +285,19 @@ function embeddingStatusReply(event, reply){
 
 
 function createWindow (event, windowType = 'repoList') {
+  const {width: srceenWidth, height: screenHeight} = screen.getPrimaryDisplay().workAreaSize
   const windowId = Date.now()// use timestamp as windowId
   let window
   switch(windowType){
     case 'main':
       window = new BrowserWindow({
-        width: 1000,
-        height: 800,
+        width: Math.floor(srceenWidth * 0.8),
+        height: Math.floor(screenHeight * 0.9),
         autoHideMenuBar: true,
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
         }
       })
-      windows.set(windowId, window)
       window.on('closed', () => {
         const callbackId = callbackRegister(() => {})
         const closeRepo = {
@@ -320,8 +320,8 @@ function createWindow (event, windowType = 'repoList') {
     
     case 'repoList':
       window = new BrowserWindow({
-        width: 600,
-        height: 700,
+        width: Math.floor(srceenWidth * 0.5),
+        height: Math.floor(srceenWidth * 0.5),
         autoHideMenuBar: true,
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
@@ -331,6 +331,23 @@ function createWindow (event, windowType = 'repoList') {
         windows.delete(windowId)
       })
       break
+
+    case 'settings':
+      window = new BrowserWindow({
+        width: Math.floor(srceenWidth * 0.6),
+        height: Math.floor(srceenWidth * 0.6),
+        autoHideMenuBar: true,
+        parent : BrowserWindow.fromWebContents(event.sender),
+        modal: true,
+        webPreferences: {
+          preload: path.join(__dirname, 'preload.js')
+        }
+      })
+      window.on('closed', () => {
+        windows.delete(windowId)
+      })
+      break 
+
   }
 
   const startUrl = isDev
