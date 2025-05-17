@@ -163,6 +163,26 @@ return:
 }
 ```
 
+### sessionCrushed
+session -> window
+Session崩溃，发送该消息给对应的窗口。  
+
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "sessionCrushed",
+        "error" : "error message"
+    }
+}
+```
+可以不回复，此时session会自动销毁，所以回复消息也不会被接收。
+
 ## 仓库管理相关
 ### getRepos
 main.js -> kernel server

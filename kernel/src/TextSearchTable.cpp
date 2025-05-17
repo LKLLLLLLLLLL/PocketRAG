@@ -67,7 +67,7 @@ namespace jiebaTokenizer
             auto statement = sqlite3_prepare_v2(db, "SELECT fts5(?)", -1, &stmt, nullptr);
             if (statement != SQLITE_OK)
             {
-                throw SqliteConnection::Exception{SqliteConnection::Exception::Type::unknownError, "Failed to prepare statement"};
+                throw Error{"Failed to prepare statement, sql error" + std::string(sqlite3_errmsg(db)), Error::Type::Database};
             }
             sqlite3_bind_pointer(stmt, 1, (void *)&fts5api, "fts5_api_ptr", nullptr); // bind the fts5_api pointer to the statement
             sqlite3_step(stmt);                                                       // execute the statement
@@ -77,12 +77,12 @@ namespace jiebaTokenizer
             auto rc = fts5api->xCreateTokenizer(fts5api, "jieba", (void *)jieba, &tokenizer, nullptr);
             if (rc != SQLITE_OK)
             {
-                throw SqliteConnection::Exception{SqliteConnection::Exception::Type::unknownError, "Failed to register jieba tokenizer"};
+                throw Error{"Failed to register jieba tokenizer, sql error" + std::string(sqlite3_errmsg(db)), Error::Type::Database};
             }
         }
-        catch (const SqliteConnection::Exception &e)
+        catch (const Error &e)
         {
-            throw SqliteConnection::Exception{SqliteConnection::Exception::Type::unknownError, "Failed to register jieba tokenizer: " + std::string(e.what())};
+            throw Error{"Failed to register jieba tokenizer: ", Error::Type::Database} + e;
         }
     }
 
@@ -179,7 +179,7 @@ void TextSearchTable::deleteChunk(int64_t chunkId)
     
     if(deleteStmt.changes() == 0)
     {
-        throw Exception{Exception::Type::notFound, "No chunk found with chunkId: " + std::to_string(chunkId)};
+        throw Error{"No chunk found with chunkId: " + std::to_string(chunkId), Error::Type::Internal};
     }
 }
 
@@ -257,7 +257,7 @@ std::pair<std::string, std::string> TextSearchTable::getContent(int64_t chunkId)
 
     if(!queryStmt.step())
     {
-        throw Exception{Exception::Type::notFound, "No chunk found with chunkId: " + std::to_string(chunkId)};
+        throw Error{"No chunk found with chunkId: " + std::to_string(chunkId), Error::Type::Internal};
     }
 
     return {queryStmt.get<std::string>(0), queryStmt.get<std::string>(1)};

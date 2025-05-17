@@ -12,7 +12,7 @@ void Session::docStateReporter(std::vector<std::string> docs)
     for (const auto &doc : docs)
     {
         nlohmann::json json;
-        json["message"]["type"] = "embeddingState";
+        json["message"]["type"] = "embeddingStatus";
         json["message"]["filePath"] = doc;
         json["message"]["status"] = "embedding";
         json["message"]["progress"] = 0.0;
@@ -34,7 +34,7 @@ void Session::progressReporter(std::string path, double progress)
     lastProgress.store(progress);
     // send message
     nlohmann::json json;
-    json["message"]["type"] = "embeddingState";
+    json["message"]["type"] = "embeddingStatus";
     json["message"]["filePath"] = path;
     json["message"]["status"] = "embedding";
     json["message"]["progress"] = progress;
@@ -46,7 +46,7 @@ void Session::progressReporter(std::string path, double progress)
 void Session::doneReporter(std::string path)
 {
     nlohmann::json json;
-    json["message"]["type"] = "embeddingState";
+    json["message"]["type"] = "embeddingStatus";
     json["message"]["filePath"] = path;
     json["message"]["status"] = "done";
     json["message"]["progress"] = 1.0;
@@ -105,12 +105,14 @@ void Session::run()
     json["message"]["path"] = repoPath;
     send(json, nullptr);
     // handle messages
+    logger.info("Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") started.");
     auto message = sessionMessageQueue->pop();
     while (message != nullptr)
     {
         handleMessage(*message);
         message = sessionMessageQueue->pop();
     }
+    logger.info("Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") quitted.");
 }
 
 void Session::handleMessage(Utils::MessageQueue::Message& message)
@@ -182,7 +184,7 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
                     typeStr = "done";
                     break;
                 default:
-                    throw std::runtime_error("Unknown type");
+                    throw Error{"Wrong type of history", Error::Type::Internal};
                 }
                 nlohmann::json json = *jsonPtr;
                 json["data"] = nlohmann::json::object();
@@ -279,7 +281,6 @@ Session::AugmentedConversation::~AugmentedConversation()
     if(conversation)
     {
         shutdownFlag = true;
-        cv.notify_all();
     }
     if(conversationThread.joinable())
     {
@@ -289,10 +290,7 @@ Session::AugmentedConversation::~AugmentedConversation()
 
 void Session::AugmentedConversation::conversationProcess()
 {
-    std::unique_lock<std::mutex> lock(mtx);
-    cv.wait(lock, [this](){ 
-        return shutdownFlag.load() || conversation; 
-    });
+    logger.info("Conversation id" + std::to_string(conversationId) + " thread started.");
     if(shutdownFlag.load())
         return;
 
@@ -368,6 +366,7 @@ DO NOT give more search words, Answer the question based on the provided informa
         this->sendBack(response, Type::answer);
     });
     historyManager.push(Type::answer, answer);
+    logger.info("Conversation id" + std::to_string(conversationId) + " thread finished.");
 }
 
 std::string Session::AugmentedConversation::extractSearchword(const std::string &answer)
@@ -408,6 +407,7 @@ void Session::AugmentedConversation::stopConversation()
 Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversation &parent)
     : parent(parent), tempJson(nlohmann::json::object())
 {
+    // load history file
     historyFilePath = parent.historyDirPath / ("conversation-" + std::to_string(parent.conversationId) + ".json");
     if (std::filesystem::exists(historyFilePath))
     {
@@ -421,12 +421,13 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
         std::ofstream file(historyFilePath);
         if (!file.is_open())
         {
-            std::cerr << "Error opening history file: " << historyFilePath << std::endl;
-            std::cerr << "History will not be load." << std::endl;
+            logger.warning("Error opening history file at " + historyFilePath.string()
+                           + ". Using empty history, and will write above history file.");
             return;
         }
         file << historyJson.dump(4);
     }
+    // load full history file
     fullHistoryFilePath =
         parent.historyDirPath / ("conversation-" + std::to_string(parent.conversationId) + "_full.json");
     if (std::filesystem::exists(fullHistoryFilePath))
@@ -448,8 +449,8 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
     }
     catch (nlohmann::json::exception &e)
     {
-        std::cerr << "Error parsing full history file: " << e.what() << std::endl;
-        std::cerr << "Using empty history for conversation and will Write above history file." << std::endl;
+        logger.warning("Error parsing full history file at " + fullHistoryFilePath.string()
+                           + ". Using empty history for conversation and will write above  full history file.");
     }
     conversationJson = nlohmann::json::object();
     conversationJson["query"] = parent.query;
@@ -463,8 +464,8 @@ Session::AugmentedConversation::HistoryManager::~HistoryManager()
     std::ofstream file(historyFilePath);
     if (!file.is_open())
     {
-        std::cerr << "Error opening history file for writing: " << historyFilePath << std::endl;
-        std::cerr << "History will not be saved." << std::endl;
+        logger.warning("Error opening history file for writing at " + historyFilePath.string()
+                           + ". History will not be saved.");
         return;
     }
     historyJson["history"].push_back(conversationJson);
@@ -482,8 +483,8 @@ Session::AugmentedConversation::HistoryManager::~HistoryManager()
     std::ofstream fullFile(fullHistoryFilePath);
     if (!fullFile.is_open())
     {
-        std::cerr << "Error opening full history file for writing: " << fullHistoryFilePath << std::endl;
-        std::cerr << "Full history will not be saved." << std::endl;
+        logger.warning("Error opening full history file for writing at " + fullHistoryFilePath.string()
+                           + ". Full history will not be saved.");
         return;
     }
     fullFile << historyMessagesJson.dump(4);
@@ -514,14 +515,14 @@ void Session::AugmentedConversation::HistoryManager::push(Type type, const std::
         parent.sendBack("", Type::done);
         break;
     default:
-        throw std::runtime_error("Wrong type of history");
+        throw Error{"Wrong type of history", Error::Type::Internal};
     }
 }
 
 void Session::AugmentedConversation::HistoryManager::push(Type type, const Repository::SearchResult &result)
 {
     if (type != Type::result)
-        throw std::runtime_error("Wrong type of history");
+        throw Error{"Wrong type of history", Error::Type::Internal};
     if (!tempJson.contains("result"))
     {
         tempJson["result"] = nlohmann::json::array();

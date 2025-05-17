@@ -26,8 +26,9 @@ public:
     using Json = nlohmann::json;
 
 private:
-    const std::filesystem::path userDataPath = "./userData";
+    const std::filesystem::path userDataPath;
     const std::filesystem::path userDataDBPath = userDataPath / "db";
+    const std::filesystem::path logPath = userDataPath / "log";
 
     // messagequeue for frontend and backend communication
     std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server 
@@ -38,7 +39,7 @@ private:
     std::unordered_map<int, std::thread> sessionThreads = {}; // session id -> thread
 
     // prevent multiple instances of KernelServer
-    KernelServer();
+    KernelServer(const std::filesystem::path &userDataPath);
 
     std::shared_ptr<SqliteConnection> sqliteConnection = nullptr; // sqlite connection
     void initializeSqlite();
@@ -73,9 +74,9 @@ private:
     std::string getApiKey(const std::string &modelName) const;
 public:
     // initialize a server and return a instance.
-    static KernelServer& openServer()
+    static KernelServer& openServer(const std::filesystem::path& userDataPath)
     {
-        static KernelServer instance; 
+        static KernelServer instance(userDataPath); 
         return instance; 
     }
     ~KernelServer();
@@ -175,15 +176,5 @@ public:
     std::vector<SettingsCache::LocalModelManagement::Model> getLocalModels() const;
     std::vector<SettingsCache::SearchSettings::EmbeddingConfig::Config> getEmbeddingConfigs() const;
     std::vector<SettingsCache::SearchSettings::RrankConfig::Config> getRerankConfigs() const;
-    std::string getModelPath(const std::string &modelName) const
-    {
-        for (const auto &model : settingsCache.localModelManagement.models)
-        {
-            if (model.name == modelName)
-            {
-                return model.path;
-            }
-        }
-        return "";
-    }
+    std::string getModelPath(const std::string &modelName) const;
 };

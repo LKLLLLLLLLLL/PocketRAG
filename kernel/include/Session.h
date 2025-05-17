@@ -1,5 +1,4 @@
 #pragma once
-#include <condition_variable>
 #include <memory>
 #include <string>
 #include <thread>
@@ -76,8 +75,6 @@ private:
     Session& session;
     std::function<void(std::string, Type)> sendBack = nullptr;
 
-    std::condition_variable cv;
-    std::mutex mtx;
     std::atomic<bool> shutdownFlag = false;
     std::thread conversationThread;
 

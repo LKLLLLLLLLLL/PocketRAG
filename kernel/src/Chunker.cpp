@@ -59,7 +59,7 @@ auto Chunker::operator()(const std::string &in_text, std::unordered_map<std::str
         ast = cmark::cmark_parse_document(text.c_str(), text.length(), CMARK_OPT_DEFAULT | CMARK_OPT_HARDBREAKS);
         if (ast == nullptr)
         {
-            throw Exception(Exception::Type::parserError, "failed to parse markdown document");
+            throw Error{"Failed to parse markdown document", Error::Type::Input};
         }
     }
 

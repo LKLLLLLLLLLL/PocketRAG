@@ -8,6 +8,8 @@
 
 #include <sqlite3.h>
 
+#include "Utils.h"
+
 namespace 
 {
     struct SqliteInitializer
@@ -28,16 +30,6 @@ It will automatically create new sqlite connection for each thread, guarantee th
 class SqliteConnection
 {
 public:
-    struct Exception: std::exception
-    {
-        enum class Type{openError, executeError, transactionError, fatalError, unknownError, threadError};
-        Type type;
-        std::string message; 
-
-        Exception(Type type, const std::string &message): type(type), message(message) {}
-        const char* what() const noexcept override { return message.c_str(); } // override what() method
-    };
-
     class Statement;
 
     class Transaction;
@@ -157,11 +149,7 @@ private:
 
     std::thread::id threadId; // thread id of the connection
 
-    void checkThread() const // check if the statement is used in the same thread
-    {
-        if (threadId != std::this_thread::get_id())
-            throw Exception{Exception::Type::threadError, "SQLite statement is not used in the same thread."};
-    }
+    void checkThread() const; // check if the statement is used in the same thread
 
 public:
     ~Statement();
@@ -212,7 +200,7 @@ public:
     {
         checkThread();
         if(!has_result)
-            throw Exception{Exception::Type::executeError, "No result available."};
+            throw Error{"No result available.", Error::Type::Internal};
         if constexpr (std::is_same_v<T, int>)
             return sqlite3_column_int(stmt, index);
         else if constexpr (std::is_same_v<T, int64_t>)

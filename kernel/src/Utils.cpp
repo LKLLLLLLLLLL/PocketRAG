@@ -147,6 +147,18 @@ nlohmann::json Utils::readJsonFile(const std::filesystem::path &path)
     return json;
 }
 
+std::string Utils::getTimeStr()
+{
+    auto now = std::chrono::system_clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+    auto time = std::chrono::system_clock::to_time_t(now);
+    std::tm tm = *std::localtime(&time);
+    char buffer[100];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &tm);
+    std::sprintf(buffer + strlen(buffer), ".%03lld", static_cast<long long>(ms.count()));
+    return std::string(buffer);
+}
+
 //--------------------------CallbackManager--------------------------//
 int Utils::CallbackManager::registerCallback(const Callback &callback)
 {

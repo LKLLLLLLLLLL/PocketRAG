@@ -87,11 +87,13 @@
 #include "Utils.h"
 #include "KernelServer.h"
 
+Logger logger("./userData/logs", false, Logger::Level::INFO);
+
 int main()
 {
     Utils::setup_utf8_console();
 
-    KernelServer::openServer().run();
+    KernelServer::openServer("./userData").run();
 
     return 0;
 }

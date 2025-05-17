@@ -3,15 +3,14 @@
 #include <string>
 #include <vector>
 #include <filesystem>
-#include <iostream>
-#include <stdexcept>
-#include <memory>
 #include <unordered_map>
 
 #include <sqlite3.h>
 #include <faiss/Index.h>
 #include <faiss/index_io.h>
 #include <faiss/index_factory.h>
+
+#include <Utils.h>
 
 VectorTable::VectorTable(std::filesystem::path dbDirPath, const std::string &tableName, SqliteConnection &sqliteConnection, int dim) : tableName(tableName), sqlite(sqliteConnection), dbDirPath(dbDirPath)
 {
@@ -29,7 +28,7 @@ VectorTable::VectorTable(std::filesystem::path dbDirPath, const std::string &tab
     {
         faissIndex = faiss::read_index(dbFullPath.string().c_str());
         if (faissIndex == nullptr)
-            throw Exception{Exception::Type::openError, "Failed to open Faiss index: " + dbFullPath.string()};
+            throw Error{"Failed to open Faiss index: " + dbFullPath.string(), Error::Type::FileAccess};
         dimension = faissIndex->d;
     }
     else if(dim > 0)
@@ -37,14 +36,14 @@ VectorTable::VectorTable(std::filesystem::path dbDirPath, const std::string &tab
         // create Faiss index in memory
         faissIndex = faiss::index_factory(dim, faissIndexType.c_str(), metricType);
         if (faissIndex == nullptr)
-            throw Exception{Exception::Type::openError, "Failed to create Faiss index in memory."};
+            throw Error{"Failed to create Faiss index in memory.", Error::Type::Unknown};
         dimension = dim;
         // write Faiss index to disk
         faiss::write_index(faissIndex, dbFullPath.string().c_str());
     }
     else
     {
-        throw Exception{Exception::Type::openError, "Faiss index not found and dimension is not set."};
+        throw Error{"Faiss index not found and dimension is not set.", Error::Type::Internal};
     } 
 
     // change non writeback vector to invalid vector in SQLite table
@@ -57,7 +56,11 @@ VectorTable::VectorTable(std::filesystem::path dbDirPath, const std::string &tab
     }
     catch (const std::exception &e)
     {
-        throw Exception{Exception::Type::fatalError, "[FATAL]Failed to update non-writen vector to SQLite table, may cause conflict: " + std::string(e.what())};
+        logger.warning("Failed to update non-writen vector to SQLite table, may cause data conflict! ");
+        throw Error{
+            "Failed to update non-writen vector to SQLite table, may cause conflict: " + std::string(e.what()),
+            Error::Type::Database,
+        };
     }
 }
 
@@ -87,11 +90,11 @@ VectorTable::~VectorTable()
 std::pair<std::vector<faiss::idx_t>, std::vector<float>> VectorTable::search(const std::vector<float> &queryVector, int maxResultCount) const
 {
     if(queryVector.size() != dimension)
-        throw Exception{Exception::Type::wrongArg, "Query vector dimension does not match the VectorTable dimension."};
+        throw Error{"Query vector dimension does not match the VectorTable dimension.", Error::Type::Internal};
     if(!faissIndex->is_trained)
-        throw Exception{Exception::Type::unknownError, "Faiss index is not trained."};
+        throw Error{"Faiss index is not trained.", Error::Type::Unknown};
     if(maxResultCount <= 0)
-        throw Exception{Exception::Type::wrongArg, "Result count must be greater than 0."};
+        throw Error{"Result count must be greater than 0.", Error::Type::Internal};
     
     //search from index
     auto resultIndex = std::vector<faiss::idx_t>(maxResultCount);
@@ -144,7 +147,7 @@ std::pair<std::vector<faiss::idx_t>, std::vector<float>> VectorTable::search(con
 std::vector<float> VectorTable::getVectorFromId(faiss::idx_t id) const
 {
     if(id < 0)
-        throw Exception{Exception::Type::wrongArg, "Id is out of range."};
+        throw Error{"Id is out of range.", Error::Type::Internal};
 
     std::shared_lock<std::shared_mutex> readlock(mutex); // lock the mutex for reading
     // check if the vector's valid flag and deleted flag in SQLite table
@@ -193,7 +196,7 @@ int VectorTable::writeToDisk(bool alreadyLocked)
 void VectorTable::addVector(idx_t id, const std::vector<float> &vector)
 {
     if(vector.size() != dimension)
-        throw Exception{Exception::Type::wrongArg, "Vector dimension does not match the VectorTable dimension."};
+        throw Error{"Vector dimension does not match the VectorTable dimension.", Error::Type::Internal};
 
     std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing 
     // check if the id exists in SQLite table, if exists, only update faiss index
@@ -224,7 +227,7 @@ void VectorTable::addVector(idx_t id, const std::vector<float> &vector)
         insertStmt.bind(1, id); // bind the id
         insertStmt.step(); // execute the statement
         if (insertStmt.changes() == 0) // check if the vector is added
-            throw Exception{Exception::Type::unknownError, "Failed to add vector to SQLite table: " + std::to_string(id)};
+            throw Error{"Failed to add vector to SQLite table: " + std::to_string(id), Error::Type::Database};
 
         // add vector to Faiss index
         faissIndex->add_with_ids(1, vector.data(), &id);
@@ -246,11 +249,11 @@ void VectorTable::addVector(idx_t id, const std::vector<float> &vector)
 void VectorTable::addVector(const std::vector<idx_t> &ids, const std::vector<std::vector<float>> &vectors)
 {
     if(vectors.empty())
-        throw Exception{Exception::Type::wrongArg, "Vectors are empty."};
+        throw Error{"Vectors are empty.", Error::Type::Internal};
     if (vectors[0].size() != dimension)
-        throw Exception{Exception::Type::wrongArg, "Vector dimension does not match the VectorTable dimension."};
+        throw Error{"Vector dimension does not match the VectorTable dimension.", Error::Type::Internal};
     if (ids.size() != vectors.size())
-        throw Exception{Exception::Type::wrongArg, "Number of IDs does not match number of vectors."};
+        throw Error{"Number of IDs does not match number of vectors.", Error::Type::Internal};
 
     std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
     // 1. check each id, distinguish update and add
@@ -295,7 +298,7 @@ void VectorTable::addVector(const std::vector<idx_t> &ids, const std::vector<std
         // std::copy(vectors[i].begin(), vectors[i].end(), flatVectors.begin() + i * dimension);
         if (vectors[i].size() != dimension)
         {
-            throw Exception{Exception::Type::wrongArg, "Vector at index " + std::to_string(i) + " has incorrect dimension " + std::to_string(vectors[i].size()) + " (expected " + std::to_string(dimension) + ")"};
+            throw Error{"Vector at index " + std::to_string(i) + " has incorrect dimension " + std::to_string(vectors[i].size()) + " (expected " + std::to_string(dimension) + ")", Error::Type::Internal};
         }
         std::memcpy(flatVectors.data() + i * dimension, vectors[i].data(), dimension * sizeof(float)); // faster than std::copy
     }
@@ -327,7 +330,7 @@ void VectorTable::addVector(const std::vector<idx_t> &ids, const std::vector<std
 VectorTable::idx_t VectorTable::removeVector(idx_t id)
 {
     if (id < 0)
-        throw Exception{Exception::Type::wrongArg, "Id is out of range."};
+        throw Error{"Id is out of range.", Error::Type::Internal};
     
     std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
     // sign the vector by valid = false in SQLite table
@@ -339,7 +342,7 @@ VectorTable::idx_t VectorTable::removeVector(idx_t id)
 
     // check if the vector exists in SQLite table
     if (changes == 0)
-        throw Exception{Exception::Type::wrongArg, "Vector with ID " + std::to_string(id) + " does not exist."};
+        throw Error{"Vector with ID " + std::to_string(id) + " does not exist.", Error::Type::Internal};
 
     // check if need to reconstruct Faiss index
     deleteCount++;
@@ -369,7 +372,7 @@ std::vector<VectorTable::idx_t> VectorTable::removeVector(const std::vector<Vect
             updateStmt.step();
             int changes = updateStmt.changes();
             if (changes == 0)
-                throw Exception{Exception::Type::wrongArg, "Vector with ID " + std::to_string(id) + " does not exist."};
+                throw Error{"Vector with ID " + std::to_string(id) + " does not exist.", Error::Type::Internal};
             updateStmt.reset(); // reset the statement for the next bind
         }
     }
@@ -411,7 +414,7 @@ int VectorTable::reconstructFaissIndex(bool alreadyLocked)
     // create new Faiss index in memory
     faiss::Index *newFaissIndex = faiss::index_factory(dimension, faissIndexType.c_str(), metricType);
     if (newFaissIndex == nullptr)
-        throw Exception{Exception::Type::unknownError, "Failed to create new Faiss index in memory."};
+        throw Error{"Failed to create new Faiss index in memory.", Error::Type::Unknown};
     if(!validIdList.empty())
     {
         // get valid vectors by valid ids from faiss index

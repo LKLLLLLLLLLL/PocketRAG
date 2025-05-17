@@ -5,6 +5,9 @@
 #include <mutex>
 #include <queue>
 #include <random>
+#include <iostream>
+#include <fstream>
+#include <source_location>
 namespace xxhash
 {
     #include <xxhash.h>
@@ -66,6 +69,8 @@ namespace Utils
 
     nlohmann::json readJsonFile(const std::filesystem::path &path);
 
+    std::string getTimeStr();
+
     // a thread-safe callback manager
     class CallbackManager
     {
@@ -112,3 +117,158 @@ namespace Utils
         void shutdown();
     };
 }
+
+class Logger
+{
+public:
+    enum class Level
+    {
+        INFO,      // Normal operational information
+        WARNING,   // Warning situations that don't affect normal operation
+        EXCEPTION, // Error conditions that allow recovery
+        FATAL      // Critical errors that prevent normal operation
+    };
+    static const std::string levelToString(Level level)
+    {
+        switch (level)
+        {
+        case Level::INFO:
+            return "INFO";
+        case Level::WARNING:
+            return "WARNING";
+        case Level::EXCEPTION:
+            return "EXCEPTION";
+        case Level::FATAL:
+            return "FATAL";
+        default:
+            return "UNKNOWN";
+        }
+    }
+
+private:
+    Level logLevel = Level::INFO;
+    std::mutex mutex;
+    std::string logFilePath;
+    std::ofstream logFile;
+    bool toConsole = true;
+
+public:
+    Logger(const std::string &logFileDir, bool toConsole,  Level logLevel = Level::INFO) : logLevel(logLevel), toConsole(toConsole)
+    {
+        std::string timestamp = std::format("{:%Y%m%d-%H%M%S}", std::chrono::system_clock::now());
+        std::string filename = timestamp + ".log";
+        logFilePath = logFileDir + "/" + filename;
+        if(!std::filesystem::exists(logFileDir))
+        {
+            std::filesystem::create_directories(logFileDir);
+        }
+        logFile.open(logFilePath, std::ios::app);
+        if (!logFile.is_open())
+        {
+            std::cerr << "Failed to open log file: " << logFilePath << ", may not record logs." << std::endl;
+        }
+        log("Logger initialized with log level: " + levelToString(logLevel), Level::INFO);
+    }
+
+    ~Logger() = default;
+
+    void log(const std::string &message, Level level = Level::INFO)
+    {
+        if (level < logLevel)
+            return;
+        std::lock_guard<std::mutex> lock(mutex);
+        auto timeStr = Utils::getTimeStr();
+        std::string logMessage = timeStr + " [" + levelToString(level) + "] " + message + "\n";
+        if(toConsole)
+            std::cerr << logMessage << std::flush;
+        if (!logFile.is_open())
+            return;
+        logFile << logMessage << std::flush;
+    }
+
+    void info(const std::string &message)
+    {
+        log(message, Level::INFO);
+    }
+
+    void warning(const std::string &message)
+    {
+        log(message, Level::WARNING);
+    }
+
+    void exception(const std::string &message)
+    {
+        log(message, Level::EXCEPTION);
+    }
+
+    void fatal(const std::string &message)
+    {
+        log(message, Level::FATAL);
+    }
+};
+extern Logger logger;
+
+
+/*
+A universal error class for the project.
+*/
+class Error : public std::exception
+{
+public:
+    enum class Type
+    {
+        Network,
+        FileAccess,
+        Database,
+        Input, // Input error, such as invalid json format
+        Internal, // Internal error, may be caused by wrong code in project itself
+        Unknown
+    };
+    static std::string typeToString(Type type)
+    {
+        switch (type)
+        {
+        case Type::Network:
+            return "Network";
+        case Type::FileAccess:
+            return "FileAccess";
+        case Type::Database:
+            return "Database";
+        case Type::Internal:
+            return "Internal";
+        case Type::Input:
+            return "Input";
+        case Type::Unknown:
+            return "Unknown";
+        default:
+            return "Unknown";
+        }
+    }
+private:
+    std::string message;
+    Type type;
+public:
+    Error(const std::string &message, Type type = Type::Unknown, const std::source_location location = std::source_location::current()) : message(message), type(type) 
+    {
+        auto typeStr = typeToString(type);
+        logger.exception(typeStr + " Error: " + message + "\nat line: " + std::to_string(location.line()) +
+                         ", file: " + std::string(location.file_name()) +
+                         ", function: " + std::string(location.function_name()) + "\n");
+    }
+
+    Error operator+(const Error &other) const
+    {
+        return Error(message + "\n    Nested error: " + other.message, 
+                (type != Type::Unknown) ? type : other.type);
+    }
+
+    const char* what() const noexcept override
+    {
+        return message.c_str();
+    }
+
+    Type getType() const
+    {
+        return type;
+    }
+};

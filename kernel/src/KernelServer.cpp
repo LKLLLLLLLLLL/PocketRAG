@@ -7,7 +7,7 @@
 #include <mutex>
 
 //--------------------------KernelServer--------------------------//
-KernelServer::KernelServer()
+KernelServer::KernelServer(const std::filesystem::path &userDataPath) : userDataPath(userDataPath)
 {
     kernelMessageQueue = std::make_shared<Utils::MessageQueue>();
 
@@ -32,7 +32,8 @@ void KernelServer::initializeSqlite()
     }
     catch(...)
     {
-        std::cerr << (userDataDBPath / "kernel.db").string() << " file broken, try to create new database" << std::endl;
+        logger.warning("Failed to open sqlite database at " + (userDataDBPath / "kernel.db").string() +
+                       ", try to create new database.");
     }
 
     sqliteConnection->execute(
@@ -92,9 +93,11 @@ void KernelServer::run()
     initMessage["message"]["type"] = "ready";
     send(initMessage, nullptr);
     // receive message
+    logger.info("KernelServer ready, begin main loop.");
     std::string input(2048, '\0'); // max input size: 2048Byte
     while(std::cin.getline(input.data(), input.size()))
     {
+        logger.info("Received message: " + input.substr(0, input.find('\0')));
         if(input == "")
         {
             continue;
@@ -216,16 +219,22 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Invalid path: " + repoPath + ", parser error: " + std::string(e.what());
+                sendBack(json);
+                return;
             }
             if(!repoPathobj.is_absolute())
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Path is not absolute: " + repoPath;
+                sendBack(json);
+                return;
             }
             if(!std::filesystem::exists(repoPathobj))
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Path does not exist: " + repoPath;
+                sendBack(json);
+                return;
             }
             // check if repo name equals to repo name in path
             std::string repoNameInPath = repoPathobj.filename().string();
@@ -233,6 +242,8 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "REPO_NAME_NOT_MATCH";
                 json["status"]["message"] = "Repo name in path: " + repoNameInPath + " not match with repo name: " + repoName;
+                sendBack(json); 
+                return;
             }
             // find if repo name exists
             auto stmt = sqliteConnection->getStatement("SELECT * FROM repository WHERE repo_name = ?");
@@ -410,6 +421,7 @@ void KernelServer::openSession(int windowId, const std::string& repoName, const 
     sessionThreads[sessionId] = std::thread(&Session::run, session);
     windowIdToSessionId[windowId] = sessionId;
     sessionIdToWindowId[sessionId] = windowId;
+    logger.info("Open session, sessionId " + std::to_string(sessionId) + ", windowId: " + std::to_string(windowId));
 }
 
 void KernelServer::startMessageSender()
@@ -428,6 +440,7 @@ void KernelServer::stopMessageSender()
 
 void KernelServer::messageSender()
 {
+    logger.info("KernelServer.messageSender thread started.");
     auto message = kernelMessageQueue->pop();
     while(message != nullptr)
     {
@@ -436,7 +449,7 @@ void KernelServer::messageSender()
             continue;
         }
         auto it = sessionIdToWindowId.find(message->sessionId);
-        if(message->sessionId != -1 && it != sessionIdToWindowId.end())
+        if(it != sessionIdToWindowId.end())
         {
             message->data["sessionId"] = it->second;
         }
@@ -445,8 +458,10 @@ void KernelServer::messageSender()
             message->data["sessionId"] = -1; // message from kernel server
         }
         std::cout << message->data.dump() << std::endl << std::flush;
+        logger.info("Send message: " + message->data.dump());
         message = kernelMessageQueue->pop();
     }
+    logger.info("KernelServer.messageSender thread stopped.");
 }
 
 void KernelServer::updateSettings()
@@ -507,7 +522,7 @@ std::shared_ptr<LLMConv> KernelServer::getLLMConv(const std::string& modelName) 
     }
     else
     {
-        throw std::runtime_error("Model not found: " + modelName);
+        throw Error{"Model not found: " + modelName, Error::Type::Internal};
     }
     // get url from settings
     std::string url = "";
@@ -524,7 +539,7 @@ std::shared_ptr<LLMConv> KernelServer::getLLMConv(const std::string& modelName) 
     }
     if(url.empty())
     {
-        throw std::runtime_error("Model url not found: " + modelName);
+        throw Error{"Model url not found: " + modelName, Error::Type::Internal};
     }
     LLMConv::Config config;
     config["api_key"] = apiKey;
@@ -576,7 +591,7 @@ Repository::EmbeddingConfigList KernelServer::getEmbeddingConfigs() const
         embeddingConfig.modelPath = settings->getModelPath(config.modelName);
         if(embeddingConfig.modelPath.empty())
         {
-            throw std::runtime_error("Model path not found for model: " + config.modelName);
+            throw Error{"Model path not found for model: " + config.modelName, Error::Type::Internal};
         }
         configs.push_back(embeddingConfig);
     }
@@ -600,7 +615,7 @@ std::filesystem::path KernelServer::getRerankerConfigs() const
         selectedPath = settings->getModelPath(config.modelName);
         if (selectedPath.empty())
         {
-            throw std::runtime_error("Model path not found for model: " + config.modelName);
+            throw Error{"Model path not found for model: " + config.modelName, Error::Type::Internal};
         }
     }
     if(selectedCount == 1)
@@ -609,11 +624,11 @@ std::filesystem::path KernelServer::getRerankerConfigs() const
     }
     else if(selectedCount > 1)
     {
-        throw std::runtime_error("More than one rerank config selected");
+        throw Error{"More than one rerank config selected", Error::Type::Internal};
     }
     else
     {
-        throw std::runtime_error("No rerank config selected");
+        throw Error{"No rerank config selected", Error::Type::Internal};
     }
 }
 
@@ -680,7 +695,7 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
     }
     catch(std::exception& e)
     {
-        throw std::runtime_error("Failed to parse settings file: " + path.string() + ", parser error: " + std::string(e.what()));
+        throw Error{"Failed to parse settings file: " + path.string() + ", parser error: " + std::string(e.what()), Error::Type::Input};
     }
 
     // 3. check constraints
@@ -690,11 +705,11 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
     {
         if(modelNames.find(model.name) != modelNames.end())
         {
-            throw std::runtime_error("Duplicate model name: " + model.name);
+            throw Error{"Duplicate model name: " + model.name, Error::Type::Input};
         }
         if(!std::filesystem::exists(model.path))
         {
-            throw std::runtime_error("Model path does not exist: " + model.path);
+            throw Error{"Model path does not exist: " + model.path, Error::Type::Input};
         }
         modelNames.insert(model.name);
     }
@@ -702,18 +717,18 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
     // check searchSettings
     if(tempCache.searchSettings.searchLimit <= 0)
     {
-        throw std::runtime_error("Invalid search limit: " + std::to_string(tempCache.searchSettings.searchLimit));
+        throw Error{"Invalid search limit: " + std::to_string(tempCache.searchSettings.searchLimit), Error::Type::Input};
     }
     // if model name is unique and reference to localModelManagement
     for(auto& embeddingConfig : tempCache.searchSettings.embeddingConfig.configs)
     {
         if(modelNames.find(embeddingConfig.modelName) == modelNames.end())
         {
-            throw std::runtime_error("Embedding config model name not found in localModelManagement: " + embeddingConfig.modelName);
+            throw Error{"Embedding config model name not found in localModelManagement: " + embeddingConfig.modelName, Error::Type::Input};
         }
         if(modelNames.find(embeddingConfig.name) != modelNames.end())
         {
-            throw std::runtime_error("Duplicate embedding config name: " + embeddingConfig.name);
+            throw Error{"Duplicate embedding config name: " + embeddingConfig.name, Error::Type::Input};
         }
         modelNames.insert(embeddingConfig.name);
     }
@@ -723,7 +738,7 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
     {
         if(modelNames.find(rerankConfig.modelName) == modelNames.end())
         {
-            throw std::runtime_error("Rerank config model name not found in localModelManagement: " + rerankConfig.modelName);
+            throw Error{"Rerank config model name not found in localModelManagement: " + rerankConfig.modelName, Error::Type::Input};
         }
         if(rerankConfig.selected)
         {
@@ -732,7 +747,7 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
     }
     if(selectedCount != 1)
     {
-        throw std::runtime_error("Rerank config must have exactly one selected model");
+        throw Error{"Rerank config must have exactly one selected model.", Error::Type::Input};
     }
 
     // check conversationSettings
@@ -742,11 +757,11 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
     {
         if(generationModel.setApiKey && generationModel.url.empty())
         {
-            throw std::runtime_error("Generation model url is empty when setApiKey is true");
+            throw Error{"Generation model url is empty when setApiKey is true.", Error::Type::Input};
         }
         if(kernelServer.getApiKey(generationModel.name) == "")
         {
-            throw std::runtime_error("Generation model apiKey is not set.");
+            throw Error{"Generation model apiKey is not set.", Error::Type::Input};
         }
         if(generationModel.lastUsed)
         {
@@ -755,7 +770,7 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
     }
     if(lastUsedCount > 1)
     {
-        throw std::runtime_error("Generation model can only have one or zero last used model");
+        throw Error{"Generation model can only have one or zero last used model.", Error::Type::Input};
     }
 
     return tempCache;
@@ -763,9 +778,11 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
 
 void KernelServer::Settings::saveSettings()
 {
+    logger.info("Start saving settings...");
     auto cache = readSettings(settingsPath / "settings.json");
     std::lock_guard<std::mutex> lock(settingsMutex);
     settingsCache = cache;
+    logger.info("Settings saved.");
 }
 
 auto KernelServer::Settings::getGenerationModels() const
@@ -792,4 +809,16 @@ auto KernelServer::Settings::getRerankConfigs() const
 int KernelServer::Settings::getSearchLimit() const
 {
     return settingsCache.searchSettings.searchLimit;
+}
+
+std::string KernelServer::Settings::getModelPath(const std::string &modelName) const
+{
+    for (const auto &model : settingsCache.localModelManagement.models)
+    {
+        if (model.name == modelName)
+        {
+            return model.path;
+        }
+    }
+    return "";
 }
