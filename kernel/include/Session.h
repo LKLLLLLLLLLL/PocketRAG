@@ -1,6 +1,5 @@
 #pragma once
 #include <condition_variable>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -92,13 +91,16 @@ public:
     ~AugmentedConversation();
     // open a new conversation
     void openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int conversationId);
-    // stop conversation thread and clear conversation
+    // stop conversation and destroy conversation thread
     void stopConversation();
 };
 
 
 /*
 This class will save history to disk and call sendBack function to send message to frontend.
+It will manage two type of history files:
+- historyJson: save conversation history in a viewing format, to be rendered in frontend
+- historyMessagesJson: save conversation history in a raw format, including "role" and "content" fields, used directly in api.
 */
 class Session::AugmentedConversation::HistoryManager
 {
@@ -109,143 +111,21 @@ private:
     AugmentedConversation &parent;
     std::vector<LLMConv::Message> historyMessages;
 
+    std::filesystem::path historyFilePath;
+    std::filesystem::path fullHistoryFilePath; // save history messages
+    nlohmann::json historyMessagesJson;
 public:
+    HistoryManager(AugmentedConversation &parent);
+    ~HistoryManager();
 
-    HistoryManager(AugmentedConversation &parent) : parent(parent), tempJson(nlohmann::json::object())
-    {
-        std::filesystem::path historyFilePath =
-            parent.historyDirPath / (std::to_string(parent.conversationId) + ".json");
-        if (std::filesystem::exists(historyFilePath))
-        {
-            historyJson = Utils::readJsonFile(historyFilePath);
-        }
-        else
-        {
-            historyJson["history"] = nlohmann::json::array();
-            historyJson["conversationId"] = parent.conversationId;
-            historyJson["topic"] = parent.query;
-            std::ofstream file(historyFilePath);
-            file << historyJson.dump(4);
-        }
-        try
-        {
-            auto history = historyJson["history"];
-            for (auto &item : history)
-            {
-                historyMessages.push_back({"user", item["query"].get<std::string>()});
-                for(auto& retrieval : item["retrieval"])
-                {
-                    if (retrieval.contains("search"))
-                    {
-                        std::string keywords = "";
-                        for (auto &keyword : retrieval["search"])
-                        {
-                            keywords += keyword.get<std::string>() + "\n";
-                        }
-                        historyMessages.push_back({"assistant", "```search\n" + keywords + "```"});
-                    }
-                    if (retrieval.contains("result"))
-                    {
-                        std::string result = "";
-                        for (auto &r : retrieval["result"])
-                        {
-                            result += "[content]\n" + r["content"].get<std::string>() + "\n";
-                            result += "[metadata]\n" + r["metadata"].get<std::string>() + "\n";
-                        }
-                        historyMessages.push_back({"tool", "```retieved_information\n" + result + "```"});
-                    }
-                }
-                if (item.contains("answer"))
-                {
-                    historyMessages.push_back({"assistant", "```answer\n" + item["answer"].get<std::string>() + "```"});
-                }
-            }
-        }
-        catch (nlohmann::json::exception &e)
-        {
-            std::cerr << "Error parsing history file: " << e.what() << std::endl;
-            std::cerr << "Using empty history for conversation and will Write above history file." << std::endl;
-        }
-        conversationJson = nlohmann::json::object();
-        conversationJson["query"] = parent.query;
-    }
+    std::vector<LLMConv::Message> getHistoryMessages();
 
-    ~HistoryManager()
-    {
-        parent.sendBack("", Type::done);
-        conversationJson["time"] = Utils::getTimeStamp();
-        std::filesystem::path historyFilePath = parent.historyDirPath / (std::to_string(parent.conversationId) + ".json");
-        std::ofstream file(historyFilePath);
-        if(!file.is_open())
-        {
-            std::cerr << "Error opening history file for writing: " << historyFilePath << std::endl;
-            std::cerr << "History will not be saved." << std::endl;
-            return;
-        }
-        historyJson["history"].push_back(conversationJson);
-        file << historyJson.dump(4);
-    }
+    void push(Type type, const std::string &content);
 
-    std::vector<LLMConv::Message> getHistoryMessages()
-    {
-        return historyMessages;
-    }
+    void push(Type type, const Repository::SearchResult &result);
 
-    void push(Type type, const std::string &content)
-    {
-        switch(type)
-        {
-        case AugmentedConversation::Type::search:
-            if(!tempJson.contains("search"))
-            {
-                tempJson["search"] = nlohmann::json::array();
-            }
-            tempJson["search"].push_back(content);
-            parent.sendBack(content, Type::search);
-            break;
-        case AugmentedConversation::Type::answer:
-            conversationJson["answer"] = content;
-            // parent.sendBack(content, Type::answer); // send back by stream callback, no need to send back here
-            break;
-        default:
-            throw std::runtime_error("Wrong type of history");
-        }
-    }
-
-    void push(Type type, const Repository::SearchResult &result)
-    {
-        if (type != Type::result)
-            throw std::runtime_error("Wrong type of history");
-        if(!tempJson.contains("result"))
-        {
-            tempJson["result"] = nlohmann::json::array();
-        }
-        nlohmann::json resultJson = nlohmann::json::object();
-        resultJson["content"] = result.content;
-        resultJson["metadata"] = result.metadata;
-        resultJson["filePath"] = result.filePath;
-        resultJson["beginLine"] = result.beginLine;
-        resultJson["endLine"] = result.endLine;
-        resultJson["score"] = result.score;
-        parent.sendBack(resultJson.dump(), Type::result);
-        tempJson["result"].push_back(resultJson);
-    }
-
-    void beginRetrieval(const std::string &annotation)
-    {
-        tempJson["annotation"] = annotation;
-        parent.sendBack(annotation, Type::annotation);
-    }
+    void beginRetrieval(const std::string &annotation);
 
     // push search and result into one retrieval object
-    void endRetrieval()
-    {
-        if (!conversationJson.contains("retrieval"))
-        {
-            conversationJson["retrieval"] = nlohmann::json::array();
-        }
-        conversationJson["retrieval"].push_back(tempJson);
-        tempJson = nlohmann::json::object();
-        parent.sendBack("", Type::doneRetrieval);
-    }
+    void endRetrieval();
 };

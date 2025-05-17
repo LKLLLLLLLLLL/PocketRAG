@@ -512,11 +512,13 @@ std::shared_ptr<LLMConv> KernelServer::getLLMConv(const std::string& modelName) 
     // get url from settings
     std::string url = "";
     auto genModels = settings->getGenerationModels();
+    std::string registeredModelName;
     for(auto& model : genModels)
     {
-        if(model.modelName == modelName)
+        if(model.name == modelName)
         {
             url = model.url;
+            registeredModelName = model.modelName;
             break;
         }
     }
@@ -526,9 +528,9 @@ std::shared_ptr<LLMConv> KernelServer::getLLMConv(const std::string& modelName) 
     }
     LLMConv::Config config;
     config["api_key"] = apiKey;
-    config["url"] = url;
-    config["connect_timeout"] = 5;
-    auto conv = LLMConv::createConv(LLMConv::type::OpenAIapi, modelName, config);
+    config["api_url"] = url;
+    config["connect_timeout"] = "5";
+    auto conv = LLMConv::createConv(LLMConv::type::OpenAIapi, registeredModelName, config);
     return conv;
 }
 
@@ -570,6 +572,12 @@ Repository::EmbeddingConfigList KernelServer::getEmbeddingConfigs() const
         embeddingConfig.configName = config.name;
         embeddingConfig.modelName = config.modelName;
         embeddingConfig.inputLength = config.inputLength;
+        // find model path
+        embeddingConfig.modelPath = settings->getModelPath(config.modelName);
+        if(embeddingConfig.modelPath.empty())
+        {
+            throw std::runtime_error("Model path not found for model: " + config.modelName);
+        }
         configs.push_back(embeddingConfig);
     }
     return configs;
@@ -582,10 +590,17 @@ std::filesystem::path KernelServer::getRerankerConfigs() const
     std::filesystem::path selectedPath;
     for(auto& config : rerankConfigs)
     {
-        if(config.selected)
+        if(!config.selected)
         {
-            selectedCount++;
-            selectedPath = config.modelName;
+            continue;
+        }
+        selectedCount++;
+        selectedPath = config.modelName;
+        // find model path
+        selectedPath = settings->getModelPath(config.modelName);
+        if (selectedPath.empty())
+        {
+            throw std::runtime_error("Model path not found for model: " + config.modelName);
         }
     }
     if(selectedCount == 1)
@@ -729,7 +744,7 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
         {
             throw std::runtime_error("Generation model url is empty when setApiKey is true");
         }
-        if(kernelServer.getApiKey(generationModel.modelName) == "")
+        if(kernelServer.getApiKey(generationModel.name) == "")
         {
             throw std::runtime_error("Generation model apiKey is not set.");
         }

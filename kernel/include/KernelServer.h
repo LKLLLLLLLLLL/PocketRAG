@@ -175,4 +175,15 @@ public:
     std::vector<SettingsCache::LocalModelManagement::Model> getLocalModels() const;
     std::vector<SettingsCache::SearchSettings::EmbeddingConfig::Config> getEmbeddingConfigs() const;
     std::vector<SettingsCache::SearchSettings::RrankConfig::Config> getRerankConfigs() const;
+    std::string getModelPath(const std::string &modelName) const
+    {
+        for (const auto &model : settingsCache.localModelManagement.models)
+        {
+            if (model.name == modelName)
+            {
+                return model.path;
+            }
+        }
+        return "";
+    }
 };

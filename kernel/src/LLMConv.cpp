@@ -387,6 +387,11 @@ void OpenAIConv::setOptions(const std::string& key, const std::vector<std::strin
     request[key] = json_values; // set options to request
 }
 
+void OpenAIConv::setOptions(const std::string &key, int value)
+{
+    request[key] = value; // set options to request
+}
+
 void OpenAIConv::setMessage(const std::string &role, const std::string &content)
 {
     // set message to history

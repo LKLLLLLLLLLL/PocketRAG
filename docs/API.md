@@ -363,7 +363,7 @@ return:
 
 ## 对话相关
 ### 对话历史记录
-所有对话历史记录都应储存在`/userData/conversations`目录下，文件名为`<conversationId>.json`。  
+所有对话历史记录都应储存在`/userData/conversations`目录下，文件名为`conversation-<conversationId>.json`。  
 前端可以直接读取该文件来获取历史记录，但写入由后端完成。历史记录文件中存储的内容应与对话时前端显示的内容一致。
 ```json
 {
@@ -576,7 +576,7 @@ return:
 
 
 
-### embeddingStatue
+### embeddingStatus
 session -> window
 嵌入进度
 
@@ -589,7 +589,7 @@ session -> window
     "isReply" : false,
 
     "message" : {
-        "type" : "embeddingStatue",
+        "type" : "embeddingStatus",
         "filePath" : "/path/to/file",
         "status" : "embedding", // embedding, done, if the file isn't changed, there will be no message about it
         "progress" : 0.5 // 1.0 do not mean done
@@ -622,7 +622,7 @@ settings.json如下：
             "configs" : [ // 可以有多个被选中
                 {
                     "name" : "bge-m3-512", // unique name
-                    "modelName" : "bge-m3", // refer to localModelManagement
+                    "modelName" : "bge-m3", // refer to localModelManagement.name, NOT modelName
                     "inputLength" : 512,
                     "selected" : true
                 },
@@ -637,7 +637,7 @@ settings.json如下：
         "rerankConfig" : {
             "configs" : [ // 注意，只能有一个被选中
                 {
-                    "modelName" : "bge-reranker-v2-m3", // refer to localModelManagement
+                    "modelName" : "bge-reranker-v2-m3", // refer to localModelManagement.name, NOT modelName
                     "selected" : true
                 },
                 {
@@ -673,7 +673,7 @@ settings.json如下：
         "generationModel" : [
             {
                 "name" : "deepseek", // unique name
-                "modelName" : "deepseek",
+                "modelName" : "deepseek-chat",
                 "url" : "http://...",
                 "setApiKey" : true, // api key is stored in the database, must be set by message when commit settings
                 "lastUsed" : true // last used model, only one can be true

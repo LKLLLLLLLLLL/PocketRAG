@@ -23,7 +23,7 @@ Repository::Repository(std::string repoName, std::filesystem::path repoPath, std
     textTable = std::make_shared<TextSearchTable>(*sqlite, "text_search");
 
     // read embeddings config from embeddings table and initialize embedding models
-    updateEmbeddings();
+    // updateEmbeddings();
 
     startBackgroundProcess();
 }
@@ -159,6 +159,23 @@ void Repository::backgroundProcess()
     while (!stopThread)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
+        {
+            std::shared_lock readlock(mutex); // lock for reading
+            for (auto &vectorTable : vectorTables)
+            {
+                vectorTable->write();
+                if (vectorTable->getInvalidIds().size() > 0)
+                {
+                    integrity = false;
+                }
+            }
+        }
+        if (!integrity && !stopThread)
+        {
+            std::cerr << "Database integrity check failed, reconstructing..." << std::endl;
+            reConstruct();
+        }
+
         std::queue<DocPipe> docqueue; // create a new doc queue for each iteration
 
         {
@@ -174,17 +191,7 @@ void Repository::backgroundProcess()
             for (auto &vectorTable : vectorTables)
             {
                 vectorTable->write();
-                if(vectorTable->getInvalidIds().size() > 0)
-                {
-                    integrity = false;
-                }
             }
-        }
-
-        if(!integrity && !stopThread)
-        {
-            std::cerr << "Database integrity check failed, reconstructing..." << std::endl;
-            reConstruct();
         }
     }
 }
@@ -563,6 +570,7 @@ void Repository::reConstruct()
     }
     // remain embedding configs table
     trans.commit();
+    integrity = true;
 
     initializeSqlite();
     // open text search table

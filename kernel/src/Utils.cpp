@@ -1,5 +1,6 @@
 #include "Utils.h"
 
+#include <chrono>
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -92,7 +93,7 @@ int Utils::getTimeStamp()
 {
     auto now = std::chrono::system_clock::now(); // get current time
     auto duration = now.time_since_epoch(); // get duration since epoch
-    auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(duration).count(); // convert to seconds
+    auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count(); // convert to seconds
     return static_cast<int>(timestamp); // return as int
 }
 
@@ -150,15 +151,12 @@ nlohmann::json Utils::readJsonFile(const std::filesystem::path &path)
 int Utils::CallbackManager::registerCallback(const Callback &callback)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    auto callbackId = Utils::getTimeStamp() + Utils::randomInt(0, 10000);
-    if (callbacks.find(callbackId) == callbacks.end())
+    auto callbackId = Utils::getTimeStamp() + Utils::randomInt(0, 1000000);
+    while(callbacks.find(callbackId) != callbacks.end())
     {
-        callbacks[callbackId] = callback;
+        callbackId = Utils::getTimeStamp() + Utils::randomInt(0, 1000000); // generate a unique callback id
     }
-    else
-    {
-        throw std::runtime_error("Callback already registered with same time stamp.");
-    }
+    callbacks[callbackId] = callback;
     return callbackId;
 }
 

@@ -4,6 +4,7 @@
 #include <functional>
 #include <mutex>
 #include <queue>
+#include <random>
 namespace xxhash
 {
     #include <xxhash.h>
@@ -37,7 +38,10 @@ namespace Utils
     // generate a random integer between min and max
     inline int randomInt(int min, int max)
     {
-        return std::rand() % (max - min + 1) + min;
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(min, max);
+        return dis(gen);
     }
 
     inline float sigmoid(float x)

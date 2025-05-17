@@ -162,6 +162,7 @@ public:
 
     virtual void setOptions(const std::string& key, const std::string& value) = 0;
     virtual void setOptions(const std::string& key, const std::vector<std::string>& values) = 0;
+    virtual void setOptions(const std::string& key, int value) = 0;
 
     virtual void setMessage(const std::string &role, const std::string &content);
     
@@ -223,6 +224,7 @@ public:
     // cannot set options in Config, if need to set options in Config, please use resetModel()
     // this method has no check, make sure the key and value are valid to the api
     void setOptions(const std::string& key, const std::vector<std::string>& values) override;
+    void setOptions(const std::string &key, int value) override;
 
     void setMessage(const std::string &role, const std::string &content) override;
     
