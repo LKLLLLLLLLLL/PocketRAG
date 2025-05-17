@@ -11,7 +11,7 @@ export default function StartWindow(){
             <React.StrictMode>
                 <PanelGroup direction = "horizontal" className = 'startwindow-container'>
                     <Panel defaultSize = {33} minSize = {20} maxSize = {60} className = 'sw-left'>
-                        < div>左侧面板</div>
+                        <div>左侧面板</div>
                     </Panel>
                     <PanelResizeHandle className="sw-resize"></PanelResizeHandle>
                     <Panel defaultSize = {67} className = 'sw-right'>

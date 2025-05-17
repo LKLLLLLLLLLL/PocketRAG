@@ -9,15 +9,17 @@ export default function MainWindowContents(){
     return(
         <div className = 'main-window-contents'>
             <LeftBar></LeftBar>
-            <PanelGroup className = 'panelgroup' direction = 'horizontal'>
-                <Panel className = 'doclist-panel' defaultsize = {30} minSize = {20} maxSize = {40}>
-                    <Doclist></Doclist>
-                </Panel>
-                <PanelResizeHandle className = 'seperator'></PanelResizeHandle>
-                <Panel className = 'maindemo-panel' defaultsize = {70} minSize = {60} maxSize = {80}>
-                    <MainDemo></MainDemo>
-                </Panel>
-            </PanelGroup>
+            <div className = 'panelgroup-container'>
+                <PanelGroup className = 'panelgroup' direction = 'horizontal'>
+                    <Panel className = 'doclist-panel' defaultsize = {30} minSize = {20} maxSize = {40}>
+                        <Doclist></Doclist>
+                    </Panel>
+                    <PanelResizeHandle className = 'seperator'></PanelResizeHandle>
+                    <Panel className = 'maindemo-panel' defaultsize = {70} minSize = {60} maxSize = {80}>
+                        <MainDemo></MainDemo>
+                    </Panel>
+                </PanelGroup>
+            </div>
         </div>
     )
 }

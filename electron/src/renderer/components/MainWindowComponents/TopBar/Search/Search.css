@@ -1,0 +1,26 @@
+.Search-container{
+    height: 100%;
+    width: 60%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.searchbar{
+    width: 50%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.last{
+    width: 10%;
+    height: 50%;
+}
+.next{
+    width: 10%;
+    height: 50%;
+}
+.search{
+    width: 80%;
+    height: 50%;
+}

@@ -4,7 +4,11 @@ import './LeftBar.css';
 export default function LeftBar(){
     return(
         <div className = 'LeftBar-container'>
-            我是侧边栏
+            <div className = 'leftbar'>
+                <button className = 'button1'></button>
+                <button className = 'button2'></button>
+                <button className = 'button3'></button>
+            </div>
         </div>
     )
 }

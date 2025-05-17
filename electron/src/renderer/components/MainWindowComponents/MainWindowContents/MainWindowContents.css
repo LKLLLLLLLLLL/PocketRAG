@@ -2,6 +2,9 @@
     display: flex;
     flex-grow: 1;
 }
+.panelgroup-container{
+    flex-grow: 1;
+}
 /* .panelgroup{
     flex-grow: 1;
 }

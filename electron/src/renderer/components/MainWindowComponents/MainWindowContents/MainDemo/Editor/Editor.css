@@ -1,0 +1,20 @@
+.editor-container{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.editortabs-container{
+    height: 30px;
+    width: 100%;
+    background-color: rgb(50, 48, 45);
+}
+.editorpage-parent-container{
+    flex-grow: 1;
+}
+.editorpage-container{
+    background-color: #919191;
+}
+.directory-container{
+    background-color: #111111;
+}

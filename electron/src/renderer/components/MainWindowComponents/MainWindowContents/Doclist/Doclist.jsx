@@ -4,7 +4,24 @@ import './Doclist.css';
 export default function Doclist(){
     return(
         <div className = 'Doclist-container'>
-            我是文件列表
+            <div className = 'doclist_top-container'>
+                <span>
+                    项目↓
+                </span>
+                <span style = {{float: 'right'}}>
+                    打开
+                </span>
+            </div>
+            <div className = 'doclist_main-container'>
+                <div>
+                    文件列表
+                </div>
+            </div>
+            <div className = 'doclist_tools-container'>
+                <div>
+                    文件工具栏
+                </div>
+            </div>
         </div>
     )
 }
