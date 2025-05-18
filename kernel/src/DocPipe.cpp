@@ -156,7 +156,7 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     auto stmt = sqlite.getStatement("SELECT id FROM documents WHERE doc_name = ?;");
     stmt.bind(1, docName);
     if (!stmt.step())
-            throw Error{"Document not found in database: " + docName, Error::Type::Internal};
+        throw Error{"Document not found in database: " + docName, Error::Type::Internal};
     docId = stmt.get<int64_t>(0);
 
     // find chunk ids
@@ -198,11 +198,7 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     // delete from vector table
     for(auto &vectorTable : vTable) // tranverse each vector table
     {
-        try
-        {
-            vectorTable->removeVector(chunkIds); // delete batch of chunk from vector table
-        }
-        catch(...){} // may throw exception because some chunk ids may not exist in this vector table, ignore it
+        vectorTable->removeVectorIfExists(chunkIds); // delete batch of chunk from vector table
     }
 
     trans.commit(); // commit transaction
@@ -317,7 +313,12 @@ void DocPipe::updateToTable(Progress &progress, std::atomic<bool> &stopFlag)
 void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::atomic<bool> &stopFlag)
 {
     // 1. split content to chunks
-    auto chunkLength = std::min(embedding->model->getMaxLength(), embedding->inputLength); // get max length
+    int chunkLength = embedding->inputLength;
+    if (embedding->inputLength > embedding->model->getMaxLength())
+    {
+        chunkLength = embedding->model->getMaxLength();
+        logger.warning("Embedding " + embedding->embeddingName + "'s input length is too long, use " + std::to_string(chunkLength) + " instead of " + std::to_string(embedding->inputLength));
+    }
     std::vector<Chunker::Chunk> newChunks;
     Chunker chunker(docType, chunkLength); // create chunker
     newChunks = chunker(content, {{"FilePath", docPath.string()}}); 
@@ -349,14 +350,14 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     // 3. compare new chunks with existing chunks, and update / add / delete chunks
     // traverse new chunks to add and update chunk in tables
     auto trans1 = sqlite.beginTransaction(); // begin transaction
-    std::queue<size_t> addChunkQueue; 
+    std::queue<size_t> addChunkQueue; // only store index for add
     std::queue<std::pair<size_t, int64_t>> updateChunkQueue; // store index and chunk id for update
     for (int index = 1; index <= newChunks.size(); index++) // index begin with 1, defferent with NULL value of sqlite
     {
         auto& chunk = newChunks[index - 1]; // get new chunk
         auto hash = Utils::calculateHash(chunk.content + chunk.metadata); // calculate hash for new chunk
         auto it = existingChunks.find(hash);                 // find hash in existing chunks
-        if (it != existingChunks.end())   // finded, update chunk
+        if (it != existingChunks.end())   // found, update chunk
         {
             if (it->second.chunkIndex != index) // deffrend index, update chunk index
             {
@@ -459,7 +460,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
             return;
         }
 
-        if(chunkCount % 200 == 0) // print every 1000 chunks
+        if(chunkCount % 200 == 0) // save every 200 chunks
         {
             trans2.commit();
             trans2 = sqlite.beginTransaction(); // begin transaction for adding chunks

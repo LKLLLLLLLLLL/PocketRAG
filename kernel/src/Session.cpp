@@ -431,8 +431,7 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
         logger.info("[Conversation] Created history file at " + historyFilePath.string());
     }
     // load full history file
-    fullHistoryFilePath =
-        parent.historyDirPath / ("conversation-" + std::to_string(parent.conversationId) + "_full.json");
+    fullHistoryFilePath = parent.historyDirPath / ("conversation-" + std::to_string(parent.conversationId) + "_full.json");
     if (std::filesystem::exists(fullHistoryFilePath))
     {
         historyMessagesJson = Utils::readJsonFile(fullHistoryFilePath);
@@ -444,12 +443,20 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
     }
     try
     {
-        for (auto &message : historyMessagesJson)
+        int historyLength = 0;
+        for(auto it = historyMessagesJson.rbegin(); it != historyMessagesJson.rend(); it++)
         {
+            auto message = *it;
             auto role = message["role"].get<std::string>();
             auto content = message["content"].get<std::string>();
             historyMessages.push_back({role, content});
+            historyLength += content.size();
+            if (historyLength > maxHistoryLength)
+            {
+                break;
+            }
         }
+        std::reverse(historyMessages.begin(), historyMessages.end());
     }
     catch (nlohmann::json::exception &e)
     {

@@ -86,6 +86,9 @@ public:
     // remove batch of vectors from table, return their ids in VectorTable
     // if the id is not in the table, throw an exception
     std::vector<idx_t> removeVector(const std::vector<idx_t> &ids);
+    // remove batch of vectors from table, return their ids in VectorTable
+    // if the id is not in the table, just ignore it
+    std::vector<idx_t> removeVectorIfExists(const std::vector<idx_t> &ids);
 
     // write all changes to disk, this may delete vector from faiss index, make sure sqlite table has committed all changes before calling this function
     void write();

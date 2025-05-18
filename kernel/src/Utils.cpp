@@ -240,6 +240,41 @@ void Utils::MessageQueue::shutdown()
     conditionVariable.notify_all();
 }
 
+//---------------------------------Timer-----------------------------//
+Utils::Timer::Timer(std::string message, std::source_location beginLocation)
+    : message(message), beginLocation(beginLocation), running(true)
+{
+    startTime = clock_type::now();
+}
+
+void Utils::Timer::stop(std::source_location endLocation)
+{
+    auto endTime = clock_type::now();
+    auto duration = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(endTime - startTime).count();
+    logger.info(message + " Timer stopped in " + std::to_string(duration) +
+                " ms "
+                "\nFrom " +
+                beginLocation.file_name() + ":" + std::to_string(beginLocation.line()) + "\nTo   " +
+                endLocation.file_name() + ":" + std::to_string(endLocation.line()) + " .");
+    running = false;
+}
+
+Utils::Timer::~Timer()
+{
+    if (running)
+    {
+        auto endTime = clock_type::now();
+        auto duration =
+            std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(endTime - startTime).count();
+        logger.info(message + " Timer stopped in " + std::to_string(duration) +
+                    " ms"
+                    "\nFrom " +
+                    beginLocation.file_name() + ":" + std::to_string(beginLocation.line()) + "\nTo   destructor.");
+        running = false;
+        logger.warning("Timer stopped at destructor, result may be inaccurate.");
+    }
+}
+
 //--------------------------------Logger-----------------------------//
 const std::string Logger::levelToString(Level level)
 {

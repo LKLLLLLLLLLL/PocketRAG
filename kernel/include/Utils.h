@@ -196,33 +196,10 @@ namespace Utils
         std::string message;
         bool running;
     public:
-        Timer(std::string message, std::source_location beginLocation = std::source_location::current()) : message(message), beginLocation(beginLocation), running(true)
-        {
-          startTime = clock_type::now();
-        }
+        Timer(std::string message, std::source_location beginLocation = std::source_location::current());
 
-        void stop(std::source_location endLocation = std::source_location::current())
-        {
-            auto endTime = clock_type::now();
-            auto duration = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(endTime - startTime).count();
-            logger.info(message + " Timer stopped in " + std::to_string(duration) + " ms "
-                        "\nFrom " + beginLocation.file_name() + ":" + std::to_string(beginLocation.line()) + 
-                        "\nTo   " + endLocation.file_name() + ":" + std::to_string(endLocation.line()) + " .");
-            running = false;
-        }
+        void stop(std::source_location endLocation = std::source_location::current());
 
-        ~Timer()
-        {
-            if(running)
-            {
-                auto endTime = clock_type::now();
-                auto duration = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(endTime - startTime).count();
-                logger.info(message + " Timer stopped in " + std::to_string(duration) + " ms"
-                            "\nFrom " + beginLocation.file_name() + ":" + std::to_string(beginLocation.line()) + 
-                            "\nTo   destructor.");
-                running = false;
-                logger.warning("Timer stopped at destructor, result may be inaccurate.");
-            }
-        }
+        ~Timer();
     };
 }

@@ -87,7 +87,20 @@
 #include "Utils.h"
 #include "KernelServer.h"
 
-Logger logger("./userData/logs", false, Logger::Level::DEBUG);
+Logger logger(".\\userData\\logs", false, Logger::Level::DEBUG);
+
+void server_terminate_handler();
+
+int main()
+{
+    std::set_terminate(server_terminate_handler);
+    Utils::setup_utf8_console();
+    {
+        KernelServer::openServer(".\\userData").run();
+    }
+    logger.info("KernelServer stopped.");
+    return 0;
+}
 
 void server_terminate_handler()
 {
@@ -104,7 +117,7 @@ void server_terminate_handler()
             {
                 logger.fatal("KernelServer crashed with exception: " + std::string(e.what()));
             }
-            catch(...)
+            catch (...)
             {
                 logger.fatal("KernelServer crashed with unknown type exception.");
             }
@@ -114,22 +127,10 @@ void server_terminate_handler()
             logger.fatal("KernelServer crashed with unknown exception.");
         }
     }
-    catch(...)
+    catch (...)
     {
-        std::cerr << "Failed to log exception. " << std::endl;
+        std::cerr << "KernelServer crashed, Failed to log exception. " << std::endl;
     }
 
     std::abort();
-}
-
-int main()
-{
-    std::set_terminate(server_terminate_handler);
-    Utils::setup_utf8_console();
-    {
-        throw Error{"test error", Error::Type::Internal};
-        KernelServer::openServer("./userData").run();
-    }
-    logger.info("KernelServer stopped.");
-    return 0;
 }

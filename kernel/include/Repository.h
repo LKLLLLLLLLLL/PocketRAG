@@ -6,7 +6,6 @@
 #include <queue>
 
 #include "SqliteConnection.h"
-#include "VectorTable.h"
 #include "TextSearchTable.h"
 #include "ONNXModel.h"
 #include "DocPipe.h"
@@ -31,7 +30,7 @@ public:
         int endLine = 0; 
     };
 
-    using Embedding = DocPipe::Embedding; 
+    using Embedding = DocPipe::Embedding;
 
     struct EmbeddingConfig
     {

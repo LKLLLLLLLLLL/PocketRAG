@@ -78,6 +78,9 @@ private:
     std::atomic<bool> shutdownFlag = false;
     std::thread conversationThread;
 
+    // only read maxHistoryLength characters from conversation history
+    static const int maxHistoryLength = 1000;
+
     void conversationProcess();
 
     static std::string extractSearchword(const std::string& answer);

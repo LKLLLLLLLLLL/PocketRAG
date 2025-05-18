@@ -140,7 +140,7 @@ void Repository::updateEmbeddings(const EmbeddingConfigList &configs)
         // create vector table for this embedding model
         std::string tableName = "vector_" + std::to_string(id);
         auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), tableName, *sqlite, dimension);
-        tempVectorTables.push_back(std::move(vectorTable));
+        tempVectorTables.push_back(vectorTable);
     }
     vectorTables = std::move(tempVectorTables);
     embeddings = std::move(tempEmbeddings);

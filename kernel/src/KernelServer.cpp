@@ -544,7 +544,7 @@ std::shared_ptr<LLMConv> KernelServer::getLLMConv(const std::string& modelName) 
     LLMConv::Config config;
     config["api_key"] = apiKey;
     config["api_url"] = url;
-    config["connect_timeout"] = "10";
+    config["connect_timeout"] = "20";
     auto conv = LLMConv::createConv(LLMConv::type::OpenAIapi, registeredModelName, config);
     return conv;
 }

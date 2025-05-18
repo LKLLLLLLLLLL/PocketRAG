@@ -126,7 +126,7 @@ std::pair<std::vector<faiss::idx_t>, std::vector<float>> VectorTable::search(con
         auto id = queryStmt.get<faiss::idx_t>(0);
         auto valid = queryStmt.get<int>(1);
         auto deleted = queryStmt.get<int>(2);
-        idToFlagMap[id] = {valid != 0, deleted != 0};
+        idToFlagMap[id] = {static_cast<bool>(valid), static_cast<bool>(deleted)};
     }
     readlock.unlock(); // unlock the read lock
 
@@ -389,6 +389,37 @@ std::vector<VectorTable::idx_t> VectorTable::removeVector(const std::vector<Vect
         reconstructFaissIndex(true);
 
     return ids;
+}
+
+auto VectorTable::removeVectorIfExists(const std::vector<idx_t> &ids) -> std::vector<idx_t>
+{
+    if (ids.empty())
+        return {}; // no ids to remove
+
+    std::unique_lock<std::shared_mutex> writelock(mutex); // lock the mutex for writing
+    std::vector<idx_t> removedIds; 
+    // sign the vector by valid = false in SQLite table
+    auto trans = sqlite.beginTransaction(); // begin transaction
+    auto updateSQL = "UPDATE " + tableName + " SET deleted = 1 WHERE id = ?;";
+    auto updateStmt = sqlite.getStatement(updateSQL);
+    // update deleted flag in SQLite table
+    for (const auto &id : ids)
+    {
+        updateStmt.bind(1, id);
+        updateStmt.step();
+        int changes = updateStmt.changes();
+        if (changes != 0)
+            removedIds.push_back(id); // add id to removedIds if it is removed
+        updateStmt.reset(); // reset the statement for the next bind
+    }
+    trans.commit(); // commit transaction
+
+    // check if need to reconstruct Faiss index
+    deleteCount += removedIds.size();
+    if (deleteCount >= maxDeleteCount)
+        reconstructFaissIndex(true);
+
+    return removedIds;
 }
 
 // all valid = false or delete = true vectors will be removed from Faiss index, but only delete = true vectors will be removed from SQLite table
