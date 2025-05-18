@@ -38,10 +38,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
 /**************electron's render process********************/
 const callbacks = new Map()
-
+const dateNow = await window.electronAPI.dateNow()
 
 const callbackRegister = (callback) => {
-  const callbackId = Date.now()
+  const callbackId = Date.now() - dateNow
   callbacks.set(callbackId, callback)
   return callbackId
 }
@@ -90,14 +90,54 @@ window.electronAPI.onKernelData((data) => {
       else {
         console.error('isReply may be wrong, expected: false, but the result is: ', data)
       }
+      break
+    case 'sessionCrushed':
+      if(!data.isReply){
+        window.electronAPI.sendSessionCrushed(data.message.error)
+      }
+      else {
+        console.error('isReply may be wrong, expected: false, but the result is: ', data)
+      }
+      break
+    case 'beginConversation':
+      if(data.isReply){
+        if(data.status.code === 'SUCCESS'){
+          const conversationEvent = new CustomEvent('conversation', {detail : data.data})
+          window.dispatchEvent(conversationEvent)
+        }
+        else {
+          console.error(data.status.message)
+        }
+      }
+      else {
+        console.error('isReply may be wrong, expected: true, but the result is: ', data)
+      }
+      break
+    case 'stopConversation':
+      if(data.isReply){
+        if(data.status.code === 'SUCCESS'){
+          callbacks.delete(data.callbackId)
+        }
+        else {
+          console.error(data.status.message)
+          callbacks.delete(data.callbackId)
+        }
+      }
+      else {
+        console.error('isReply may be wrong, expected: true, but the result is: ', data)
+      }
+      break
   }
 })
 
-const openSettingsWindow = async () => {
+
+window.openSettingsWindow = async () => {
   await window.electronAPI.createNewWindow('settings')
 }
 
+
 const kernelReadyPromise = window.electronAPI.kernelReadyPromise()
+
 switch(windowType){
   case 'main':
     const repoInitializePromise = new Promise((resolve, reject) => {
@@ -121,6 +161,8 @@ switch(windowType){
     })
     const mainWindowPreprocessPromise = Promise.all([repoInitializePromise, sessionPreparedPromise, kernelReadyPromise])
 
+    const conversations = new Map()
+
     window.addEventListener('embeddingStatus', (event) => {
       let reply = event.detail
       reply.isReply = true
@@ -137,15 +179,15 @@ switch(windowType){
       //应添加与react通信的内容
     })
 
-    const openRepoListWindow = async () => {
+    window.openRepoListWindow = async () => {
       await window.electronAPI.createNewWindow('repoList')
     }
 
-    const search = async (query, accuracy = false) => {
+    window.search = async (query, accuracy = false) => {
       await mainWindowPreprocessPromise
       const callbackId = callbackRegister(() => {})
       try{
-        const result = new Promise ((resolve, reject) => {
+        const result = await new Promise ((resolve, reject) => {
           let timeout
           const listener = (event) => {
             clearTimeout(timeout)
@@ -161,15 +203,60 @@ switch(windowType){
         return result
       } catch(err){
         console.error(err)
+        return err
       } finally {
         callbacks.delete(callbackId)
       }
     }
+
+    window.beginConversation = async (modelName, query) => {
+      await mainWindowPreprocessPromise
+      const callbackId = callbackRegister((event) => {
+        switch(event.detail.type){
+          case 'search':
+            const conversationSearchEvent = new CustomEvent('conversationSearch', {detail : event.detail.content})
+            window.dispatchEvent(conversationSearchEvent)
+            break
+          case 'annotation':
+            const conversationAnnotationEvent = new CustomEvent('conversationAnnotation', {detail : event.detail.content})
+            window.dispatchEvent(conversationAnnotationEvent)
+            break
+          case 'result':
+            const conversationResultEvent = new CustomEvent('conversationResult', {detail : event.detail.content})
+            window.dispatchEvent(conversationResultEvent)
+            break
+          case 'answer':
+            const conversationAnswerEvent = new CustomEvent('conversationAnswer', {detail : event.detail.content})
+            window.dispatchEvent(conversationAnswerEvent)
+            break
+          case 'doneRetrieval':
+            const conversationDoneRetrievalEvent = new CustomEvent('conversationDoneRetrieval', {detail : event.detail.content})
+            window.dispatchEvent(conversationDoneRetrievalEvent)
+            break
+          case 'done':
+            const conversationDoneEvent = new CustomEvent('conversationDone', {detail : event.detail.content})
+            window.dispatchEvent(conversationDoneEvent)
+            window.removeEventListener('conversation', callbacks.get(callbackId))
+            callbacks.delete(callbackId)
+            break
+        }
+      })
+      const conversationId = Date.now() - dateNow
+      window.electronAPI.beginConversation(callbackId, modelName, conversationId, query)
+      window.addEventListener('conversation', callbacks.get(callbackId))
+    }
+
+    window.stopConversation = async (conversationId) => {
+      await mainWindowPreprocessPromise
+      const callbackId = callbackRegister(() => {})
+      window.electronAPI.stopConversation(callbackId, conversationId)
+    }
+
     // setTimeout(() => {
     //   openRepoListWindow()
     // }, 5000)
     setTimeout(async () => {
-      let a = await search('三体')
+      let a = await window.search('三体')
       console.log(a)
     }, 10000);
     break
@@ -178,7 +265,7 @@ switch(windowType){
   case 'repoList':
     const repoListWindowPreprocessPromise = Promise.all([kernelReadyPromise])
 
-    const getRepos = async () => {
+    window.getRepos = async () => {
       await repoListWindowPreprocessPromise
       const callbackId = callbackRegister(() => {})
       try{
@@ -205,21 +292,20 @@ switch(windowType){
       }
     }
 
-    const openRepo = async (repoName) => {
+    window.openRepo = async (repoName) => {
       await repoListWindowPreprocessPromise
       const sessionId = await window.electronAPI.createNewWindow('main')
       window.electronAPI.openRepo(sessionId, repoName)
     }
 
-    const createRepo = async () =>{
+    window.createRepo = async () =>{
       await repoListWindowPreprocessPromise
       const callbackId = callbackRegister(() => {})
       window.electronAPI.createRepo(callbackId)
     }
-    setTimeout(async () => {console.log(await getRepos())}, 5000)
-    createRepo()
-    setTimeout(async () => {console.log(await getRepos())}, 15000)
-    setTimeout(() => {openRepo('repo')}, 25000)
+    // setTimeout(async () => {console.log(await window.getRepos()); window.createRepo();}, 5000)
+    setTimeout(async () => {console.log(await window.getRepos())}, 15000)
+    setTimeout(() => {window.openRepo('123')}, 25000)
 
     break
 

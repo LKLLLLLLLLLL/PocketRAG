@@ -25,6 +25,7 @@ kernel.stderr.on('data', (err) => {
   console.error(err.toString())
 })
 
+const dateNow = Date.now()
 const windows = new Map()
 const callbacks = new Map()
 const eventEmitter = new EventEmitter()
@@ -38,7 +39,7 @@ const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD =
 
 
 const callbackRegister = (callback) => {
-  const callbackId = Date.now()
+  const callbackId = Date.now() - dateNow
   callbacks.set(callbackId, callback)
   return callbackId
 }
@@ -284,9 +285,60 @@ function embeddingStatusReply(event, reply){
 }
 
 
+function sessionCrushedHandler(event, error){
+  const window = BrowserWindow.fromWebContents(event.sender)
+  dialog.showMessageBoxSync(window, {
+    type : 'error',
+    title : 'session crushed',
+    message : error
+  })
+  window.close()
+}
+
+
+function beginConversation(event, callbackId, modelName, conversationId, query){
+  const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const beginConversation = {
+    sessionId : sessionId,
+    toMain : false,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'beginConversation',
+      modelName: modelName,
+      conversationId : conversationId,
+      query : query
+    }
+  }
+  kernel.stdin.write(JSON.stringify(beginConversation) + '\n')
+  console.log(JSON.stringify(beginConversation) + '\n')
+}
+
+
+function stopConversation(event, callbackId, conversationId){
+  const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const stopConversation = {
+    sessionId : sessionId,
+    toMain : false,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'stopConversation',
+      conversationId : conversationId
+    }
+  }
+  kernel.stdin.write(JSON.stringify(stopConversation) + '\n')
+  console.log(JSON.stringify(stopConversation) + '\n')
+}
+
+
 function createWindow (event, windowType = 'repoList') {
   const {width: srceenWidth, height: screenHeight} = screen.getPrimaryDisplay().workAreaSize
-  const windowId = Date.now()// use timestamp as windowId
+  const windowId = Date.now() - dateNow// use timestamp as windowId
   let window
   switch(windowType){
     case 'main':
@@ -377,6 +429,9 @@ async function getReadyPromise (){
   return readyPromise
 }
 
+async function getDateNow (){
+  return dateNow
+}
 
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
@@ -387,6 +442,10 @@ app.whenReady().then(async () => {
   ipcMain.on('sessionPreparedReply', sessionPreparedReply)
   ipcMain.handle('kernelReadyPromise', getReadyPromise)
   ipcMain.on('embeddingStatusReply', embeddingStatusReply)
+  ipcMain.handle('dateNow', getDateNow)
+  ipcMain.on('sessionCrushed', sessionCrushedHandler)
+  ipcMain.on('beginConversation', beginConversation)
+  ipcMain.on('stopConversation', stopConversation)
   //add the event listeners before the window is created
 
   createWindow()
@@ -403,7 +462,7 @@ app.whenReady().then(async () => {
 
 app.on('will-quit', (event) => {
   if (kernel.pid && isKernelRunning) {
-    const callbackId = Date.now()
+    const callbackId = Date.now() - dateNow
     const stopAll = {
       sessionId : -1,
       toMain : true,
