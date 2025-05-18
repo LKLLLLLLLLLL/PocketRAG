@@ -263,6 +263,23 @@ void KernelServer::handleMessage(nlohmann::json& json)
                 json["status"]["message"] = "";
             }
         }
+        else if(type == "deleteRepo")
+        {
+            auto repoName = json["message"]["repoName"].get<std::string>();
+            auto stmt = sqliteConnection->getStatement("DELETE FROM repository WHERE repo_name = ?");
+            stmt.bind(1, repoName);
+            stmt.step();
+            if(stmt.changes() != 0)
+            {
+                json["status"]["code"] = "SUCCESS";
+                json["status"]["message"] = "";
+            }
+            else
+            {
+                json["status"]["code"] = "REPO_NOT_FOUND";
+                json["status"]["message"] = "Cannot find repo with name: " + repoName;
+            }
+        }
         else if(type == "closeRepo")
         {
             auto windowId = json["message"]["sessionId"].get<int64_t>();

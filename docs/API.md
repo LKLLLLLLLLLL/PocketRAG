@@ -381,6 +381,37 @@ return:
 - REPO_NAME_NOT_MATCH 仓库名与路径中的仓库名不匹配
 - REPO_NAME_EXIST 仓库名已存在
 
+### deleteRepo
+main.js -> kernel server
+删除一个仓库，删除后无法恢复。  
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "deleteRepo",
+        "repoName" : "name"
+    }
+}
+```
+return:
+```json
+{
+    ...
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    }
+}
+```
+**可能的错误：**
+- REPO_NOT_FOUND 仓库不存在
+
 ## 对话相关
 ### 对话历史记录
 所有对话历史记录都应储存在`/userData/conversations`目录下，文件名为`conversation-<conversationId>.json`。  

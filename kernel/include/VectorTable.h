@@ -15,7 +15,7 @@ extern Logger logger;
 This class manages a SQLite database and several vector tables.
 Gurantee thread safety.
 */
-class VectorTable
+class VectorTable// : public std::enable_shared_from_this<VectorTable> // to access self shared pointer in class methods
 {
 public:
     using idx_t = faiss::idx_t; // Faiss index type
