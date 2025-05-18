@@ -40,6 +40,7 @@ export default function Search(){
         setShowResult(true);
     };
 
+    //receive the text from the input
     const handleOnChange = (event) =>{
         setValue(event.target.value);
     }
