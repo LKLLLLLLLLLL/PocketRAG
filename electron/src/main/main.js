@@ -148,6 +148,20 @@ async function stdoutListener (data) {
                 console.error('isReply may be wrong, expected: false, but the result is: ', result)
               }
               break
+            case 'deleteRepo':
+              if(result.isReply){
+                if(result.status.code === 'SUCCESS'){
+                  callbacks.delete(result.callbackId)
+                }
+                else{
+                  console.error(result.status.message)
+                  callbacks.delete(result.callbackId)
+                }
+              }
+              else {
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
+              }
+              break
 
           }
         }
@@ -229,8 +243,9 @@ async function initializeRepo (sessionId, repoName, repoPath){
 }
 
 
-async function createRepo (event, callbackId) {
+async function createRepo (event) {
   const {canceled, filePaths} = await dialog.showOpenDialog({properties: ['openDirectory']})
+  const callbackId = callbackRegister(() => {})
 
   if (!canceled) {
     const createRepo = {
@@ -333,6 +348,25 @@ function stopConversation(event, callbackId, conversationId){
   }
   kernel.stdin.write(JSON.stringify(stopConversation) + '\n')
   console.log(JSON.stringify(stopConversation) + '\n')
+}
+
+
+function deleteRepo (event, repoName){
+  const callbackId = callbackRegister(() => {})
+  const deleteRepo = {
+    sessionId : -1,
+    toMain : true,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'deleteRepo',
+      repoName : repoName,
+    }
+  }
+  kernel.stdin.write(JSON.stringify(deleteRepo) + '\n')
+  console.log(JSON.stringify(deleteRepo) + '\n')
 }
 
 
@@ -446,6 +480,7 @@ app.whenReady().then(async () => {
   ipcMain.on('sessionCrushed', sessionCrushedHandler)
   ipcMain.on('beginConversation', beginConversation)
   ipcMain.on('stopConversation', stopConversation)
+  ipcMain.on('deleteRepo', deleteRepo)
   //add the event listeners before the window is created
 
   createWindow()

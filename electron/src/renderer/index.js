@@ -39,6 +39,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 /**************electron's render process********************/
 const callbacks = new Map()
 const dateNow = await window.electronAPI.dateNow()
+const timeLimit = 30000
 
 const callbackRegister = (callback) => {
   const callbackId = Date.now() - dateNow
@@ -102,8 +103,13 @@ window.electronAPI.onKernelData((data) => {
     case 'beginConversation':
       if(data.isReply){
         if(data.status.code === 'SUCCESS'){
-          const conversationEvent = new CustomEvent('conversation', {detail : data.data})
-          window.dispatchEvent(conversationEvent)
+          if(data.data){
+            const conversationEvent = new CustomEvent('conversation', {detail : data.data})
+            window.dispatchEvent(conversationEvent)
+          }
+          else {
+            console.log(data)
+          }
         }
         else {
           console.error(data.status.message)
@@ -198,7 +204,7 @@ switch(windowType){
           timeout = setTimeout(() => {
             window.removeEventListener('searchResult', listener)
             reject(new Error('search timeout'))
-          }, 10000);
+          }, timeLimit);
         })
         return result
       } catch(err){
@@ -212,6 +218,7 @@ switch(windowType){
     window.beginConversation = async (modelName, query) => {
       await mainWindowPreprocessPromise
       const callbackId = callbackRegister((event) => {
+        console.log(event.detail)
         switch(event.detail.type){
           case 'search':
             const conversationSearchEvent = new CustomEvent('conversationSearch', {detail : event.detail.content})
@@ -255,10 +262,13 @@ switch(windowType){
     // setTimeout(() => {
     //   openRepoListWindow()
     // }, 5000)
-    setTimeout(async () => {
-      let a = await window.search('三体')
-      console.log(a)
-    }, 10000);
+    // setTimeout(async () => {
+    //   let a = await window.search('三体')
+    //   console.log(a)
+    // }, 10000);
+    // setTimeout(() => {
+    //   window.beginConversation('deepseek', '三体小说中，科学边界是什么')
+    // }, 20000)
     break
   
 
@@ -280,12 +290,13 @@ switch(windowType){
           timeout = setTimeout(() => {
             window.removeEventListener('getReposResult', listener)
             reject(new Error('getRepos Failed'))
-          }, 3000)
+          }, timeLimit)
         })
         return repoList          
       } 
       catch(err){
         console.error(err)
+        return err
       }
       finally {
         callbacks.delete(callbackId)
@@ -298,14 +309,20 @@ switch(windowType){
       window.electronAPI.openRepo(sessionId, repoName)
     }
 
-    window.createRepo = async () =>{
+    window.createRepo = async () => {
       await repoListWindowPreprocessPromise
-      const callbackId = callbackRegister(() => {})
-      window.electronAPI.createRepo(callbackId)
+      window.electronAPI.createRepo()
     }
+
+    window.deleteRepo = async (repoName) => {
+      await repoListWindowPreprocessPromise
+      window.electronAPI.deleteRepo(repoName)
+    }
+
+    // window.deleteRepo('123')
     // setTimeout(async () => {console.log(await window.getRepos()); window.createRepo();}, 5000)
-    setTimeout(async () => {console.log(await window.getRepos())}, 15000)
-    setTimeout(() => {window.openRepo('123')}, 25000)
+    // setTimeout(async () => {console.log(await window.getRepos())}, 15000)
+    // setTimeout(() => {window.openRepo('123')}, 20000)
 
     break
 

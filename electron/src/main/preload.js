@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onRepoInitialized : (callback) => ipcRenderer.on('repoInitialized', callback()),
 
-  createRepo : (callbackId) => ipcRenderer.send('createRepo', callbackId),
+  createRepo : () => ipcRenderer.send('createRepo'),
 
   search : (callbackId, query, accuracy) => ipcRenderer.send('search', callbackId, query, accuracy),
 
@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   beginConversation : (callbackId, modelName, conversationId, query) => ipcRenderer.send('beginConversation', callbackId, modelName, conversationId, query),
 
-  stopConversation : (callbackId, conversationId) => ipcRenderer.send('stopConversation', callbackId, conversationId)
+  stopConversation : (callbackId, conversationId) => ipcRenderer.send('stopConversation', callbackId, conversationId),
+
+  deleteRepo : (repoName) => ipcRenderer.send('deleteRepo', repoName)
 })
 //expose apis to the renderer process 
