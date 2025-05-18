@@ -154,7 +154,7 @@ Repository::~Repository()
 
 void Repository::backgroundProcess()
 {
-    logger.info("Repository " + repoName + "'s background process started.");
+    logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process started.");
     while (!stopThread)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
@@ -171,7 +171,7 @@ void Repository::backgroundProcess()
         }
         if (!integrity && !stopThread)
         {
-            logger.warning("Database integrity check failed, reconstructing...");
+            logger.warning("[Repository.backgroundProcess] Database integrity check failed, reconstructing...");
             reConstruct();
         }
 
@@ -193,7 +193,7 @@ void Repository::backgroundProcess()
             }
         }
     }
-    logger.info("Repository " + repoName + "'s background process stopped.");
+    logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process stopped.");
 }
 
 void Repository::stopBackgroundProcess()

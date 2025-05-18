@@ -7,6 +7,7 @@
 #include <string>
 #include <codecvt>
 #include <mutex>
+#include <random>
 #include <condition_variable>
 #include <queue>
 
@@ -89,12 +90,20 @@ void Utils::setup_utf8_console()
 #endif
 }
 
-int Utils::getTimeStamp()
+int64_t Utils::getTimeStamp()
 {
     auto now = std::chrono::system_clock::now(); // get current time
     auto duration = now.time_since_epoch(); // get duration since epoch
     auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count(); // convert to seconds
-    return static_cast<int>(timestamp); // return as int
+    return timestamp; // return as int
+}
+
+int Utils::randomInt(int min, int max)
+{
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(min, max);
+    return dis(gen);
 }
 
 std::string Utils::chunkTosequence(const std::string& content, const std::string& metadata)
@@ -160,19 +169,19 @@ std::string Utils::getTimeStr()
 }
 
 //--------------------------CallbackManager--------------------------//
-int Utils::CallbackManager::registerCallback(const Callback &callback)
+int64_t Utils::CallbackManager::registerCallback(const Callback &callback)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    auto callbackId = Utils::getTimeStamp() + Utils::randomInt(0, 1000000);
+    auto callbackId = Utils::getTimeStamp() + Utils::randomInt(0, 10000000);
     while(callbacks.find(callbackId) != callbacks.end())
     {
-        callbackId = Utils::getTimeStamp() + Utils::randomInt(0, 1000000); // generate a unique callback id
+        callbackId = Utils::getTimeStamp() + Utils::randomInt(0, 10000000); // generate a unique callback id
     }
     callbacks[callbackId] = callback;
     return callbackId;
 }
 
-void Utils::CallbackManager::callCallback(int callbackId, nlohmann::json &message)
+void Utils::CallbackManager::callCallback(int64_t callbackId, nlohmann::json &message)
 {
     std::unique_lock<std::mutex> lock(mutex);
     auto it = callbacks.find(callbackId);
@@ -229,4 +238,124 @@ void Utils::MessageQueue::shutdown()
     std::lock_guard<std::mutex> lock(mutex);
     shutdownFlag = true;
     conditionVariable.notify_all();
+}
+
+//--------------------------------Logger-----------------------------//
+const std::string Logger::levelToString(Level level)
+{
+    switch (level)
+    {
+    case Level::DEBUG:
+        return "DEBUG";
+    case Level::INFO:
+        return "INFO";
+    case Level::WARNING:
+        return "WARNING";
+    case Level::EXCEPTION:
+        return "ERROR";
+    case Level::FATAL:
+        return "FATAL";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+Logger::Logger(const std::string &logFileDir, bool toConsole, Level logLevel)
+    : logLevel(logLevel), toConsole(toConsole)
+{
+    std::string timestamp = std::format("{:%Y%m%d-%H%M%S}", std::chrono::system_clock::now());
+    std::string filename = timestamp + ".log";
+    logFilePath = logFileDir + "/" + filename;
+    if (!std::filesystem::exists(logFileDir))
+    {
+        std::filesystem::create_directories(logFileDir);
+    }
+    logFile.open(logFilePath, std::ios::app);
+    if (!logFile.is_open())
+    {
+        std::cerr << "Failed to open log file: " << logFilePath << ", may not record logs." << std::endl;
+    }
+    log("[Logger] Logger initialized with log level: " + levelToString(logLevel), Level::INFO);
+}
+
+void Logger::log(const std::string &message, Level level)
+{
+    if (level < logLevel)
+        return;
+    std::lock_guard<std::mutex> lock(mutex);
+    auto timeStr = Utils::getTimeStr();
+    std::string logMessage = timeStr + " [" + levelToString(level) + "] " + message + "\n";
+    if (toConsole)
+        std::cerr << logMessage << std::flush;
+    if (!logFile.is_open())
+        return;
+    logFile << logMessage << std::flush;
+}
+
+void Logger::debug(const std::string &message)
+{
+    log(message, Level::DEBUG);
+}
+
+void Logger::info(const std::string &message)
+{
+    log(message, Level::INFO);
+}
+
+void Logger::warning(const std::string &message)
+{
+    log(message, Level::WARNING);
+}
+
+void Logger::exception(const std::string &message)
+{
+    log(message, Level::EXCEPTION);
+}
+
+void Logger::fatal(const std::string &message)
+{
+    log(message, Level::FATAL);
+}
+
+//--------------------------------Error------------------------------//
+std::string Error::typeToString(Type type)
+{
+    switch (type)
+    {
+    case Type::Network:
+        return "Network";
+    case Type::FileAccess:
+        return "FileAccess";
+    case Type::Database:
+        return "Database";
+    case Type::Internal:
+        return "Internal";
+    case Type::Input:
+        return "Input";
+    case Type::Unknown:
+        return "Unknown";
+    default:
+        return "Unknown";
+    }
+}
+
+Error::Error(const std::string &message, Type type, const std::source_location location) : message(message), type(type) 
+{
+    auto typeStr = typeToString(type);
+    logger.exception(typeStr + " Error: " + message + "\nat " + location.file_name() + ":" + std::to_string(location.line()) + " , function: " + std::string(location.function_name()));
+}
+
+Error Error::operator+(const Error &other) const
+{
+    return Error(message + "\n    Nested error: " + other.message, (type != Type::Unknown) ? type : other.type);
+}
+
+const char* Error::what() const noexcept
+{
+    return message.c_str();
+}
+
+auto Error::getType() const -> Type
+{
+    return type;
 }

@@ -7,7 +7,7 @@
 #include <mutex>
 
 //--------------------------KernelServer--------------------------//
-KernelServer::KernelServer(const std::filesystem::path &userDataPath) : userDataPath(userDataPath)
+KernelServer::KernelServer(const std::filesystem::path &userDataPath) : userDataPath(std::filesystem::absolute(userDataPath))
 {
     kernelMessageQueue = std::make_shared<Utils::MessageQueue>();
 
@@ -32,7 +32,7 @@ void KernelServer::initializeSqlite()
     }
     catch(...)
     {
-        logger.warning("Failed to open sqlite database at " + (userDataDBPath / "kernel.db").string() +
+        logger.warning("[KernelServer] Failed to open sqlite database at " + (userDataDBPath / "kernel.db").string() +
                        ", try to create new database.");
     }
 
@@ -93,23 +93,23 @@ void KernelServer::run()
     initMessage["message"]["type"] = "ready";
     send(initMessage, nullptr);
     // receive message
-    logger.info("KernelServer ready, begin main loop.");
+    logger.info("[KernelServer] KernelServer ready, begin main loop.");
     std::string input(2048, '\0'); // max input size: 2048Byte
     while(std::cin.getline(input.data(), input.size()))
     {
-        logger.info("Received message: " + input.substr(0, input.find('\0')));
+        logger.info("[KernelServer] Received message: " + input.substr(0, input.find('\0')));
         if(input == "")
         {
             continue;
         }
         nlohmann::json inputJson;
-        int windowId;
+        int64_t windowId;
         bool toMain;
         std::string messageType;
         try
         {
             inputJson = nlohmann::json::parse(input);
-            windowId = inputJson["sessionId"].get<int>();
+            windowId = inputJson["sessionId"].get<int64_t>();
             toMain = inputJson["toMain"].get<bool>();
             messageType = inputJson["message"]["type"].get<std::string>();
         }
@@ -133,9 +133,9 @@ void KernelServer::run()
 
 void KernelServer::transmitMessage(nlohmann::json& json)
 {
-    int windowId = json["sessionId"].get<int>();
+    int64_t windowId = json["sessionId"].get<int64_t>();
     auto it = windowIdToSessionId.find(windowId);
-    int sessionId = -1;
+    int64_t sessionId = -1;
     if (it != windowIdToSessionId.end()) 
     {
         sessionId = it->second;
@@ -158,7 +158,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
         auto isReply = json["isReply"].get<bool>();
         if(isReply)
         {
-            execCallback(json, json["callbackId"].get<int>());
+            execCallback(json, json["callbackId"].get<int64_t>());
             return;
         }
         auto type = json["message"]["type"].get<std::string>();
@@ -187,7 +187,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
         else if(type == "openRepo") // open a session with repo name
         {
             auto repoName = json["message"]["repoName"].get<std::string>();
-            auto windowId = json["message"]["sessionId"].get<int>();
+            auto windowId = json["message"]["sessionId"].get<int64_t>();
             auto stmt = sqliteConnection->getStatement("SELECT repo_path FROM repository WHERE repo_name = ?");
             stmt.bind(1, repoName);
             if(stmt.step())
@@ -265,11 +265,11 @@ void KernelServer::handleMessage(nlohmann::json& json)
         }
         else if(type == "closeRepo")
         {
-            auto windowId = json["message"]["sessionId"].get<int>();
+            auto windowId = json["message"]["sessionId"].get<int64_t>();
             auto it = windowIdToSessionId.find(windowId);
             if(it != windowIdToSessionId.end())
             {
-                int sessionId = it->second;
+                auto sessionId = it->second;
                 sessions[sessionId]->stop();
                 sessions.erase(sessionId);
                 windowIdToSessionId.erase(windowId);
@@ -392,7 +392,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
     sendBack(json);
 }
 
-void KernelServer::execCallback(nlohmann::json& json, int callbackId)
+void KernelServer::execCallback(nlohmann::json &json, int64_t callbackId)
 {
     callbackManager->callCallback(callbackId, json);
 }
@@ -413,7 +413,7 @@ void KernelServer::sendBack(nlohmann::json& json)
     kernelMessageQueue->push(message);
 }
 
-void KernelServer::openSession(int windowId, const std::string& repoName, const std::string& repoPath)
+void KernelServer::openSession(int64_t windowId, const std::string &repoName, const std::string &repoPath)
 {
     auto sessionId = Utils::getTimeStamp();
     auto session = std::make_shared<Session>(sessionId, repoName, repoPath, *this);
@@ -421,7 +421,7 @@ void KernelServer::openSession(int windowId, const std::string& repoName, const 
     sessionThreads[sessionId] = std::thread(&Session::run, session);
     windowIdToSessionId[windowId] = sessionId;
     sessionIdToWindowId[sessionId] = windowId;
-    logger.info("Open session, sessionId " + std::to_string(sessionId) + ", windowId: " + std::to_string(windowId));
+    logger.info("[KernelServer] Open session, sessionId " + std::to_string(sessionId) + ", windowId: " + std::to_string(windowId));
 }
 
 void KernelServer::startMessageSender()
@@ -440,7 +440,7 @@ void KernelServer::stopMessageSender()
 
 void KernelServer::messageSender()
 {
-    logger.info("KernelServer.messageSender thread started.");
+    logger.info("[KernelServer.messageSender] thread started.");
     auto message = kernelMessageQueue->pop();
     while(message != nullptr)
     {
@@ -458,10 +458,10 @@ void KernelServer::messageSender()
             message->data["sessionId"] = -1; // message from kernel server
         }
         std::cout << message->data.dump() << std::endl << std::flush;
-        logger.info("Send message: " + message->data.dump());
+        logger.info("[KernelServer.messageSender] Send message: " + message->data.dump());
         message = kernelMessageQueue->pop();
     }
-    logger.info("KernelServer.messageSender thread stopped.");
+    logger.info("[KernelServer.messageSender] thread stopped.");
 }
 
 void KernelServer::updateSettings()
@@ -544,7 +544,7 @@ std::shared_ptr<LLMConv> KernelServer::getLLMConv(const std::string& modelName) 
     LLMConv::Config config;
     config["api_key"] = apiKey;
     config["api_url"] = url;
-    config["connect_timeout"] = "5";
+    config["connect_timeout"] = "10";
     auto conv = LLMConv::createConv(LLMConv::type::OpenAIapi, registeredModelName, config);
     return conv;
 }
@@ -778,11 +778,11 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
 
 void KernelServer::Settings::saveSettings()
 {
-    logger.info("Start saving settings...");
+    logger.info("Start loading settings...");
     auto cache = readSettings(settingsPath / "settings.json");
     std::lock_guard<std::mutex> lock(settingsMutex);
     settingsCache = cache;
-    logger.info("Settings saved.");
+    logger.info("Settings loaded.");
 }
 
 auto KernelServer::Settings::getGenerationModels() const

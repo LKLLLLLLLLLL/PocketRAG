@@ -19,6 +19,8 @@ namespace jiebaTokenizer
     }
     int jieba_tokenizer_tokenize(Fts5Tokenizer *pTokenizer, void *pCtx, int flags, const char *pText, int nText, int (*xToken)(void *, int, const char *, int, int, int))
     {
+        get_jieba_ptr();
+
         cppjieba::Jieba *jieba = (cppjieba::Jieba *)pTokenizer;
         std::string text(pText, nText);
         std::vector<std::string> words;
@@ -46,14 +48,6 @@ namespace jiebaTokenizer
     // register jieba tokenizer to specified SQLite database
     void register_jieba_tokenizer(sqlite3 *db)
     {
-        {
-            std::lock_guard<std::mutex> lock(jiebaMutex);
-            if (jieba == nullptr) // initialize jieba object
-            {
-                jieba = new cppjieba::Jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH); // PATH has been defined in the cmakefile
-            }
-        }
-
         static fts5_tokenizer tokenizer = {
             jieba_tokenizer_create,
             jieba_tokenizer_delete,
@@ -88,6 +82,9 @@ namespace jiebaTokenizer
 
     cppjieba::Jieba *get_jieba_ptr()
     {
+        if(jieba != nullptr) 
+            return jieba;
+        Utils::Timer timer("[Jieba] jieba initialization");
         {
             std::lock_guard<std::mutex> lock(jiebaMutex);
             if (jieba == nullptr) // initialize jieba object
@@ -95,6 +92,7 @@ namespace jiebaTokenizer
                 jieba = new cppjieba::Jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH); // PATH has been defined in the cmakefile
             }
         }
+        timer.stop();
         return jieba;
     }
 
@@ -102,10 +100,8 @@ namespace jiebaTokenizer
 
 void jiebaTokenizer::cut(const std::string &text, std::vector<std::string> &words)
 {
-    if (jieba == nullptr)
-    {
-        get_jieba_ptr();
-    }
+    get_jieba_ptr();
+
     std::lock_guard<std::mutex> lock(jiebaMutex);
     auto ltext = Utils::toLower(text);
     jieba->Cut(ltext, words);
@@ -113,10 +109,8 @@ void jiebaTokenizer::cut(const std::string &text, std::vector<std::string> &word
 
 void jiebaTokenizer::cutForSearch(const std::string &text, std::vector<std::string> &words)
 {
-    if(jieba == nullptr)
-    {
-        get_jieba_ptr();
-    }
+    get_jieba_ptr();
+
     std::lock_guard<std::mutex> lock(jiebaMutex);
     auto ltext = Utils::toLower(text);
     jieba->CutForSearch(ltext, words);

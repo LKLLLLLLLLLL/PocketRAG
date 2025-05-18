@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <sys/stat.h>
 #include <vector>
 #include <memory>
 #include <unordered_map>
@@ -66,12 +67,17 @@ namespace
 {
     struct ONNXInitializer
     {
+    private:
         ONNXInitializer()
         {
             ONNXModel::initialize();
         }
+    public:
+        static void initialize()
+        {
+            static ONNXInitializer instance;
+        }
     };
-    static ONNXInitializer onnxInitializer;
 }
 
 void ONNXModel::initialize()
@@ -84,6 +90,7 @@ void ONNXModel::initialize()
 ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf): 
     modelDirPath(targetModelDirPath)
 {
+    ONNXInitializer::initialize();
     {
         std::lock_guard<std::mutex> lock(mutex); // lock the mutex
 

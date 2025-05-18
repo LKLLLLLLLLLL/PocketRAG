@@ -10,18 +10,6 @@
 
 #include "Utils.h"
 
-namespace 
-{
-    struct SqliteInitializer
-    {
-        SqliteInitializer()
-        {
-            sqlite3_config(SQLITE_CONFIG_SERIALIZED); // enable thread safety mode for SQLite
-        }
-    };
-    static SqliteInitializer sqliteInitializer; // static initializer, run initialize once at the start of the program
-};
-
 
 /*
 This class manages a SQLite database connection.

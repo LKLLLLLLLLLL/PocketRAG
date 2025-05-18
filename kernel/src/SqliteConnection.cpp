@@ -11,6 +11,23 @@
 
 SqliteConnection::LocalDataManager SqliteConnection::dataManager;
 
+namespace
+{
+    struct SqliteInitializer
+    {
+    private:
+        SqliteInitializer()
+        {
+            sqlite3_config(SQLITE_CONFIG_SERIALIZED); // enable thread safety mode for SQLite
+        }
+    public:
+        static void initialize()
+        {
+            static SqliteInitializer instance; // create a static instance of SqliteInitializer
+        }
+    };
+};
+
 // ---------------------SqliteConnection---------------------
 void SqliteConnection::openSqlite(LocalData &data)
 {
@@ -31,6 +48,7 @@ void SqliteConnection::openSqlite(LocalData &data)
 
 SqliteConnection::SqliteConnection(const std::string &dbDirPath, const std::string &dbName) : dbDirPath(dbDirPath), dbName(dbName)
 {
+    SqliteInitializer::initialize();
     // check if the directory exists, if not, create it
     if (!std::filesystem::exists(dbDirPath))
         std::filesystem::create_directories(dbDirPath);

@@ -22,6 +22,8 @@ std::string HttpClient::httpResult::getErrorMessage(int http_code) // generate e
 {
     switch (http_code)
     {
+    case 200:
+        return "OK";
     case 400:
         return "Bad Request";
     case 401:
@@ -200,8 +202,12 @@ HttpClient::httpResult HttpClient::sendRequest(const std::string &request_body)
 {
     stop = false;
     std::string response_buffer; // buffer for response
+    logger.debug("[HttpClient] Sending request: " + request_body);
     auto result = curlRequest(nonStresamCallBack, &response_buffer, request_body); // send request and handle error in uniform way
     result.response = response_buffer; // set response to result
+    logger.debug(std::string("[HttpClient] Received response\n") + "http_code: " + std::to_string(result.http_code) +
+                 "\nerror message: " + result.error_message + "\nretried: " + std::to_string(result.retry_count) +
+                 "\nresponse: " + result.response);
     return result;
 }
 
@@ -212,7 +218,8 @@ HttpClient::httpResult HttpClient::sendStreamRequest(const std::string &request_
     std::string complete_response; // buffer for complete response
     auto callback_func = callback ? &callback : nullptr; // callback function
     auto streamdata = streamData(&buffer, &complete_response, parser, callback_func);
-    
+    logger.debug("[HttpClient] Sending request: " + request_body);
+
     httpResult result;
     try
     {
@@ -225,6 +232,9 @@ HttpClient::httpResult HttpClient::sendStreamRequest(const std::string &request_
     }
 
     result.response = complete_response; // set response to result
+    logger.debug(std::string("[HttpClient] Received response\n") + "http_code: " + std::to_string(result.http_code) +
+                 "\nerror message: " + result.error_message + "\nretried: " + std::to_string(result.retry_count) +
+                 "\nresponse: " + result.response);
     return result;
 }
 

@@ -56,9 +56,9 @@ void Session::doneReporter(std::string path)
 }
 
 // lazy initialization
-Session::Session(int sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer &kernelServer) : sessionId(sessionId), kernelServer(kernelServer), repoName(repoName), repoPath(repoPath)
+Session::Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer &kernelServer) : sessionId(sessionId), kernelServer(kernelServer), repoName(repoName), repoPath(repoPath)
 {
-    conversation = std::make_shared<AugmentedConversation>(repoPath / "conversation", *this);
+    conversation = std::make_shared<AugmentedConversation>(repoPath / ".PocketRAG" / "conversation", *this);
     lastprintTime.store(std::chrono::steady_clock::now());
 }
 
@@ -83,7 +83,7 @@ void Session::send(nlohmann::json& json, Utils::CallbackManager::Callback callba
     kernelServer.sendMessage(message);
 }
 
-void Session::execCallback(nlohmann::json& json, int callbackId)
+void Session::execCallback(nlohmann::json &json, int64_t callbackId)
 {
     callbackManager->callCallback(callbackId, json);
 }
@@ -105,14 +105,14 @@ void Session::run()
     json["message"]["path"] = repoPath;
     send(json, nullptr);
     // handle messages
-    logger.info("Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") started.");
+    logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") started.");
     auto message = sessionMessageQueue->pop();
     while (message != nullptr)
     {
         handleMessage(*message);
         message = sessionMessageQueue->pop();
     }
-    logger.info("Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") quitted.");
+    logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") quitted.");
 }
 
 void Session::handleMessage(Utils::MessageQueue::Message& message)
@@ -123,7 +123,7 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
         bool isReply = message.data["isReply"].get<bool>();
         if (isReply) 
         {
-            execCallback(message.data, message.data["callbackId"].get<int>());
+            execCallback(message.data, message.data["callbackId"].get<int64_t>());
             return;
         }
         auto type = message.data["message"]["type"].get<std::string>();
@@ -149,7 +149,7 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
                 resultsJson.push_back(resultJson);
             }
             json["data"] = nlohmann::json::object();
-            json["data"]["content"] = resultsJson;
+            json["data"]["results"] = resultsJson;
             json["data"]["type"] = "result";
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
@@ -157,7 +157,7 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
         else if(type == "beginConversation") 
         {
             auto modelName = message.data["message"]["modelName"].get<std::string>();
-            auto conversationId = message.data["message"]["conversationId"].get<int>();
+            auto conversationId = message.data["message"]["conversationId"].get<int64_t>();
             auto query = message.data["message"]["query"].get<std::string>();
             nlohmann::json json_copy = message.data;
             std::shared_ptr jsonPtr = std::make_shared<nlohmann::json>(json_copy);
@@ -290,7 +290,7 @@ Session::AugmentedConversation::~AugmentedConversation()
 
 void Session::AugmentedConversation::conversationProcess()
 {
-    logger.info("Conversation id" + std::to_string(conversationId) + " thread started.");
+    logger.info("[Conversation] Conversation id" + std::to_string(conversationId) + " thread started.");
     if(shutdownFlag.load())
         return;
 
@@ -307,13 +307,13 @@ You are a search query optimizer. Generate the most effective search keywords fo
     conversation->setMessage("system", understandPrompt);
     conversation->setMessage("user", query + "\n```search\n");
     auto searchWord = conversation->getResponse();
-    auto searchWords = Utils::splitLine(searchWord);
+    auto searchWords = Utils::splitLine(extractSearchword(searchWord));
     int searchCount = 0;
     // recursive search
     while(searchCount < 3 && !searchWords.empty())
     {
         // 2. search the documents
-        historyManager.beginRetrieval("Retrieving information: " + std::to_string(searchCount));
+        historyManager.beginRetrieval("Retrieving information: " + std::to_string(searchCount + 1));
         if (shutdownFlag)
             return;
         std::string toolContent = "```retieved_information\n";
@@ -346,7 +346,7 @@ If the information is sufficient, respond with "YES". If not, respond with "NO" 
         bool hasYes = evaluateResult.find("YES") != std::string::npos;
         bool hasNo = evaluateResult.find("NO") != std::string::npos;
         searchWords = Utils::splitLine(extractSearchword(evaluateResult));
-        if (!hasNo || hasYes)
+        if (!hasNo && hasYes)
         {
             break; // sufficient
         }
@@ -358,7 +358,7 @@ If the information is sufficient, respond with "YES". If not, respond with "NO" 
     conversation->setOptions("max_tokens", 2000);
     conversation->setOptions("stop", std::vector<std::string>{});
     std::string answerPrompt = R"(
-DO NOT give more search words, Answer the question based on the provided information above, Acknowledge limitations if information is insufficient.
+Retrieval phase is done, DO NOT give more search words, Answer the question based on the provided information above, Acknowledge limitations if information is insufficient.
     )";
     conversation->setMessage("system", answerPrompt);
     conversation->setMessage("user", query + "\n");
@@ -366,21 +366,22 @@ DO NOT give more search words, Answer the question based on the provided informa
         this->sendBack(response, Type::answer);
     });
     historyManager.push(Type::answer, answer);
-    logger.info("Conversation id" + std::to_string(conversationId) + " thread finished.");
 }
 
 std::string Session::AugmentedConversation::extractSearchword(const std::string &answer)
 {
     auto iterQuery = answer.find("```search");
-    if(iterQuery == std::string::npos)
-        return "";
+    if (iterQuery == std::string::npos)
+        iterQuery = 0;
+    else
+        iterQuery += 9; // skip "```search"
     auto iterEnd = answer.find("```", iterQuery);
-    if(iterEnd == std::string::npos)
-        return "";
-    return answer.substr(iterQuery + 8, iterEnd - iterQuery - 8);
+    if (iterEnd == std::string::npos)
+        iterEnd = answer.size();
+    return answer.substr(iterQuery, iterEnd - iterQuery);
 }
 
-void Session::AugmentedConversation::openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int conversationId)
+void Session::AugmentedConversation::openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int64_t conversationId)
 {
     stopConversation();
     conversation = conv;
@@ -412,6 +413,7 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
     if (std::filesystem::exists(historyFilePath))
     {
         historyJson = Utils::readJsonFile(historyFilePath);
+        logger.info("[Conversation] Loaded history file at " + historyFilePath.string());
     }
     else
     {
@@ -421,11 +423,12 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
         std::ofstream file(historyFilePath);
         if (!file.is_open())
         {
-            logger.warning("Error opening history file at " + historyFilePath.string()
-                           + ". Using empty history, and will write above history file.");
+            logger.warning("[Conversation] Error opening history file at " + historyFilePath.string() +
+                           ". Using empty history, and will write above history file.");
             return;
         }
         file << historyJson.dump(4);
+        logger.info("[Conversation] Created history file at " + historyFilePath.string());
     }
     // load full history file
     fullHistoryFilePath =
@@ -433,6 +436,7 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
     if (std::filesystem::exists(fullHistoryFilePath))
     {
         historyMessagesJson = Utils::readJsonFile(fullHistoryFilePath);
+        logger.info("[Conversation] Loaded full history file at " + fullHistoryFilePath.string());
     }
     else
     {
@@ -449,8 +453,8 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
     }
     catch (nlohmann::json::exception &e)
     {
-        logger.warning("Error parsing full history file at " + fullHistoryFilePath.string()
-                           + ". Using empty history for conversation and will write above  full history file.");
+        logger.warning("[Conversation] Error parsing full history file at " + fullHistoryFilePath.string() +
+                       ". Using empty history for conversation and will write above  full history file.");
     }
     conversationJson = nlohmann::json::object();
     conversationJson["query"] = parent.query;
@@ -458,19 +462,22 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
 
 Session::AugmentedConversation::HistoryManager::~HistoryManager()
 {
+    logger.info("[Conversation] Conversation id" + std::to_string(parent.conversationId) +
+                " thread quitted."); // deconstruct of history manager indicates cconversation thread has quitted
     parent.sendBack("", Type::done);
     conversationJson["time"] = Utils::getTimeStamp();
     // write history file
     std::ofstream file(historyFilePath);
     if (!file.is_open())
     {
-        logger.warning("Error opening history file for writing at " + historyFilePath.string()
-                           + ". History will not be saved.");
+        logger.warning("[Conversation] Error opening history file for writing at " + historyFilePath.string() +
+                       ". History will not be saved.");
         return;
     }
     historyJson["history"].push_back(conversationJson);
     file << historyJson.dump(4);
-
+    logger.info("[Conversation] Saved history file at " + historyFilePath.string());
+    // write full history file
     historyMessages = parent.conversation->exportHistory();
     historyMessagesJson = nlohmann::json::array();
     for (auto &message : historyMessages)
@@ -483,11 +490,12 @@ Session::AugmentedConversation::HistoryManager::~HistoryManager()
     std::ofstream fullFile(fullHistoryFilePath);
     if (!fullFile.is_open())
     {
-        logger.warning("Error opening full history file for writing at " + fullHistoryFilePath.string()
-                           + ". Full history will not be saved.");
+        logger.warning("[Conversation] Error opening full history file for writing at " + fullHistoryFilePath.string() +
+                       ". Full history will not be saved.");
         return;
     }
     fullFile << historyMessagesJson.dump(4);
+    logger.info("[Conversation] Saved full history file at " + fullHistoryFilePath.string());
 }
 
 std::vector<LLMConv::Message> Session::AugmentedConversation::HistoryManager::getHistoryMessages()

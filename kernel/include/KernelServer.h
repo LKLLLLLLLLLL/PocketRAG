@@ -31,12 +31,12 @@ private:
     const std::filesystem::path logPath = userDataPath / "log";
 
     // messagequeue for frontend and backend communication
-    std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server 
+    std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server
 
-    std::unordered_map<int, int> windowIdToSessionId = {};
-    std::unordered_map<int, int> sessionIdToWindowId = {};
-    std::unordered_map<int, std::shared_ptr<Session>> sessions = {}; // session id -> session ptr
-    std::unordered_map<int, std::thread> sessionThreads = {}; // session id -> thread
+    std::unordered_map<int64_t, int64_t> windowIdToSessionId = {};
+    std::unordered_map<int64_t, int64_t> sessionIdToWindowId = {};
+    std::unordered_map<int64_t, std::shared_ptr<Session>> sessions = {}; // session id -> session ptr
+    std::unordered_map<int64_t, std::thread> sessionThreads = {};        // session id -> thread
 
     // prevent multiple instances of KernelServer
     KernelServer(const std::filesystem::path &userDataPath);
@@ -50,11 +50,11 @@ private:
 
     // method for callback
     std::shared_ptr<Utils::CallbackManager> callbackManager = std::make_shared<Utils::CallbackManager>();
-    void execCallback(nlohmann::json& json, int callbackId); // execute callback
+    void execCallback(nlohmann::json &json, int64_t callbackId);                // execute callback
     void send(nlohmann::json& json, Utils::CallbackManager::Callback callback); // send message to session
     void sendBack(nlohmann::json& json); // send message from server to frontend, will set "isReply" to true
 
-    void openSession(int windowId, const std::string& repoName, const std::string& repoPath);
+    void openSession(int64_t windowId, const std::string &repoName, const std::string &repoPath);
     void stopAllSessions(); // stop all session threads, but not deconstruct them
 
     std::atomic<bool> stopAllFlag = false;

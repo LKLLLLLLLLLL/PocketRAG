@@ -219,7 +219,7 @@ switch(windowType){
     setTimeout(async () => {console.log(await getRepos())}, 5000)
     createRepo()
     setTimeout(async () => {console.log(await getRepos())}, 15000)
-    setTimeout(() => {openRepo('123')}, 25000)
+    setTimeout(() => {openRepo('repo')}, 25000)
 
     break
 
