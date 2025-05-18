@@ -1,5 +1,15 @@
 .Min_Max_Close-container{
     margin-left: auto;
-    height: 100%;
+    height: 50px;
     width: 150px;
+    display: flex;
+}
+.minbutton{
+    flex-grow: 1;
+}
+.maxbutton{
+    flex-grow: 1;
+}
+.closebutton{
+    flex-grow: 1;
 }

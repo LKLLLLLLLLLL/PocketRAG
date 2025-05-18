@@ -1,6 +1,6 @@
 .TopBar-container{
     height: 50px;
+    width: 100%;
     background-color: #424242;
     display: flex;
-    box-sizing: border-box;
 }

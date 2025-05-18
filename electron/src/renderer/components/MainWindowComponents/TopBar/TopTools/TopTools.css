@@ -1,5 +1,17 @@
 .TopTools-container{
-    height: 100%;
-    width: 25%;
+    height: 50px;
+    width: 200px;
+    display: flex;
+}
+.button01{
+    flex-grow: 1;
+}
+.button02{
+    flex-grow: 1;
+}
+.button03{
+    flex-grow: 1;
+}
+.button04{
     flex-grow: 1;
 }
