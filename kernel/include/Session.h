@@ -1,5 +1,4 @@
 #pragma once
-#include <condition_variable>
 #include <memory>
 #include <string>
 #include <thread>
@@ -18,7 +17,7 @@ Gurantee part of thread safety: despite "run()", other methods can be called in 
 class Session
 {
 private:
-    int sessionId;
+    int64_t sessionId;
 
     std::string repoName;
     std::filesystem::path repoPath;
@@ -42,12 +41,12 @@ private:
     std::shared_ptr<Utils::CallbackManager> callbackManager = std::make_shared<Utils::CallbackManager>();
     void sendBack(nlohmann::json& json);
     void send(nlohmann::json& json, Utils::CallbackManager::Callback callback);
-    void execCallback(nlohmann::json& json, int callbackId);
+    void execCallback(nlohmann::json &json, int64_t callbackId);
 
     void handleMessage(Utils::MessageQueue::Message& message);
 
 public:
-    Session(int sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer);
+    Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer);
     ~Session();
 
     // this method can only be called in one thread
@@ -71,15 +70,16 @@ private:
     std::shared_ptr<LLMConv> conversation = nullptr; // conversation instance
     const std::filesystem::path historyDirPath;     // conversation path
     std::string query;
-    int conversationId; // conversation id
-    
+    int64_t conversationId; // conversation id
+
     Session& session;
     std::function<void(std::string, Type)> sendBack = nullptr;
 
-    std::condition_variable cv;
-    std::mutex mtx;
     std::atomic<bool> shutdownFlag = false;
     std::thread conversationThread;
+
+    // only read maxHistoryLength characters from conversation history
+    static const int maxHistoryLength = 1000;
 
     void conversationProcess();
 
@@ -90,7 +90,7 @@ public:
     AugmentedConversation(std::filesystem::path historyDirPath, Session& session);
     ~AugmentedConversation();
     // open a new conversation
-    void openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int conversationId);
+    void openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int64_t conversationId);
     // stop conversation and destroy conversation thread
     void stopConversation();
 };

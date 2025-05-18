@@ -125,17 +125,6 @@ public:
 
     using Config = std::map<std::string, std::string>; // the config of the model, can be used to set api key, api url, etc.
 
-    // self-defined exception class for error handling
-    class Error : public std::exception
-    {
-    public:
-        enum class ErrorType {Network, NotFound, Authorization, RateLimit, Parser, InvalidArgument, Unknown};
-        ErrorType error_type;      // error type
-        std::string error_message; // error message
-        Error(ErrorType error_type, const std::string &error_message) : error_type(error_type), error_message(error_message) {}
-        const char* what() const noexcept override { return error_message.c_str(); } // override what() function to return error message
-    };
-
 protected:
     std::string modelName; // the name of the model, must equal to the model name in api or in the model file
     std::vector<Message> history; // the conversation history

@@ -1,8 +1,6 @@
 #include "Repository.h"
 
-#include <iostream>
 #include <filesystem>
-#include <stdexcept>
 #include <thread>
 #include <vector>
 #include <queue>
@@ -142,7 +140,7 @@ void Repository::updateEmbeddings(const EmbeddingConfigList &configs)
         // create vector table for this embedding model
         std::string tableName = "vector_" + std::to_string(id);
         auto vectorTable = std::make_shared<VectorTable>(dbPath.string(), tableName, *sqlite, dimension);
-        tempVectorTables.push_back(std::move(vectorTable));
+        tempVectorTables.push_back(vectorTable);
     }
     vectorTables = std::move(tempVectorTables);
     embeddings = std::move(tempEmbeddings);
@@ -156,6 +154,7 @@ Repository::~Repository()
 
 void Repository::backgroundProcess()
 {
+    logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process started.");
     while (!stopThread)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
@@ -172,7 +171,7 @@ void Repository::backgroundProcess()
         }
         if (!integrity && !stopThread)
         {
-            std::cerr << "Database integrity check failed, reconstructing..." << std::endl;
+            logger.warning("[Repository.backgroundProcess] Database integrity check failed, reconstructing...");
             reConstruct();
         }
 
@@ -194,6 +193,7 @@ void Repository::backgroundProcess()
             }
         }
     }
+    logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process stopped.");
 }
 
 void Repository::stopBackgroundProcess()
@@ -430,8 +430,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         } 
         else 
         {
-            std::cerr << "Error: chunk not found in texte search table, chunk_id: "
-                    << result.chunkId << std::endl;
+            throw Error{"Chunk not found in text_search table, chunk_id: " + std::to_string(result.chunkId), Error::Type::Database};
         }
     }
 
@@ -492,7 +491,8 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         }
         else
         {
-            std::runtime_error("Error: chunk not found in documents table, chunk_id: " + std::to_string(result.chunkId));
+            throw Error{"Chunk not found in documents table, chunk_id: " + std::to_string(result.chunkId), Error::Type::Database};
+
         }
         stmt.reset();
     }
@@ -509,7 +509,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         }
         else
         {
-            std::runtime_error("Error: chunk not found in chunks table, chunk_id: " + std::to_string(result.chunkId));
+            throw Error{"Chunk not found in chunks table, chunk_id: " + std::to_string(result.chunkId), Error::Type::Database};
         }
         lineStmt.reset();
     }

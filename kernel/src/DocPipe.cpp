@@ -25,7 +25,7 @@ DocPipe::DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSe
     else if (fileType == ".md")
         docType = Chunker::docType::Markdown;
     else
-        throw Exception(Exception::Type::wrongArg, "Unsupported document type: " + fileType);
+        throw Error{"Unsupported document type: " + fileType, Error::Type::Input};
 }
 
 std::string& DocPipe::readDoc()
@@ -36,7 +36,7 @@ std::string& DocPipe::readDoc()
     // read document from disk
     std::ifstream file{docPath};
     if (!file.is_open())
-        throw Exception(Exception::Type::openError, "Failed to open file: " + docPath.string());
+        throw Error{"Failed to open file: " + docPath.string(), Error::Type::FileAccess};
     std::stringstream buffer;
     buffer << file.rdbuf();    
     docContent = buffer.str(); 
@@ -55,7 +55,7 @@ void DocPipe::check()
 
     // check if the document is a file
     if(!std::filesystem::is_regular_file(docPath))
-        throw Exception(Exception::Type::notFound, "Document is not a file: " + docPath.string());
+        throw Error{"Document is not a file: " + docPath.string(), Error::Type::Input};
 
     // check if the document exists in the database
     auto stmt = sqlite.getStatement("SELECT id, last_modified, last_checked, content_hash FROM documents WHERE doc_name = ?");
@@ -72,7 +72,7 @@ void DocPipe::check()
     stmt = sqlite.getStatement("SELECT id, last_modified, last_checked, content_hash FROM documents WHERE doc_name = ?");
     stmt.bind(1, docName);
     if (!stmt.step())
-        throw Exception(Exception::Type::notFound, "Document not found in database: " + docName);
+        throw Error{"Document not found in database: " + docName, Error::Type::Internal};
 
     docId = stmt.get<int64_t>(0);
     auto lastModified = stmt.get<int64_t>(1);
@@ -156,7 +156,7 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     auto stmt = sqlite.getStatement("SELECT id FROM documents WHERE doc_name = ?;");
     stmt.bind(1, docName);
     if (!stmt.step())
-        throw Exception(Exception::Type::notFound, "Document not found in database: " + docName);
+        throw Error{"Document not found in database: " + docName, Error::Type::Internal};
     docId = stmt.get<int64_t>(0);
 
     // find chunk ids
@@ -185,7 +185,7 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     docStmt.bind(1, docId);
     docStmt.step();
     if (docStmt.changes() == 0)
-        throw Exception(Exception::Type::sqlError, "Failed to delete document from database: " + docName);
+        throw Error{"Failed to delete document from database: " + docName, Error::Type::Internal};
     progress.update(0.6); // update progress
     
     // delete from text search table
@@ -198,11 +198,7 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     // delete from vector table
     for(auto &vectorTable : vTable) // tranverse each vector table
     {
-        try
-        {
-            vectorTable->removeVector(chunkIds); // delete batch of chunk from vector table
-        }
-        catch(...){} // may throw exception because some chunk ids may not exist in this vector table, ignore it
+        vectorTable->removeVectorIfExists(chunkIds); // delete batch of chunk from vector table
     }
 
     trans.commit(); // commit transaction
@@ -236,7 +232,7 @@ void DocPipe::addDoc(std::function<void(double)> callback, std::atomic<bool> &st
         stmt.bind(5, SqliteConnection::null);
         stmt.step();
         if (stmt.changes() == 0)
-            throw Exception(Exception::Type::sqlError, "Failed to add document to database: " + docName);
+            throw Error{"Failed to add document to database: " + docName, Error::Type::Internal};
 
         docId = sqlite.getLastInsertId(); // get docId
         trans.commit();
@@ -286,7 +282,7 @@ void DocPipe::updateSqlite(std::string hash)
         stmt.bind(6, docId); // bind docId
         stmt.step();
         if(stmt.changes() == 0)
-            throw Exception(Exception::Type::sqlError, "Failed to update document in database: " + docName);
+            throw Error{"Failed to update document in database: " + docName, Error::Type::Internal};
         trans.commit(); // commit transaction
     }
     
@@ -301,7 +297,7 @@ void DocPipe::updateToTable(Progress &progress, std::atomic<bool> &stopFlag)
     
     // 2. for each embedding model, update the embedding table and vector table
     if(embeddings.size() != vTable.size())
-        throw Exception(Exception::Type::wrongArg, "Embedding model size and vector table size do not match: " + std::to_string(embeddings.size()) + " vs " + std::to_string(vTable.size()));
+        throw Error{"Embedding model size and vector table size do not match: " + std::to_string(embeddings.size()) + " vs " + std::to_string(vTable.size()), Error::Type::Internal};
     for(int i = 0; i < embeddings.size(); i++)
     {
         auto &embedding = embeddings[i]; // get embedding model
@@ -317,7 +313,12 @@ void DocPipe::updateToTable(Progress &progress, std::atomic<bool> &stopFlag)
 void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::atomic<bool> &stopFlag)
 {
     // 1. split content to chunks
-    auto chunkLength = std::min(embedding->model->getMaxLength(), embedding->inputLength); // get max length
+    int chunkLength = embedding->inputLength;
+    if (embedding->inputLength > embedding->model->getMaxLength())
+    {
+        chunkLength = embedding->model->getMaxLength();
+        logger.warning("Embedding " + embedding->embeddingName + "'s input length is too long, use " + std::to_string(chunkLength) + " instead of " + std::to_string(embedding->inputLength));
+    }
     std::vector<Chunker::Chunk> newChunks;
     Chunker chunker(docType, chunkLength); // create chunker
     newChunks = chunker(content, {{"FilePath", docPath.string()}}); 
@@ -349,14 +350,14 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     // 3. compare new chunks with existing chunks, and update / add / delete chunks
     // traverse new chunks to add and update chunk in tables
     auto trans1 = sqlite.beginTransaction(); // begin transaction
-    std::queue<size_t> addChunkQueue; 
+    std::queue<size_t> addChunkQueue; // only store index for add
     std::queue<std::pair<size_t, int64_t>> updateChunkQueue; // store index and chunk id for update
     for (int index = 1; index <= newChunks.size(); index++) // index begin with 1, defferent with NULL value of sqlite
     {
         auto& chunk = newChunks[index - 1]; // get new chunk
         auto hash = Utils::calculateHash(chunk.content + chunk.metadata); // calculate hash for new chunk
         auto it = existingChunks.find(hash);                 // find hash in existing chunks
-        if (it != existingChunks.end())   // finded, update chunk
+        if (it != existingChunks.end())   // found, update chunk
         {
             if (it->second.chunkIndex != index) // deffrend index, update chunk index
             {
@@ -367,7 +368,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
                 stmt.bind(1, it->second.chunkId); // bind chunk id
                 stmt.step(); // execute statement
                 if (stmt.changes() == 0) // check if updated
-                    throw Exception(Exception::Type::sqlError, "Failed to update chunk in database: " + std::to_string(it->second.chunkId));
+                    throw Error{"Failed to update chunk in database: " + std::to_string(it->second.chunkId), Error::Type::Internal};
             }
             existingChunks.erase(it); // remove from existing chunks
         }
@@ -386,7 +387,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         stmt.bind(1, chunkid); // bind chunk id
         stmt.step(); // execute statement
         if(stmt.changes() == 0) // check if deleted
-            throw Exception(Exception::Type::sqlError, "Failed to delete chunk from database: " + std::to_string(chunkid));
+            throw Error{"Failed to delete chunk from database: " + std::to_string(chunkid), Error::Type::Internal};
         
         // delete vector from vector table
         vectortable->removeVector(chunkid); // remove vector from vector table
@@ -411,7 +412,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         stmt.bind(4, chunk.endLine);          // bind end line
         stmt.step();                          // execute statement
         if (stmt.changes() == 0)              // check if updated
-            throw Exception(Exception::Type::sqlError, "Failed to update chunk in database: " + std::to_string(chunkid));
+            throw Error{"Failed to update chunk in database: " + std::to_string(chunkid), Error::Type::Internal};
 
         // no need to update vector table and text table, no changes
     }
@@ -439,7 +440,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         stmt.bind(6, chunk.endLine); // bind end line
         stmt.step(); // execute statement
         if(stmt.changes() == 0) // check if added
-            throw Exception(Exception::Type::sqlError, "Failed to add chunk to database: " + std::to_string(docId));
+            throw Error{"Failed to add chunk to database: " + std::to_string(docId), Error::Type::Internal};
 
         auto chunkid = sqlite.getLastInsertId(); // get chunk id
 
@@ -459,7 +460,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
             return;
         }
 
-        if(chunkCount % 200 == 0) // print every 1000 chunks
+        if(chunkCount % 200 == 0) // save every 200 chunks
         {
             trans2.commit();
             trans2 = sqlite.beginTransaction(); // begin transaction for adding chunks
@@ -479,7 +480,7 @@ DocPipe::Progress::Progress(std::function<void(double)> callback, std::vector<st
     for (auto &subprogress : subProgress)
     {
         if (subprogress.second <= 0.0)
-            throw Exception(Exception::Type::wrongArg, "Step length must be greater than 0.0: " + subprogress.first);
+            throw Error{"Step length must be greater than 0.0: " + subprogress.first, Error::Type::Internal};
         total_length += subprogress.second;
     }
     double ratio = 1.0 / total_length;
@@ -496,9 +497,9 @@ DocPipe::Progress::Progress(std::function<void(double)> callback, std::vector<st
 void DocPipe::Progress::update(double progress)
 {
     if (progress < 0.0 || progress > 1.0)
-        throw Exception(Exception::Type::wrongArg, "Progress must be in range [0.0, 1.0]: " + std::to_string(progress));
+        throw Error{"Progress must be in range [0.0, 1.0]: " + std::to_string(progress), Error::Type::Internal};
     if (!steps.empty())
-        throw Exception(Exception::Type::wrongArg, "Steps are not empty, please use updateStep() instead of update()");
+        throw Error{"Steps are not empty, please use updateSubprocess() instead of update()", Error::Type::Internal};
     this->progress = progress;
     if(callback) 
         callback(this->progress); // call the callback function with the current progress
@@ -507,9 +508,9 @@ void DocPipe::Progress::update(double progress)
 void DocPipe::Progress::updateSubprocess(double progress)
 {
     if (progress < 0.0 || progress > 1.0)
-        throw Exception(Exception::Type::wrongArg, "Progress must be in range [0.0, 1.0]: " + std::to_string(progress));
+        throw Error{"Progress must be in range [0.0, 1.0]: " + std::to_string(progress), Error::Type::Internal};
     if (steps.empty())
-        throw Exception(Exception::Type::wrongArg, "Steps are empty, please use update() instead of updateStep()");
+        throw Error{"Steps are empty, please use update() instead of updateSubprocess()", Error::Type::Internal};
     this->progress = steps[currentStep].second + progress * (steps[currentStep + 1].second - steps[currentStep].second);
     if (callback)
         callback(this->progress); // call the callback function with the current progress
@@ -518,9 +519,9 @@ void DocPipe::Progress::updateSubprocess(double progress)
 void DocPipe::Progress::finishSubprogress()
 {
     if (steps.empty())
-        throw Exception(Exception::Type::wrongArg, "Steps are empty, please use update() instead of finishSubprogress()");
+        throw Error{"Steps are empty, please use update() instead of finishSubprogress()", Error::Type::Internal};
     if (currentStep >= steps.size() - 1)
-        throw Exception(Exception::Type::wrongArg, "No more steps to finish: " + std::to_string(currentStep));
+        throw Error{"No more steps to finish: " + std::to_string(currentStep), Error::Type::Internal};
     currentStep++;
     this->progress = steps[currentStep].second; // set progress to the next step
     if (callback)

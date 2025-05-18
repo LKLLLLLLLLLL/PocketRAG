@@ -2,7 +2,6 @@
 
 #include <string>
 #include <filesystem>
-#include <iostream>
 #include <stack>
 #include <mutex>
 #include <sqlite3.h>
@@ -11,6 +10,23 @@
 #include "TextSearchTable.h"
 
 SqliteConnection::LocalDataManager SqliteConnection::dataManager;
+
+namespace
+{
+    struct SqliteInitializer
+    {
+    private:
+        SqliteInitializer()
+        {
+            sqlite3_config(SQLITE_CONFIG_SERIALIZED); // enable thread safety mode for SQLite
+        }
+    public:
+        static void initialize()
+        {
+            static SqliteInitializer instance; // create a static instance of SqliteInitializer
+        }
+    };
+};
 
 // ---------------------SqliteConnection---------------------
 void SqliteConnection::openSqlite(LocalData &data)
@@ -21,7 +37,7 @@ void SqliteConnection::openSqlite(LocalData &data)
     auto returnCode = sqlite3_open_v2(dbFullPath.string().c_str(), &data.sqliteDB, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI, nullptr);
     if (returnCode != SQLITE_OK)
     {
-        throw Exception{Exception::Type::openError, "Failed to create SQLite database: " + dbFullPath.string() + "\n    sqlite error " + sqlite3_errmsg(data.sqliteDB)};
+        throw Error{"Failed to open SQLite database: " + dbFullPath.string() + ", sqlite error " + std::string(sqlite3_errmsg(data.sqliteDB)), Error::Type::Database};
     }
 
     // register the jieba tokenizer to the SQLite database
@@ -32,12 +48,14 @@ void SqliteConnection::openSqlite(LocalData &data)
 
 SqliteConnection::SqliteConnection(const std::string &dbDirPath, const std::string &dbName) : dbDirPath(dbDirPath), dbName(dbName)
 {
+    SqliteInitializer::initialize();
     // check if the directory exists, if not, create it
     if (!std::filesystem::exists(dbDirPath))
         std::filesystem::create_directories(dbDirPath);
 
     // activate thread safety mode
     execute("PRAGMA journal_mode=WAL;");      // set journal mode to WAL for better concurrency
+    logger.info("SQLite database opened at " + (this->dbDirPath / (dbName + ".db")).string());
 }
 
 SqliteConnection::~SqliteConnection()
@@ -51,7 +69,7 @@ int SqliteConnection::execute(const std::string &sql)
     auto returnCode = sqlite3_exec(sqliteDB, sql.c_str(), nullptr, nullptr, nullptr);
     if(returnCode != SQLITE_OK)
     {
-        throw Exception{Exception::Type::executeError, "Failed to execute SQLite statement: " + sql + "\n    sqlite error " + std::string(sqlite3_errmsg(sqliteDB))};
+        throw Error{"Failed to execute SQLite statement: " + sql + "\nsqlite error " + std::string(sqlite3_errmsg(sqliteDB)), Error::Type::Database};
     }
     return sqlite3_changes(sqliteDB); // return the number of changes made by the SQL statement
 }
@@ -87,9 +105,9 @@ auto SqliteConnection::beginTransaction() -> Transaction
             return {*this, transactionName}; // return a new transaction object
         }
     }
-    catch (const Exception &e)
+    catch (const Error &e)
     {
-        throw Exception{Exception::Type::transactionError, "Failed to begin transaction: " + std::string(e.what())};
+        throw Error{"Failed to begin transaction, because: ", Error::Type::Database} + e;
     }
 }
 
@@ -156,7 +174,13 @@ SqliteConnection::Statement::Statement(sqlite3 *db, const std::string &sql) : th
 {
     auto returnCode = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr);
     if (returnCode != SQLITE_OK)
-        throw Exception{Exception::Type::unknownError, "Failed to prepare SQLite statement: " + sql + "\n    sqlite error " + std::string(sqlite3_errmsg(db))};
+        throw Error{"Failed to prepare SQLite statement: " + sql + ", sqlite error " + std::string(sqlite3_errmsg(db)), Error::Type::Database};
+}
+
+void SqliteConnection::Statement::checkThread() const
+{
+    if (threadId != std::this_thread::get_id())
+        throw Error{"SQLite statement is not used in the same thread.", Error::Type::Internal};
 }
 
 SqliteConnection::Statement::~Statement()
@@ -193,7 +217,7 @@ bool SqliteConnection::Statement::step()
     }
     else
     {
-        throw Exception{Exception::Type::executeError, "Failed to execute SQLite statement: " + std::string(sqlite3_errmsg(sqlite3_db_handle(stmt)))};
+        throw Error{"Failed to step SQLite statement, sql error " + std::string(sqlite3_errmsg(sqlite3_db_handle(stmt))), Error::Type::Database};
     }
 }
 
@@ -226,7 +250,7 @@ void SqliteConnection::Statement::reset()
 void SqliteConnection::Transaction::checkThread() const 
 {
     if (threadId != std::this_thread::get_id())
-        throw Exception{Exception::Type::threadError, "SQLite transaction is not used in the same thread."};
+        throw Error{"SQLite transaction is not used in the same thread.", Error::Type::Internal};
 }
 
 SqliteConnection::Transaction::~Transaction()
@@ -239,9 +263,9 @@ SqliteConnection::Transaction::~Transaction()
     {
         this->rollback();
     }
-    catch (const Exception &e)
+    catch (const Error &e)
     {
-        std::cerr << "[FATAL ERROR] Failed to rollback transaction: " << e.what() << std::endl;
+        logger.warning("Failed to rollback transaction: " + std::string(e.what()) + ", may cause data conflict!");
     }
 }
 
@@ -262,7 +286,7 @@ auto SqliteConnection::Transaction::operator=(Transaction &&other) -> Transactio
 
         if (&sqlite != &other.sqlite) 
         {
-            throw Exception{Exception::Type::transactionError, "Cannot move transaction between different connections"};
+            throw Error{"Cannot move transaction between different connections.", Error::Type::Internal};
         }
 
         isActive = other.isActive;
@@ -280,11 +304,11 @@ void SqliteConnection::Transaction::commit()
     checkThread();
     if(!isActive)
     {
-        throw Exception{Exception::Type::transactionError, "Transaction is not active, cannot commit."};
+        throw Error{"Transaction is not active, cannot commit.", Error::Type::Internal};
     }
     if(sqlite.dataManager.get(&sqlite).transactionStack.top() != transactionName)
     {
-        throw Exception{Exception::Type::transactionError, "Transaction has sub transactions active, cannot commit."};
+        throw Error{"Transaction has sub transactions active, cannot commit.", Error::Type::Internal};
     }
     try
     {
@@ -299,9 +323,9 @@ void SqliteConnection::Transaction::commit()
         isActive = false;
         sqlite.dataManager.get(&sqlite).transactionStack.pop();
     }
-    catch (const Exception &e)
+    catch (const Error &e)
     {
-        throw Exception{Exception::Type::fatalError, "Failed to commit transaction: " + std::string(e.what())};
+        throw Error{"Failed to commit transaction: ", Error::Type::Database} + e;
     }
 }
 
@@ -310,11 +334,11 @@ void SqliteConnection::Transaction::rollback()
     checkThread();
     if (!isActive)
     {
-        throw Exception{Exception::Type::transactionError, "Transaction is not active, cannot rollback."};
+        throw Error{"Transaction is not active, cannot rollback.", Error::Type::Internal};
     }
     if (sqlite.dataManager.get(&sqlite).transactionStack.top() != transactionName)
     {
-        throw Exception{Exception::Type::transactionError, "Transaction has sub transactions active, cannot rollback."};
+        throw Error{"Transaction has sub transactions active, cannot rollback.", Error::Type::Internal};
     }
     try
     {
@@ -330,8 +354,8 @@ void SqliteConnection::Transaction::rollback()
         isActive = false;
         sqlite.dataManager.get(&sqlite).transactionStack.pop();
     }
-    catch (const Exception &e)
+    catch (const Error &e)
     {
-        throw Exception{Exception::Type::fatalError, "Failed to rollback transaction: " + std::string(e.what())};
+        throw Error{"Failed to rollback transaction: ", Error::Type::Database} + e;
     }
 }

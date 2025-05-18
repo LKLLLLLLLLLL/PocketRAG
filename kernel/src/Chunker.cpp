@@ -59,7 +59,7 @@ auto Chunker::operator()(const std::string &in_text, std::unordered_map<std::str
         ast = cmark::cmark_parse_document(text.c_str(), text.length(), CMARK_OPT_DEFAULT | CMARK_OPT_HARDBREAKS);
         if (ast == nullptr)
         {
-            throw Exception(Exception::Type::parserError, "failed to parse markdown document");
+            throw Error{"Failed to parse markdown document", Error::Type::Input};
         }
     }
 
@@ -333,11 +333,10 @@ void Chunker::recursiveChunk(const Chunk &chunk, int split_table_index, const st
         }
 
         // if the chunk is too short, ignore it
-        if(getLength(sub_chunk.content) < minimumLength)
+        if(getLength(sub_chunk.content) > minimumLength)
         {
-            continue;
+            final_chunks.push_back(sub_chunk);
         }
-        final_chunks.push_back(sub_chunk);
         i = next_pos - 1; 
     }
 }

@@ -26,19 +26,20 @@ public:
     using Json = nlohmann::json;
 
 private:
-    const std::filesystem::path userDataPath = "./userData";
+    const std::filesystem::path userDataPath;
     const std::filesystem::path userDataDBPath = userDataPath / "db";
+    const std::filesystem::path logPath = userDataPath / "log";
 
     // messagequeue for frontend and backend communication
-    std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server 
+    std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server
 
-    std::unordered_map<int, int> windowIdToSessionId = {};
-    std::unordered_map<int, int> sessionIdToWindowId = {};
-    std::unordered_map<int, std::shared_ptr<Session>> sessions = {}; // session id -> session ptr
-    std::unordered_map<int, std::thread> sessionThreads = {}; // session id -> thread
+    std::unordered_map<int64_t, int64_t> windowIdToSessionId = {};
+    std::unordered_map<int64_t, int64_t> sessionIdToWindowId = {};
+    std::unordered_map<int64_t, std::shared_ptr<Session>> sessions = {}; // session id -> session ptr
+    std::unordered_map<int64_t, std::thread> sessionThreads = {};        // session id -> thread
 
     // prevent multiple instances of KernelServer
-    KernelServer();
+    KernelServer(const std::filesystem::path &userDataPath);
 
     std::shared_ptr<SqliteConnection> sqliteConnection = nullptr; // sqlite connection
     void initializeSqlite();
@@ -49,11 +50,11 @@ private:
 
     // method for callback
     std::shared_ptr<Utils::CallbackManager> callbackManager = std::make_shared<Utils::CallbackManager>();
-    void execCallback(nlohmann::json& json, int callbackId); // execute callback
+    void execCallback(nlohmann::json &json, int64_t callbackId);                // execute callback
     void send(nlohmann::json& json, Utils::CallbackManager::Callback callback); // send message to session
     void sendBack(nlohmann::json& json); // send message from server to frontend, will set "isReply" to true
 
-    void openSession(int windowId, const std::string& repoName, const std::string& repoPath);
+    void openSession(int64_t windowId, const std::string &repoName, const std::string &repoPath);
     void stopAllSessions(); // stop all session threads, but not deconstruct them
 
     std::atomic<bool> stopAllFlag = false;
@@ -73,9 +74,9 @@ private:
     std::string getApiKey(const std::string &modelName) const;
 public:
     // initialize a server and return a instance.
-    static KernelServer& openServer()
+    static KernelServer& openServer(const std::filesystem::path& userDataPath)
     {
-        static KernelServer instance; 
+        static KernelServer instance(userDataPath); 
         return instance; 
     }
     ~KernelServer();
@@ -175,15 +176,5 @@ public:
     std::vector<SettingsCache::LocalModelManagement::Model> getLocalModels() const;
     std::vector<SettingsCache::SearchSettings::EmbeddingConfig::Config> getEmbeddingConfigs() const;
     std::vector<SettingsCache::SearchSettings::RrankConfig::Config> getRerankConfigs() const;
-    std::string getModelPath(const std::string &modelName) const
-    {
-        for (const auto &model : settingsCache.localModelManagement.models)
-        {
-            if (model.name == modelName)
-            {
-                return model.path;
-            }
-        }
-        return "";
-    }
+    std::string getModelPath(const std::string &modelName) const;
 };

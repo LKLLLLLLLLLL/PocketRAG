@@ -45,17 +45,7 @@ class DocPipe
 {
 public:
     enum class DocState {unchecked, modified, created, deleted, unchanged};
-
-    struct Exception : public std::exception
-    {
-        enum class Type {notFound, openError, sqlError, wrongArg, unknownError};
-        Type type; // type of the exception
-        std::string message; // error message
-
-        Exception(Type type, const std::string &message) : type(type), message(message) {}
-        const char* what() const noexcept override { return message.c_str(); } // override what() method
-    };
-
+    
     class Progress;
 
     // A wrapper for embedding model, used to store the model and its parameters
@@ -116,7 +106,7 @@ public:
     DocPipe& operator=(const DocPipe&) = delete; // disable copy assignment operator
 
     DocPipe(DocPipe&&) = default; // enable move constructor
-    DocPipe& operator=(DocPipe&&) = default; // enable move assignment operator
+    DocPipe& operator=(DocPipe&&) = delete; // enable move assignment operator
 
     // check document status to get task type, but not process the task
     void check();

@@ -2,14 +2,14 @@
 #include <string>
 #include <vector>
 #include <shared_mutex>
-#include <memory>
 #include <faiss/Index.h>
-#include <iostream>
 #include <filesystem>
-
 #include <sqlite3.h>
 
 #include "SqliteConnection.h"
+#include "Utils.h"
+
+extern Logger logger;
 
 /*
 This class manages a SQLite database and several vector tables.
@@ -19,16 +19,6 @@ class VectorTable
 {
 public:
     using idx_t = faiss::idx_t; // Faiss index type
-
-    struct Exception : public std::exception
-    {
-        enum class Type {openError, fatalError, wrongArg, unknownError};
-        Type type;
-        std::string message;
-
-        Exception(Type type, const std::string &message) : type(type), message(message) {}
-        const char* what() const noexcept override { return message.c_str(); } // override what() method
-    };
 
 private:
     // Faiss index type, can be changed for best performance
@@ -96,6 +86,9 @@ public:
     // remove batch of vectors from table, return their ids in VectorTable
     // if the id is not in the table, throw an exception
     std::vector<idx_t> removeVector(const std::vector<idx_t> &ids);
+    // remove batch of vectors from table, return their ids in VectorTable
+    // if the id is not in the table, just ignore it
+    std::vector<idx_t> removeVectorIfExists(const std::vector<idx_t> &ids);
 
     // write all changes to disk, this may delete vector from faiss index, make sure sqlite table has committed all changes before calling this function
     void write();

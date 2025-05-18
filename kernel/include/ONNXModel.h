@@ -1,9 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
-#include <stdexcept>
 #include <memory>
-#include <unordered_set>
 #include <filesystem>
 #include <mutex>
 
@@ -23,7 +21,6 @@ public:
 
 private:
     static std::mutex mutex;    // mutex for all static variables
-    static bool is_initialized; // flag the initialization of ONNX environment 
 
     // storage all instances' modelDirPath, let instances with same model use sheared session to save memory
     static std::unordered_map<std::filesystem::path, std::weak_ptr<Ort::Session>> instancesSessions;

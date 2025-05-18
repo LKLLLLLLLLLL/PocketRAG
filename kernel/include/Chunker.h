@@ -3,12 +3,6 @@
 #include <functional>
 #include <string>
 #include <vector>
-#include <exception>
-
-// namespace cmark_gfm
-// {
-//     #include <cmark-gfm.h>
-// }
 
 namespace cmark
 {
@@ -31,16 +25,6 @@ public:
         int nestedLevel = 0;
         int beginLine = 0;
         int endLine = 0;
-    };
-
-    struct Exception : public std::exception
-    {
-        enum class Type{parserError, unknownError};
-        Type type;
-        std::string msg;
-
-        Exception(Type type, const std::string& msg): type(type), msg(msg) {}
-        const char* what() const noexcept override { return msg.c_str(); }
     };
 
 private:

@@ -8,6 +8,8 @@
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 
+#include "Utils.h"
+
 //---------------------------HttpClient---------------------------//
 bool HttpClient::httpResult::needRetry(int http_code) // check if need retry
 {
@@ -20,6 +22,8 @@ std::string HttpClient::httpResult::getErrorMessage(int http_code) // generate e
 {
     switch (http_code)
     {
+    case 200:
+        return "OK";
     case 400:
         return "Bad Request";
     case 401:
@@ -198,8 +202,12 @@ HttpClient::httpResult HttpClient::sendRequest(const std::string &request_body)
 {
     stop = false;
     std::string response_buffer; // buffer for response
+    logger.debug("[HttpClient] Sending request: " + request_body);
     auto result = curlRequest(nonStresamCallBack, &response_buffer, request_body); // send request and handle error in uniform way
     result.response = response_buffer; // set response to result
+    logger.debug(std::string("[HttpClient] Received response\n") + "http_code: " + std::to_string(result.http_code) +
+                 "\nerror message: " + result.error_message + "\nretried: " + std::to_string(result.retry_count) +
+                 "\nresponse: " + result.response);
     return result;
 }
 
@@ -210,7 +218,8 @@ HttpClient::httpResult HttpClient::sendStreamRequest(const std::string &request_
     std::string complete_response; // buffer for complete response
     auto callback_func = callback ? &callback : nullptr; // callback function
     auto streamdata = streamData(&buffer, &complete_response, parser, callback_func);
-    
+    logger.debug("[HttpClient] Sending request: " + request_body);
+
     httpResult result;
     try
     {
@@ -223,6 +232,9 @@ HttpClient::httpResult HttpClient::sendStreamRequest(const std::string &request_
     }
 
     result.response = complete_response; // set response to result
+    logger.debug(std::string("[HttpClient] Received response\n") + "http_code: " + std::to_string(result.http_code) +
+                 "\nerror message: " + result.error_message + "\nretried: " + std::to_string(result.retry_count) +
+                 "\nresponse: " + result.response);
     return result;
 }
 
@@ -278,7 +290,7 @@ std::string LLMConv::getStringConfig(const Config &config, const std::string &ke
     if (it == config.end() || it->second.empty())
     {
         if(required)
-            throw Error(Error::ErrorType::InvalidArgument, "\"" + key + "\" is not found in config or empty!");
+            throw Error{"\"" + key + "\" is not found in config or empty!", Error::Type::Internal};
         else
             return default_value; // return default value if not found and not required
     }
@@ -291,7 +303,7 @@ int LLMConv::getIntConfig(const Config &config, const std::string &key, int defa
     if (it == config.end() || it->second.empty())
     {
         if(required)
-            throw Error(Error::ErrorType::InvalidArgument, "\"" + key + "\" is not found in config!");
+            throw Error{"\"" + key + "\" is not found in config or empty!", Error::Type::Internal};
         else
             return default_value; // return default value if not found and not required
     }
@@ -301,7 +313,7 @@ int LLMConv::getIntConfig(const Config &config, const std::string &key, int defa
     }
     catch (const std::exception &e)
     {
-        throw Error(Error::ErrorType::InvalidArgument, "\"" + key + "\" must be an integer: " + it->second + "    \nstd::stoi throw: " + std::string(e.what()));
+        throw Error{"\"" + key + "\" is expected a integer value, but received " + it->second + "    \nnested error: " + std::string(e.what())};
     }
 }
 
@@ -325,7 +337,7 @@ bool OpenAIConv::OpenAIResponseParser::parseStreamChunk(const std::string &chunk
     }
     catch (const std::exception &e)
     {
-        throw Error(Error::ErrorType::Parser, "json parse error: " + chunk + "    \nnlohmann::json throw: " + std::string(e.what()));
+        throw Error{"Json parse error, received: " + chunk + "\n    Nested error: " + std::string(e.what())};
     }
 }
 
@@ -338,7 +350,7 @@ std::string OpenAIConv::OpenAIResponseParser::parseFullResponse(const std::strin
     }
     catch (const std::exception &e)
     {
-        throw Error(Error::ErrorType::Parser, "json parse error: " + response + "    \nnlohmann::json throw: " + std::string(e.what()));
+        throw Error{"Json parse error, received: " + response + "\n    Nested error: " + std::string(e.what())};
     }
 }
 
@@ -421,21 +433,25 @@ std::string OpenAIConv::handleHttpResult(const HttpClient::httpResult &result)
     if (result.http_code == 200)
         return result.response; // success, return response
     else if(result.http_code == 0) // Curl error
-        throw Error(Error::ErrorType::Network, std::string("Network error: ") + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")");
+        throw Error{"Network error: " + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")" + ", with response: " + result.response, Error::Type::Network}; // network error
     else if(result.http_code == 400) // Bad request
-        throw Error(Error::ErrorType::InvalidArgument, std::string("Bad request error: ") + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")");
+        throw Error{"Bad request error: " + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")" + ", with response: " + result.response, Error::Type::Network}; // bad request
     else if(result.http_code == 401 || result.http_code == 403) // Unauthorized
-        throw Error(Error::ErrorType::Authorization, std::string("Authorization error: ") + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")");
+        throw Error{"Authorization error: " + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")" + ", with response: " + result.response, Error::Type::Network}; // authorization error
     else if(result.http_code == 404) // Not found
-        throw Error(Error::ErrorType::NotFound, std::string("Not found error: ") + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")");
+        throw Error{"Not found error: " + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")" + ", with response: " + result.response, Error::Type::Network}; // not found error
     else if(result.http_code == 429) // Too many requests
-        throw Error(Error::ErrorType::RateLimit, std::string("Rate limit error: ") + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")");
+        throw Error{"Rate limit error: " + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")" + ", with response: " + result.response, Error::Type::Network}; // rate limit error
     else if(result.http_code >= 500 && result.http_code < 600) // Server error
-        throw Error(Error::ErrorType::Network, std::string("Server error: ") + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")");
+        throw Error{"Server error: " + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")" + ", with response: " + result.response, Error::Type::Network}; // server error
     else if(result.http_code == 599) // Parser error
-        throw Error(Error::ErrorType::Parser, std::string("Parser error: ") + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")");
+        throw Error{"Parser error: " + result.error_message + ", with response: " + result.response, Error::Type::Network}; // parser error
+    else if(result.http_code == 422) // Unprocessable entity
+        throw Error{"Wrong request format error: " + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")" + ", with response: " + result.response, Error::Type::Network}; // unprocessable entity error
+    else if(result.http_code == 500) // Internal server error
+        throw Error{"Internal server error: " + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")" + ", with response: " + result.response, Error::Type::Network}; // internal server error
     else // Unknown error
-        throw Error(Error::ErrorType::Unknown, std::string("Unknown error: ") + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")");
+        throw Error{"Unknown error: " + result.error_message + " (HTTP code: " + std::to_string(result.http_code) + ")" + ", with response: " + result.response, Error::Type::Network}; // unknown error
 }
 
 std::string OpenAIConv::getResponse()

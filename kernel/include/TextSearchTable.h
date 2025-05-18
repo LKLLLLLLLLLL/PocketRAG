@@ -5,6 +5,9 @@
 #include <cppjieba/Jieba.hpp>
 
 #include "SqliteConnection.h"
+#include "Utils.h"
+
+extern Logger logger;
 
 /*
 This class manages a Sqlite FTS5 table for text search.
@@ -39,16 +42,6 @@ public:
         int64_t chunkId; // chunk id
         std::string content; // content of the chunk with highlighted keywords
         std::string metadata; // metadata of the chunk with highlighted keywords
-    };
-
-    struct Exception : public std::exception
-    {
-        enum class Type { notFound, unknownError };
-        Type type; // type of the exception
-        std::string message; // error message
-
-        Exception(Type type, const std::string &message) : type(type), message(message) {}
-        const char* what() const noexcept override { return message.c_str(); } // override what() method
     };
 
 private:

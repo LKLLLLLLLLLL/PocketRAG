@@ -163,6 +163,26 @@ return:
 }
 ```
 
+### sessionCrushed
+session -> window
+Session崩溃，发送该消息给对应的窗口。  
+
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "sessionCrushed",
+        "error" : "error message"
+    }
+}
+```
+可以不回复，此时session会自动销毁，所以回复消息也不会被接收。
+
 ## 仓库管理相关
 ### getRepos
 main.js -> kernel server
@@ -476,9 +496,9 @@ return:
 - "annotation" 本次检索的目的
 - "result" 搜索结果
 - "answer" LLM生成的回答
-- "doenRetrieval" 完成一次检索
+- "doneRetrieval" 完成一次检索
 - "done" 完成标志
-不同类型的消息应渲染在不同位置，消息类型的发送顺序不固定，eg. search1 -> result1 -> doneRetrieve -> search2 -> result2 -> doenRetrieve -> answer -> done
+不同类型的消息应渲染在不同位置，消息类型的发送顺序不固定，eg. search1 -> result1 -> doneRetrieve -> search2 -> result2 -> doneRetrieve -> answer -> done
 如果出现错误，"status"字段会变成"NETWORK_ERROR"，并在"message"字段中返回错误信息。
 
 ### stopConversation

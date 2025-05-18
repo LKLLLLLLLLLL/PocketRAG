@@ -19,6 +19,8 @@ namespace jiebaTokenizer
     }
     int jieba_tokenizer_tokenize(Fts5Tokenizer *pTokenizer, void *pCtx, int flags, const char *pText, int nText, int (*xToken)(void *, int, const char *, int, int, int))
     {
+        get_jieba_ptr();
+
         cppjieba::Jieba *jieba = (cppjieba::Jieba *)pTokenizer;
         std::string text(pText, nText);
         std::vector<std::string> words;
@@ -46,14 +48,6 @@ namespace jiebaTokenizer
     // register jieba tokenizer to specified SQLite database
     void register_jieba_tokenizer(sqlite3 *db)
     {
-        {
-            std::lock_guard<std::mutex> lock(jiebaMutex);
-            if (jieba == nullptr) // initialize jieba object
-            {
-                jieba = new cppjieba::Jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH); // PATH has been defined in the cmakefile
-            }
-        }
-
         static fts5_tokenizer tokenizer = {
             jieba_tokenizer_create,
             jieba_tokenizer_delete,
@@ -67,7 +61,7 @@ namespace jiebaTokenizer
             auto statement = sqlite3_prepare_v2(db, "SELECT fts5(?)", -1, &stmt, nullptr);
             if (statement != SQLITE_OK)
             {
-                throw SqliteConnection::Exception{SqliteConnection::Exception::Type::unknownError, "Failed to prepare statement"};
+                throw Error{"Failed to prepare statement, sql error" + std::string(sqlite3_errmsg(db)), Error::Type::Database};
             }
             sqlite3_bind_pointer(stmt, 1, (void *)&fts5api, "fts5_api_ptr", nullptr); // bind the fts5_api pointer to the statement
             sqlite3_step(stmt);                                                       // execute the statement
@@ -77,17 +71,20 @@ namespace jiebaTokenizer
             auto rc = fts5api->xCreateTokenizer(fts5api, "jieba", (void *)jieba, &tokenizer, nullptr);
             if (rc != SQLITE_OK)
             {
-                throw SqliteConnection::Exception{SqliteConnection::Exception::Type::unknownError, "Failed to register jieba tokenizer"};
+                throw Error{"Failed to register jieba tokenizer, sql error" + std::string(sqlite3_errmsg(db)), Error::Type::Database};
             }
         }
-        catch (const SqliteConnection::Exception &e)
+        catch (const Error &e)
         {
-            throw SqliteConnection::Exception{SqliteConnection::Exception::Type::unknownError, "Failed to register jieba tokenizer: " + std::string(e.what())};
+            throw Error{"Failed to register jieba tokenizer: ", Error::Type::Database} + e;
         }
     }
 
     cppjieba::Jieba *get_jieba_ptr()
     {
+        if(jieba != nullptr) 
+            return jieba;
+        Utils::Timer timer("[Jieba] jieba initialization");
         {
             std::lock_guard<std::mutex> lock(jiebaMutex);
             if (jieba == nullptr) // initialize jieba object
@@ -95,6 +92,7 @@ namespace jiebaTokenizer
                 jieba = new cppjieba::Jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH); // PATH has been defined in the cmakefile
             }
         }
+        timer.stop();
         return jieba;
     }
 
@@ -102,10 +100,8 @@ namespace jiebaTokenizer
 
 void jiebaTokenizer::cut(const std::string &text, std::vector<std::string> &words)
 {
-    if (jieba == nullptr)
-    {
-        get_jieba_ptr();
-    }
+    get_jieba_ptr();
+
     std::lock_guard<std::mutex> lock(jiebaMutex);
     auto ltext = Utils::toLower(text);
     jieba->Cut(ltext, words);
@@ -113,10 +109,8 @@ void jiebaTokenizer::cut(const std::string &text, std::vector<std::string> &word
 
 void jiebaTokenizer::cutForSearch(const std::string &text, std::vector<std::string> &words)
 {
-    if(jieba == nullptr)
-    {
-        get_jieba_ptr();
-    }
+    get_jieba_ptr();
+
     std::lock_guard<std::mutex> lock(jiebaMutex);
     auto ltext = Utils::toLower(text);
     jieba->CutForSearch(ltext, words);
@@ -179,7 +173,7 @@ void TextSearchTable::deleteChunk(int64_t chunkId)
     
     if(deleteStmt.changes() == 0)
     {
-        throw Exception{Exception::Type::notFound, "No chunk found with chunkId: " + std::to_string(chunkId)};
+        throw Error{"No chunk found with chunkId: " + std::to_string(chunkId), Error::Type::Internal};
     }
 }
 
@@ -257,7 +251,7 @@ std::pair<std::string, std::string> TextSearchTable::getContent(int64_t chunkId)
 
     if(!queryStmt.step())
     {
-        throw Exception{Exception::Type::notFound, "No chunk found with chunkId: " + std::to_string(chunkId)};
+        throw Error{"No chunk found with chunkId: " + std::to_string(chunkId), Error::Type::Internal};
     }
 
     return {queryStmt.get<std::string>(0), queryStmt.get<std::string>(1)};

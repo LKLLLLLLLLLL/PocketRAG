@@ -2,8 +2,8 @@
 
 #include <iostream>
 #include <string>
+#include <sys/stat.h>
 #include <vector>
-#include <stdexcept>
 #include <memory>
 #include <unordered_map>
 #include <filesystem>
@@ -53,7 +53,6 @@ void printTensorData(const Ort::Value &tensor, const std::string &name, int maxS
 }
 
 // ------------------------ ONNXModel ------------------------ //
-bool ONNXModel::is_initialized = false;
 std::shared_ptr<Ort::Env> ONNXModel::env;
 
 std::mutex ONNXModel::mutex;
@@ -64,25 +63,36 @@ std::shared_ptr<Ort::MemoryInfo> ONNXModel::memoryInfo;
 
 std::unordered_map<Ort::Session *, std::shared_ptr<std::mutex>> ONNXModel::sessionMutexes;
 
+namespace
+{
+    struct ONNXInitializer
+    {
+    private:
+        ONNXInitializer()
+        {
+            ONNXModel::initialize();
+        }
+    public:
+        static void initialize()
+        {
+            static ONNXInitializer instance;
+        }
+    };
+}
+
 void ONNXModel::initialize()
 {
-    if(is_initialized)
-        throw std::runtime_error("ONNX environment has been initialized already.");
     env.reset(new Ort::Env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelEnv")); // ONNX runtime will log warnings and errors
     allocator.reset(new Ort::AllocatorWithDefaultOptions()); // default allocator
     memoryInfo.reset(new Ort::MemoryInfo(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault))); // default memory info in cpu
-    is_initialized = true;
 }
 
 ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf): 
     modelDirPath(targetModelDirPath)
 {
+    ONNXInitializer::initialize();
     {
         std::lock_guard<std::mutex> lock(mutex); // lock the mutex
-
-        // initialize
-        if (!is_initialized)
-            initialize();
 
         // check if there is already a session with the same modelDirPath
         bool isExist = false;
@@ -119,11 +129,11 @@ ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfS
             // open session
             auto modelPath = targetModelDirPath / "model.onnx";
             if (!std::filesystem::exists(modelPath))
-                throw std::runtime_error("Model file not found: " + modelPath.string());
+                throw Error{"Model file not found at " + modelPath.string(), Error::Type::FileAccess};
             auto modelPathwString = Utils::string_to_wstring(modelPath.string());
             session.reset(new Ort::Session(*env, modelPathwString.c_str(), sessionOptions));
             if (!session)
-                throw std::runtime_error("Failed to load ONNX model: " + targetModelDirPath.string());
+                throw Error{"Failed to create ONNX session for model: " + modelPath.string(), Error::Type::Unknown};
             
             // store the session in the map
             instancesSessions[targetModelDirPath] = session; // store the session in the map
@@ -199,7 +209,7 @@ EmbeddingModel::EmbeddingModel(std::filesystem::path targetModelDirPath, device 
     auto status = tokenizer->Load(modelPath.c_str());
     if (!status.ok())
     {
-        throw std::runtime_error("Failed to load tokenizer model: " + modelPath);
+        throw Error{"Failed to load tokenizer model at " + modelPath, Error::Type::FileAccess};
     }
 
     // get embedding dimension from model
@@ -231,7 +241,7 @@ EmbeddingModel::EmbeddingModel(std::filesystem::path targetModelDirPath, device 
 std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> EmbeddingModel::tokenize(const std::string &text) const
 {
     if(text.empty())
-        throw std::runtime_error("Input text is empty.");
+        throw Error{"Input text is empty.", Error::Type::Internal};
     
     // tokenize text to ids
     std::vector<int> tempTokenIds;
@@ -264,7 +274,7 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Emb
 std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> EmbeddingModel::tokenize(const std::vector<std::string> &texts) const
 {
     if(texts.empty())
-        throw std::runtime_error("Input texts are empty.");
+        throw Error{"Input texts are empty.", Error::Type::Internal};
     
     // tokenize batch of texts to ids, and compute max length
     int length = 0;
@@ -381,7 +391,7 @@ RerankerModel::RerankerModel(std::filesystem::path targetModelDirPath, device de
     auto status = tokenizer->Load(modelPath.c_str());
     if (!status.ok())
     {
-        throw std::runtime_error("Failed to load tokenizer model: " + modelPath);
+        throw Error{"Failed to load tokenizer model at " + modelPath, Error::Type::FileAccess};
     }
 
     // get max input length
@@ -409,7 +419,7 @@ RerankerModel::RerankerModel(std::filesystem::path targetModelDirPath, device de
 std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> RerankerModel::tokenize(const std::string &query, const std::string &content) const
 {
     if(query.empty() || content.empty())
-        throw std::runtime_error("Input query or content is empty.");
+        throw Error{"Input query or content is empty.", Error::Type::Internal};
     
     // tokenize text to ids
     std::vector<int> queryTokenIds;
@@ -441,7 +451,7 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Rer
 std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> RerankerModel::tokenize(const std::string &query, const std::vector<std::string> &contents) const
 {
     if (query.empty() || contents.empty())
-        throw std::runtime_error("Input query or content is empty.");
+        throw Error{"Input query or contents are empty.", Error::Type::Internal};
 
     std::vector<int> queryToken;
     tokenizer->Encode(query, &queryToken);
