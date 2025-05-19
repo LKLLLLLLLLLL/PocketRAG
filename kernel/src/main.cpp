@@ -86,6 +86,7 @@
 
 #include "Utils.h"
 #include "KernelServer.h"
+#include <iostream>
 
 Logger logger(".\\userData\\logs", false, Logger::Level::DEBUG);
 
@@ -108,6 +109,7 @@ void server_terminate_handler()
     try
     {
         auto error_ptr = std::current_exception();
+        std::string error_message = "Unknown error";
         if (error_ptr)
         {
             try
@@ -116,7 +118,8 @@ void server_terminate_handler()
             }
             catch (const std::exception &e)
             {
-                logger.fatal("KernelServer crashed with exception: " + std::string(e.what()));
+                error_message = e.what();
+                logger.fatal("KernelServer crashed with exception: " + error_message);
             }
             catch (...)
             {
@@ -127,6 +130,16 @@ void server_terminate_handler()
         {
             logger.fatal("KernelServer crashed with unknown exception.");
         }
+
+        // send crash message to frontend
+        nlohmann::json errorJson;
+        errorJson["sessionId"] = -1;
+        errorJson["toMain"] = true;
+        errorJson["callbackId"] = 0;
+        errorJson["isReply"] = false;
+        errorJson["message"]["type"] = "kernelServerCrash";
+        errorJson["message"]["error"] = error_message;
+        std::cout << errorJson.dump() << std::endl << std::flush;
     }
     catch (...)
     {

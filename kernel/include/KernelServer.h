@@ -33,6 +33,8 @@ private:
     // messagequeue for frontend and backend communication
     std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server
 
+    std::mutex sessionMutex;
+    std::queue<std::thread> crashedThreads = {};
     std::unordered_map<int64_t, int64_t> windowIdToSessionId = {};
     std::unordered_map<int64_t, int64_t> sessionIdToWindowId = {};
     std::unordered_map<int64_t, std::shared_ptr<Session>> sessions = {}; // session id -> session ptr

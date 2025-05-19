@@ -204,6 +204,7 @@ void Repository::stopBackgroundProcess()
         backgroundThread.join(); // wait for the thread to finish
     }
 }
+
 void Repository::startBackgroundProcess()
 {
     if(backgroundThread.joinable())
@@ -211,7 +212,34 @@ void Repository::startBackgroundProcess()
         return;
     }
     stopThread = false;
-    backgroundThread = std::thread(&Repository::backgroundProcess, this); 
+    auto backgroundThreadFunc = [this]() {
+        while(!stopThread)
+        {
+            try
+            {
+                backgroundProcess();
+            }
+            catch (const std::exception &e)
+            {
+                restartCount++;
+                if(restartCount > maxRestartCount)
+                {
+                    logger.warning("[Repository.backgroundProcess] Background process crashed too many times, stop it.");
+                    stopThread = true;
+                    if (errorCallback == nullptr)
+                    {
+                        logger.fatal("[Repository.backgroundProcess] No error callback set, call terminate.");
+                        throw e;
+                    }
+                    errorCallback(std::current_exception());
+                    return;
+                }
+                logger.warning("[Repository.backgroundProcess] Crashed with: " + std::string(e.what())
+                    + ", restart count: " + std::to_string(restartCount) + ", restarting...");
+            }
+        }
+    };
+    backgroundThread = std::thread(backgroundThreadFunc);
 }
 
 void Repository::checkDoc(std::queue<DocPipe>& docqueue)

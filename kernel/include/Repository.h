@@ -1,4 +1,5 @@
 # pragma once
+#include <exception>
 #include <filesystem>
 #include <string>
 #include <memory>
@@ -81,6 +82,8 @@ private:
     std::function<void(std::string, double)> progressReporter;
     std::function<void(std::string)> doneReporter;
 
+    std::function<void(std::exception_ptr)> errorCallback = nullptr;
+
     constexpr static float alpha = 0.6;
     static float combineScore(float bm25Score, float vectorScore)
     {
@@ -104,6 +107,8 @@ private:
 
     // background thread for processing documents
     void backgroundProcess();
+    int restartCount = 0;
+    const static int maxRestartCount = 3;
 
     void stopBackgroundProcess();
     void startBackgroundProcess();
@@ -127,6 +132,11 @@ public:
 
     // to fix internal error, drop all tables and reconstruct
     void reConstruct();
+
+    void setErrorCallback(std::function<void(std::exception_ptr)> callback)
+    {
+        errorCallback = callback;
+    }
 
     std::pair<std::string, std::string> getRepoNameAndPath() const
     {

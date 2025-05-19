@@ -2,9 +2,11 @@
 #include "Repository.h"
 #include "Utils.h"
 
+#include <exception>
 #include <filesystem>
 #include <iostream>
 #include <mutex>
+#include <string>
 
 //--------------------------KernelServer--------------------------//
 KernelServer::KernelServer(const std::filesystem::path &userDataPath) : userDataPath(std::filesystem::absolute(userDataPath))
@@ -67,6 +69,7 @@ KernelServer::~KernelServer()
 
 void KernelServer::stopAllSessions()
 {
+    std::unique_lock lock(sessionMutex);
     for(auto& session : sessions)
     {
         session.second->stop();
@@ -76,6 +79,15 @@ void KernelServer::stopAllSessions()
         if(thread.second.joinable())
         {
             thread.second.join();
+        }
+    }
+    while(!crashedThreads.empty())
+    {
+        auto thread = std::move(crashedThreads.front());
+        crashedThreads.pop();
+        if(thread.joinable())
+        {
+            thread.join();
         }
     }
     sessionThreads.clear();
@@ -120,6 +132,19 @@ void KernelServer::run()
             sendBack(inputJson);
             continue;
         }
+        // join all crashed threads
+        {
+            std::unique_lock lock(sessionMutex);
+            while(!crashedThreads.empty())
+            {
+                auto thread = std::move(crashedThreads.front());
+                crashedThreads.pop();
+                if(thread.joinable())
+                {
+                    thread.join();
+                }
+            }
+        }
         if(!toMain)
             transmitMessage(inputJson);
         else
@@ -134,6 +159,7 @@ void KernelServer::run()
 void KernelServer::transmitMessage(nlohmann::json& json)
 {
     int64_t windowId = json["sessionId"].get<int64_t>();
+    std::lock_guard<std::mutex> lock(sessionMutex); 
     auto it = windowIdToSessionId.find(windowId);
     int64_t sessionId = -1;
     if (it != windowIdToSessionId.end()) 
@@ -297,6 +323,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
         else if(type == "closeRepo")
         {
             auto windowId = json["message"]["sessionId"].get<int64_t>();
+            std::lock_guard<std::mutex> lock(sessionMutex);
             auto it = windowIdToSessionId.find(windowId);
             if(it != windowIdToSessionId.end())
             {
@@ -447,6 +474,7 @@ void KernelServer::sendBack(nlohmann::json& json)
 void KernelServer::openSession(int64_t windowId, const std::string &repoName, const std::string &repoPath)
 {
     // check if windowId already exists
+    std::lock_guard<std::mutex> lock(sessionMutex);
     auto it = windowIdToSessionId.find(windowId);
     if(it != windowIdToSessionId.end())
     {
@@ -455,6 +483,39 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
     }
     auto sessionId = Utils::getTimeStamp();
     auto session = std::make_shared<Session>(sessionId, repoName, repoPath, *this);
+    session->setCrashHandler([this](std::exception_ptr e, int64_t sessionId)
+    {
+        try
+        {
+            std::rethrow_exception(e);
+        }
+        catch (const std::exception& e)
+        {
+            std::lock_guard<std::mutex> lock(sessionMutex);
+            auto sessionIt = sessions.find(sessionId);
+            if(sessionIt == sessions.end())
+            {
+                throw Error{"Session not found: " + std::to_string(sessionId) + " failed to handle crash.", Error::Type::Internal};
+            }
+            sessions.erase(sessionIt);
+            auto windowIdIt = sessionIdToWindowId.find(sessionId);
+            if(windowIdIt == sessionIdToWindowId.end())
+            {
+                throw Error{"WindowId not found: " + std::to_string(sessionId) + " failed to handle crash.",
+                            Error::Type::Internal};
+            }
+            windowIdToSessionId.erase(windowIdIt->second);
+            sessionIdToWindowId.erase(sessionId);
+            auto threadIt = sessionThreads.find(sessionId);
+            if(threadIt == sessionThreads.end())
+            {
+                throw Error{"Thread not found: " + std::to_string(sessionId) + " failed to handle crash.", Error::Type::Internal};
+            }
+            auto thisThread = std::move(threadIt->second);
+            crashedThreads.push(std::move(thisThread));
+        }
+    });
+    auto sessionThreadIt = sessionThreads.find(sessionId);
     sessions[sessionId] = session;
     sessionThreads[sessionId] = std::thread(&Session::run, session);
     windowIdToSessionId[windowId] = sessionId;
@@ -486,17 +547,20 @@ void KernelServer::messageSender()
         {
             continue;
         }
-        auto it = sessionIdToWindowId.find(message->sessionId);
-        if(it != sessionIdToWindowId.end())
         {
-            message->data["sessionId"] = it->second;
+            std::lock_guard<std::mutex> lock(sessionMutex);
+            auto it = sessionIdToWindowId.find(message->sessionId);
+            if(it != sessionIdToWindowId.end())
+            {
+                message->data["sessionId"] = it->second;
+            }
+            else
+            {
+                message->data["sessionId"] = -1; // message from kernel server
+            }
+            std::cout << message->data.dump() << std::endl << std::flush;
+            logger.info("[KernelServer.messageSender] Send message: " + message->data.dump());
         }
-        else
-        {
-            message->data["sessionId"] = -1; // message from kernel server
-        }
-        std::cout << message->data.dump() << std::endl << std::flush;
-        logger.info("[KernelServer.messageSender] Send message: " + message->data.dump());
         message = kernelMessageQueue->pop();
     }
     logger.info("[KernelServer.messageSender] thread stopped.");

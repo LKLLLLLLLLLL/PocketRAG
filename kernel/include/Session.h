@@ -1,4 +1,5 @@
 #pragma once
+#include <exception>
 #include <memory>
 #include <string>
 #include <thread>
@@ -45,6 +46,11 @@ private:
 
     void handleMessage(Utils::MessageQueue::Message& message);
 
+    std::mutex errorMutex;
+    std::exception_ptr repoThreadError = nullptr;
+
+    std::function<void(std::exception_ptr, int64_t)> crashHandler = nullptr;
+
 public:
     Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer);
     ~Session();
@@ -52,7 +58,7 @@ public:
     // this method can only be called in one thread
     void run();
 
-    // this function can be called by another thread
+    // this function can be called by another thread, it will shuddown all threads under this session
     void stop();
 
     // called by kernel server, will automatically get embedding config and reranker config from kernel server
@@ -60,12 +66,17 @@ public:
 
     // called by kernel server
     void sendMessage(const std::shared_ptr<Utils::MessageQueue::Message>& message);
+
+    void setCrashHandler(std::function<void(std::exception_ptr, int64_t)> handler)
+    {
+        crashHandler = handler;
+    }
 };
 
 class Session::AugmentedConversation
 {
 public:
-    enum class Type{search, result, answer, annotation, doneRetrieval, done}; // type of this message
+    enum class Type{search, result, answer, annotation, doneRetrieval, done, networkError, unknownError}; // type of this message
 private:
     std::shared_ptr<LLMConv> conversation = nullptr; // conversation instance
     const std::filesystem::path historyDirPath;     // conversation path

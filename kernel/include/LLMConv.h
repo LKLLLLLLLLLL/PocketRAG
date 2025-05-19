@@ -88,7 +88,7 @@ public:
     ~HttpClient();
 
     // set max retry count and connect timeout
-    void setRetryOptions(int max_retry = 0, int connect_timeout = 10000, bool verbose = false)
+    void setRetryOptions(int max_retry = 0, int connect_timeout = 10, bool verbose = false)
     {
         this->max_retry = max_retry;
         this->connect_timeout = connect_timeout;

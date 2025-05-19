@@ -2,8 +2,10 @@
 #include "KernelServer.h"
 #include "Repository.h"
 #include "Utils.h"
+#include <exception>
 #include <memory>
 #include <minwindef.h>
+#include <mutex>
 #include <nlohmann/json_fwd.hpp>
 
 //--------------------------Session--------------------------//
@@ -96,6 +98,13 @@ void Session::run()
     auto doneReporter_wrap = [this](std::string path) { doneReporter(path); };
     repository = std::make_shared<Repository>(repoName, repoPath, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
     config();
+    repository->setErrorCallback([this](std::exception_ptr e) {
+        {
+            std::lock_guard<std::mutex> lock(errorMutex);
+            repoThreadError = e;
+        }
+        sessionMessageQueue->shutdown();
+    });
     // send done message
     nlohmann::json json;
     json["toMain"] = false;
@@ -107,9 +116,40 @@ void Session::run()
     // handle messages
     logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") started.");
     auto message = sessionMessageQueue->pop();
-    while (message != nullptr)
+    while (message != nullptr || repoThreadError)
     {
-        handleMessage(*message);
+        try
+        {
+            std::lock_guard<std::mutex> lock(errorMutex);
+            if (repoThreadError)
+            {
+                auto error = repoThreadError;
+                repoThreadError = nullptr;
+                std::rethrow_exception(error);
+            }
+            handleMessage(*message);
+        }
+        catch (const std::exception &e)
+        {
+            logger.warning("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName +
+                           ") crashed with error: " + std::string(e.what()));
+            nlohmann::json json;
+            json["toMain"] = false;
+            json["message"]["type"] = "sessionCrash";
+            json["message"]["error"] = std::string(e.what());
+            send(json, nullptr);
+            if (crashHandler)
+            {
+                crashHandler(std::current_exception(), sessionId);
+                return;
+            }
+            else
+            {
+                logger.fatal("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName +
+                            ") Has no crash handler registered, terminate.");
+                throw e;
+            }
+        }
         message = sessionMessageQueue->pop();
     }
     logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") quitted.");
@@ -163,6 +203,9 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
             std::shared_ptr jsonPtr = std::make_shared<nlohmann::json>(json_copy);
             auto sendBack = [this, jsonPtr](const std::string &response, AugmentedConversation::Type type) {
                 std::string typeStr;
+                bool errorFlag = false;
+                std::string errorType = "";
+                std::string errorMsg = "";
                 switch (type)
                 {
                 case AugmentedConversation::Type::search:
@@ -183,10 +226,27 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
                 case AugmentedConversation::Type::done:
                     typeStr = "done";
                     break;
+                case AugmentedConversation::Type::networkError:
+                    errorFlag = true;
+                    errorType = "NETWORK_ERROR";
+                    errorMsg = response;
+                    break;
+                case AugmentedConversation::Type::unknownError:
+                    errorFlag = true;
+                    errorType = "UNKNOWN_ERROR";
+                    errorMsg = response;
+                    break;
                 default:
                     throw Error{"Wrong type of history", Error::Type::Internal};
                 }
                 nlohmann::json json = *jsonPtr;
+                if(errorFlag)
+                {
+                    json["status"]["code"] = errorType;
+                    json["status"]["message"] = errorMsg;
+                    this->sendBack(json);
+                    return;
+                }
                 json["data"] = nlohmann::json::object();
                 json["data"]["type"] = typeStr;
                 if (type != AugmentedConversation::Type::result)
@@ -247,7 +307,14 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
 
 void Session::stop()
 {
-    // stopConversationThread();
+    if(conversation)
+    {
+        conversation->stopConversation();
+    }
+    if(repository)
+    {
+        repository.reset();
+    }
     sessionMessageQueue->shutdown();
 }
 
@@ -290,82 +357,93 @@ Session::AugmentedConversation::~AugmentedConversation()
 
 void Session::AugmentedConversation::conversationProcess()
 {
-    logger.info("[Conversation] Conversation id" + std::to_string(conversationId) + " thread started.");
-    if(shutdownFlag.load())
-        return;
-
-    // read history from disk if exists
-    HistoryManager historyManager(*this);
-    conversation->importHistory(historyManager.getHistoryMessages());
-
-    // 1. understand and generate the search words
-    conversation->setOptions("max_tokens", 200);
-    conversation->setOptions("stop", std::vector<std::string>{"```\n"});
-    std::string understandPrompt = R"(
-You are a search query optimizer. Generate the most effective search keywords for retrieving information about this question. Return ONLY the search terms without explanation, and end with "```".
-    )";
-    conversation->setMessage("system", understandPrompt);
-    conversation->setMessage("user", query + "\n```search\n");
-    auto searchWord = conversation->getResponse();
-    auto searchWords = Utils::splitLine(extractSearchword(searchWord));
-    int searchCount = 0;
-    // recursive search
-    while(searchCount < 3 && !searchWords.empty())
+    HistoryManager historyManager(*this); // defiene history manager to make sure its destructor is called at the end of conversation
+    try
     {
-        // 2. search the documents
-        historyManager.beginRetrieval("Retrieving information: " + std::to_string(searchCount + 1));
-        if (shutdownFlag)
+        logger.info("[Conversation] Conversation id" + std::to_string(conversationId) + " thread started.");
+        if(shutdownFlag.load())
             return;
-        std::string toolContent = "```retieved_information\n";
-        for (auto &word : searchWords)
+
+        // read history from disk if exists
+        conversation->importHistory(historyManager.getHistoryMessages());
+
+        // 1. understand and generate the search words
+        conversation->setOptions("max_tokens", 200);
+        conversation->setOptions("stop", std::vector<std::string>{"```\n"});
+        std::string understandPrompt = R"(
+You are a search query optimizer. Generate the most effective search keywords for retrieving information about this question. Return ONLY the search terms without explanation, and end with "```".)";
+        conversation->setMessage("system", understandPrompt);
+        conversation->setMessage("user", query + "\n```search\n");
+        auto searchWord = conversation->getResponse();
+        auto searchWords = Utils::splitLine(extractSearchword(searchWord));
+        int searchCount = 0;
+        // recursive search
+        while(searchCount < 3 && !searchWords.empty())
         {
-            historyManager.push(Type::search, word);
-            auto results = session.repository->search(word, Repository::searchAccuracy::high, std::max(1ULL, 10 / searchWords.size()));
-            for (auto &result : results)
-            {
-                toolContent += "[content]\n" + result.content + "\n";
-                toolContent += "[metadata]\n" + result.metadata + "\n";
-                historyManager.push(Type::result, result);
-            }
+            // 2. search the documents
+            historyManager.beginRetrieval("Retrieving information: " + std::to_string(searchCount + 1));
             if (shutdownFlag)
                 return;
-        }
-        toolContent += "```\n";
-        historyManager.endRetrieval();
-        // 3. evaluate the search results
-        std::string evaluatePrompt = R"(
+            std::string toolContent = "```retieved_information\n";
+            for (auto &word : searchWords)
+            {
+                historyManager.push(Type::search, word);
+                auto results = session.repository->search(word, Repository::searchAccuracy::high, std::max(1ULL, 10 / searchWords.size()));
+                for (auto &result : results)
+                {
+                    toolContent += "[content]\n" + result.content + "\n";
+                    toolContent += "[metadata]\n" + result.metadata + "\n";
+                    historyManager.push(Type::result, result);
+                }
+                if (shutdownFlag)
+                    return;
+            }
+            toolContent += "```\n";
+            historyManager.endRetrieval();
+            // 3. evaluate the search results
+            std::string evaluatePrompt = R"(
 Assess if the retrieved information is sufficient to answer the original question.
-If the information is sufficient, respond with "YES". If not, respond with "NO" and provide additional query words to improve the search results. The query word should be in the begin with "```search" and end with "```".
-        )";
-        conversation->setOptions("max_tokens", 500);
-        conversation->setMessage("system", evaluatePrompt);
-        conversation->setMessage("user", query + "\n");
-        conversation->setMessage("user", toolContent);
-        auto evaluateResult = conversation->getResponse();
-        // parser answer
-        bool hasYes = evaluateResult.find("YES") != std::string::npos;
-        bool hasNo = evaluateResult.find("NO") != std::string::npos;
-        searchWords = Utils::splitLine(extractSearchword(evaluateResult));
-        if (!hasNo && hasYes)
-        {
-            break; // sufficient
+If the information is sufficient, respond with "YES". If not, respond with "NO" and provide additional query words to improve the search results. The query word should be in the begin with "```search" and end with "```".)";
+            conversation->setOptions("max_tokens", 500);
+            conversation->setMessage("system", evaluatePrompt);
+            conversation->setMessage("user", query + "\n");
+            conversation->setMessage("user", toolContent);
+            auto evaluateResult = conversation->getResponse();
+            // parser answer
+            bool hasYes = evaluateResult.find("YES") != std::string::npos;
+            bool hasNo = evaluateResult.find("NO") != std::string::npos;
+            searchWords = Utils::splitLine(extractSearchword(evaluateResult));
+            if (!hasNo && hasYes)
+            {
+                break; // sufficient
+            }
+            searchCount++;
         }
-        searchCount++;
+        if(shutdownFlag)
+            return;
+        // 4. generate the final answer
+        conversation->setOptions("max_tokens", 2000);
+        conversation->setOptions("stop", std::vector<std::string>{});
+        std::string answerPrompt = R"(
+Retrieval phase is done, DO NOT give more search words, Answer the question based on the provided information above, Acknowledge limitations if information is insufficient.)";
+        conversation->setMessage("system", answerPrompt);
+        conversation->setMessage("user", query + "\n");
+        auto answer = conversation->getStreamResponse([this](const std::string &response) {
+            this->sendBack(response, Type::answer);
+        });
+        historyManager.push(Type::answer, answer);
     }
-    if(shutdownFlag)
-        return;
-    // 4. generate the final answer
-    conversation->setOptions("max_tokens", 2000);
-    conversation->setOptions("stop", std::vector<std::string>{});
-    std::string answerPrompt = R"(
-Retrieval phase is done, DO NOT give more search words, Answer the question based on the provided information above, Acknowledge limitations if information is insufficient.
-    )";
-    conversation->setMessage("system", answerPrompt);
-    conversation->setMessage("user", query + "\n");
-    auto answer = conversation->getStreamResponse([this](const std::string &response) {
-        this->sendBack(response, Type::answer);
-    });
-    historyManager.push(Type::answer, answer);
+    catch (const Error& e)
+    {
+        if(e.getType() == Error::Type::Network)
+        {
+            sendBack(e.what(), Type::networkError);
+        }
+        else
+        {
+            sendBack(e.what(), Type::unknownError);
+        }
+    }
 }
 
 std::string Session::AugmentedConversation::extractSearchword(const std::string &answer)

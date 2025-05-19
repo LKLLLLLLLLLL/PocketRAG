@@ -163,7 +163,7 @@ return:
 }
 ```
 
-### sessionCrushed
+### sessionCrashed
 session -> window
 Session崩溃，发送该消息给对应的窗口。  
 
@@ -176,12 +176,34 @@ Session崩溃，发送该消息给对应的窗口。
     "isReply" : false,
 
     "message" : {
-        "type" : "sessionCrushed",
+        "type" : "sessionCrashed",
         "error" : "error message"
     }
 }
 ```
 可以不回复，此时session会自动销毁，所以回复消息也不会被接收。
+
+### kernelServerCrashed
+kernel server -> main.js
+kernel server崩溃，发送该消息给主线程。 
+由于错误的不确定性，并不一定所有退出都会成功发送该消息，具体是否崩溃请以child_process返回值为准。 
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "kernelServerCrashed",
+        "error" : "error message"
+    }
+}
+```
+可以不回复，此时kernel server会退出，所以回复消息也不会被接收。
+如果收到此消息，可以尝试重启kernel server。
 
 ## 仓库管理相关
 ### getRepos
