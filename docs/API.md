@@ -286,6 +286,7 @@ return:
 **可能的错误：**
 
 - REPO_NOT_FOUND 仓库不存在
+- SESSION_EXISTS 该sessionId已经打开了一个仓库，无法再绑定一个仓库
 
 ### closeRepo
 main.js -> kernel server  

@@ -164,10 +164,12 @@ void KernelServer::handleMessage(nlohmann::json& json)
         auto type = json["message"]["type"].get<std::string>();
         if(type == "stopAll")
         {
-            stopAllFlag = true;
-            stopMessageSender();
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
+            sendBack(json);
+            stopAllFlag = true;
+            stopMessageSender();
+            return;
         }
         else if(type == "getRepos") // get repos list
         {
@@ -193,7 +195,19 @@ void KernelServer::handleMessage(nlohmann::json& json)
             if(stmt.step())
             {
                 auto repoPath = stmt.get<std::string>(0);
-                openSession(windowId, repoName, repoPath);
+                try
+                {
+                    openSession(windowId, repoName, repoPath);
+                }
+                catch(const Error& e)
+                {
+                    if(e.getType() != Error::Type::Input)
+                        throw e;
+                    json["status"]["code"] = "SESSION_EXISTS";
+                    json["status"]["message"] = "Session already exists, with sessionId: " + std::to_string(windowId);
+                    sendBack(json);
+                    return;
+                }
                 json["status"]["code"] = "SUCCESS";
                 json["status"]["message"] = "";
                 json["data"]["repoName"] = repoName;
@@ -432,6 +446,13 @@ void KernelServer::sendBack(nlohmann::json& json)
 
 void KernelServer::openSession(int64_t windowId, const std::string &repoName, const std::string &repoPath)
 {
+    // check if windowId already exists
+    auto it = windowIdToSessionId.find(windowId);
+    if(it != windowIdToSessionId.end())
+    {
+        throw Error{"sessionId already exists: " + std::to_string(windowId), Error::Type::Input};
+        return;
+    }
     auto sessionId = Utils::getTimeStamp();
     auto session = std::make_shared<Session>(sessionId, repoName, repoPath, *this);
     sessions[sessionId] = session;
