@@ -86,6 +86,7 @@
 
 #include "Utils.h"
 #include "KernelServer.h"
+#include <cstdlib>
 #include <iostream>
 
 Logger logger(".\\userData\\logs", false, Logger::Level::DEBUG);
@@ -98,6 +99,7 @@ int main()
     std::locale::global(std::locale(".UTF-8"));
     Utils::setup_utf8_console();
     {
+        throw Error{"testError"}; // for debug
         KernelServer::openServer(".\\userData").run();
     }
     logger.info("KernelServer stopped.");
@@ -146,5 +148,5 @@ void server_terminate_handler()
         std::cerr << "KernelServer crashed, Failed to log exception. " << std::endl;
     }
 
-    std::abort();
+    std::exit(EXIT_FAILURE);
 }
