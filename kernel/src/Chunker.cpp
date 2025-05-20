@@ -221,15 +221,17 @@ void Chunker::recursiveChunk(const Chunk &chunk, int split_table_index, const st
         auto splitNumber = static_cast<int>(length / max_length);
         auto chunkBytes = static_cast<int>(chunk.content.length() / splitNumber);
         auto lastBeginLine = chunk.beginLine;
+        int lastEnd = 0;
         for(auto i = 0; i < splitNumber; i++)
         {
-            auto start = chunkBytes * i;
+            auto start = lastEnd;
             auto end = chunkBytes * (i + 1);
             // avoid split in the middle of a utf-8 character
             while (end < chunk.content.length() && (chunk.content[end] & 0xC0) == 0x80)
             {
                 end++;
             }
+            lastEnd = end;
             auto sub_chunk = chunk.content.substr(start, end - start);
             auto sub_chunk_line = posToLine(end, lastBeginLine, chunk.content);
             final_chunks.push_back({sub_chunk, chunk.metadata, nestedLevel + 1, lastBeginLine, sub_chunk_line});

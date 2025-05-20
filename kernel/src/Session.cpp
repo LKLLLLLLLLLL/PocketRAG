@@ -116,11 +116,15 @@ void Session::run()
     // handle messages
     logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") started.");
     auto message = sessionMessageQueue->pop();
-    while (message != nullptr || repoThreadError)
+    while (true)
     {
+        std::lock_guard<std::mutex> lock(errorMutex);
+        if(message == nullptr && repoThreadError == nullptr)
+        {
+            break;
+        }
         try
         {
-            std::lock_guard<std::mutex> lock(errorMutex);
             if (repoThreadError)
             {
                 auto error = repoThreadError;
