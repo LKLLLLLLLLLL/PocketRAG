@@ -6,19 +6,29 @@ const EventEmitter = require('events')
 
 
 const kernelPath = path.join(__dirname, '../../../kernel/bin/PocketRAG_kernel.exe')
-const kernel = spawn(kernelPath, [], {
+let restartTime = 0
+let kernel = spawn(kernelPath, [], {
   cwd: path.dirname(kernelPath) // set work directory to the same as the kernel path
 })
 let isKernelRunning = true
+let isKernelManualKill = false
 kernel.on('error', (err) => {
   console.error('Failed to start kernel:', err)
   isKernelRunning = false
-  app.quit()
+  restartKernel()
 })
 kernel.on('exit', (code, signal) => {
   console.log(`Kernel exited with code ${code} and signal ${signal}`)
   isKernelRunning = false
-  app.quit()
+  if(!isKernelManualKill){
+    if(code !== 0){
+      restartKernel()
+    }
+    else {
+      app.quit()
+    }    
+  }
+  isKernelManualKill = false
 })
 kernel.stdout.on('data', stdoutListener)//kernel stdout listener
 kernel.stderr.on('data', (err) => {
@@ -34,8 +44,52 @@ const readyPromise = new Promise((resolve, reject) => {
     resolve()
   })
 })
-
 const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
+
+
+function restartKernel (){
+  restartTime++
+  if(restartTime > 3){
+    dialog.showMessageBox({
+      type: 'error',
+      title : 'restart failed',
+      message : 'kernel restarted too many times, so the program is about to shut'
+    }).then(() => {
+      app.quit()
+    })
+    return
+  }
+  if(kernel){
+    isKernelManualKill = true
+    kernel.kill()
+  }
+  kernel = spawn(kernelPath, [], {
+    cwd: path.dirname(kernelPath)
+  })
+  isKernelRunning = true
+  kernel.stdout.on('data', stdoutListener)
+  kernel.stderr.on('data', (err) => {
+    console.error(err.toString())
+  })
+  kernel.on('error', (err) => {
+    console.error('Failed to start kernel:', err)
+    isKernelRunning = false
+    restartKernel()    
+  })
+  kernel.on('exit', (code, signal) => {
+    console.log(`Kernel exited with code ${code} and signal ${signal}`)
+    isKernelRunning = false    
+    if(!isKernelManualKill){
+      if(code !== 0){
+        restartKernel()
+      }
+      else {
+        app.quit()
+      }
+    }
+    isKernelManualKill = false
+  })
+}
 
 
 const callbackRegister = (callback) => {
@@ -160,6 +214,15 @@ async function stdoutListener (data) {
               }
               else {
                 console.error('isReply may be wrong, expected: true, but the result is: ', result)
+              }
+              break
+            case 'kernelServerCrashed':
+              if(!result.isReply){
+                console.error(result.message.error)
+                restartKernel()
+              }
+              else {
+                console.error('isReply may be wrong, expected: false, but the result is: ', result)
               }
               break
 
@@ -300,14 +363,35 @@ function embeddingStatusReply(event, reply){
 }
 
 
-function sessionCrushedHandler(event, error){
+function sessionCrashedHandler(event, error){
   const window = BrowserWindow.fromWebContents(event.sender)
   dialog.showMessageBoxSync(window, {
     type : 'error',
-    title : 'session crushed',
+    title : 'session crashed',
     message : error
   })
   window.close()
+}
+
+
+function restartSession(event, repoName){
+  const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const callbackId = callbackRegister(() => {})
+  const restartSession = {
+    sessionId : -1,
+    toMain : true,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'openRepo',
+      repoName : repoName,
+      sessionId : sessionId
+    }
+  }
+  kernel.stdin.write(JSON.stringify(restartSession) + '\n')
+  console.log(JSON.stringify(restartSession) + '\n')
 }
 
 
@@ -477,10 +561,11 @@ app.whenReady().then(async () => {
   ipcMain.handle('kernelReadyPromise', getReadyPromise)
   ipcMain.on('embeddingStatusReply', embeddingStatusReply)
   ipcMain.handle('dateNow', getDateNow)
-  ipcMain.on('sessionCrushed', sessionCrushedHandler)
+  ipcMain.on('sessionCrashed', sessionCrashedHandler)
   ipcMain.on('beginConversation', beginConversation)
   ipcMain.on('stopConversation', stopConversation)
   ipcMain.on('deleteRepo', deleteRepo)
+  ipcMain.on('restartSession', restartSession)
   //add the event listeners before the window is created
 
   createWindow()
@@ -513,6 +598,8 @@ app.on('will-quit', (event) => {
     console.log(JSON.stringify(stopAll) + '\n')
     event.preventDefault()
   }
+  console.log('callbacks\' final size: ', callbacks.size)
+  console.log('windows\' final size: ', windows.size)
 })
 
 

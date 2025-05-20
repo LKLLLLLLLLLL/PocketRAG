@@ -92,9 +92,15 @@ window.electronAPI.onKernelData((data) => {
         console.error('isReply may be wrong, expected: false, but the result is: ', data)
       }
       break
-    case 'sessionCrushed':
+    case 'sessionCrashed':
       if(!data.isReply){
-        window.electronAPI.sendSessionCrushed(data.message.error)
+        window.crashTime++
+        if(window.crashTime > 3){
+          window.electronAPI.sendSessionCrashed(data.message.error)
+        }
+        else {
+          window.electronAPI.restartSession(window.repoName)
+        }
       }
       else {
         console.error('isReply may be wrong, expected: false, but the result is: ', data)
@@ -109,10 +115,14 @@ window.electronAPI.onKernelData((data) => {
           }
           else {
             console.log(data)
+            const conversationBeginEvent = new CustomEvent('conversationBegin')
+            window.dispatchEvent(conversationBeginEvent)
           }
         }
         else {
           console.error(data.status.message)
+          const conversationNetworkErrorEvent = new CustomEvent('networkError', {detail : data.status.message})
+          window.dispatchEvent(conversationNetworkErrorEvent)
         }
       }
       else {
@@ -168,6 +178,7 @@ switch(windowType){
     const mainWindowPreprocessPromise = Promise.all([repoInitializePromise, sessionPreparedPromise, kernelReadyPromise])
 
     const conversations = new Map()
+    window.crashTime = 0
 
     window.addEventListener('embeddingStatus', (event) => {
       let reply = event.detail
@@ -215,7 +226,7 @@ switch(windowType){
       }
     }
 
-    window.beginConversation = async (modelName, query) => {
+    window.beginConversation = async (modelName, query, id = undefined) => {
       await mainWindowPreprocessPromise
       const callbackId = callbackRegister((event) => {
         console.log(event.detail)
@@ -248,7 +259,8 @@ switch(windowType){
             break
         }
       })
-      const conversationId = Date.now() - dateNow
+      const conversationId = id ? id : (Date.now() - dateNow)
+      if(!id)conversations.set(conversationId, window.electronAPI.pathJoin(window.repoPath, `conversation/conversation-${conversationId}.json`))
       window.electronAPI.beginConversation(callbackId, modelName, conversationId, query)
       window.addEventListener('conversation', callbacks.get(callbackId))
     }
