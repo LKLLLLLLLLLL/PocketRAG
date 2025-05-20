@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom/client'
 import MainWindow from './views/MainWindow/MainWindow.jsx'
 import StartWindow from './views/StartWindow/StartWindow.jsx'
 import SettingsWindow from './views/SettingsWindow/SettingsWindow.jsx'
-
+import '@ant-design/v5-patch-for-react-19'
 
 // obtain the window type
 const urlParams = new URLSearchParams(window.location.search)
@@ -260,7 +260,7 @@ switch(windowType){
         }
       })
       const conversationId = id ? id : (Date.now() - dateNow)
-      if(!id)conversations.set(conversationId, window.electronAPI.pathJoin(window.repoPath, `conversation/conversation-${conversationId}.json`))
+      if(!id)conversations.set(conversationId, window.repoPath + `/.PocketRAG/conversation/conversation-${conversationId}.json`)
       window.electronAPI.beginConversation(callbackId, modelName, conversationId, query)
       window.addEventListener('conversation', callbacks.get(callbackId))
     }

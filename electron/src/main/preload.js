@@ -1,5 +1,4 @@
 const { contextBridge, ipcRenderer} = require('electron/renderer')
-const path = require('node:path')
 //import electron modules
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -33,8 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   stopConversation : (callbackId, conversationId) => ipcRenderer.send('stopConversation', callbackId, conversationId),
 
-  deleteRepo : (repoName) => ipcRenderer.send('deleteRepo', repoName),
+  deleteRepo : (repoName) => ipcRenderer.send('deleteRepo', repoName)
 
-  pathJoin : path.join
 })
 //expose apis to the renderer process 
