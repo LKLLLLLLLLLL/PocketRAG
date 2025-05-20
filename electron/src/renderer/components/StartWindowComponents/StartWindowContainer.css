@@ -13,3 +13,38 @@
     display: flex;
     flex-direction: column;
 }
+.repolist-container{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+.repolist{
+    flex-grow: 1;
+    height: 100%;
+    color: black;
+    display: flex;
+    flex-direction: column;
+}
+.repo-item{
+    width: 100%;
+    height: 100px;
+    display: flex;
+    color: black;
+    flex-direction: column;
+}
+.repo-item:hover{
+    background-color: #ddd !important;
+}
+.repo-item.selected{
+    background-color: #aaa !important;
+}
+.repo-name{
+    width: 100%;
+    height: 60px;
+}
+.repo-path{
+    width: 100%;
+    height: 40px;
+}

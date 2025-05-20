@@ -1,34 +1,78 @@
-import React,{useState} from "react";
+import React,{useState,useEffect} from "react";
 import './StartWindowContainer.css';
 import {Panel,PanelGroup,PanelResizeHandle} from 'react-resizable-panels';
 import Option from './Option/Option.jsx';
 import PocketRAG from './PocketRAG/PocketRAG.jsx';
 import Top from './Top/Top.jsx';
 export default function StartWindowContainer(){
-    const [demo,setDemo] = useState(false);
+    const [demo,setDemo] = useState(true);
     const [others,setOthers] = useState(false);
-    const [repolist,setRepolist] = useState(null);
+    const [repolist,setRepolist] = useState([]);
+    const [selectedRepo,setSelectedRepo] = useState(null);
+    const [lastClickTime,setLastClickTime] = useState(0);
+
+    //get the repolist from the backend
     const receiveRepolist = async()=>{
-        let repolist = await window.getRepos();
-        setRepolist(repolist);
+        try {
+            let repolist = await window.getRepos();
+            setRepolist(repolist);
+        } catch (e) {
+            console.error('获取仓库列表失败', e);
+        }
     }
+
+    //preload the repolist from the backend when the StartWindow is opened
+    useEffect(() => {
+        receiveRepolist();
+    }, []);
+
+    //single click to highlight the selected repo, double click to open the repo
+    const handleRepoClick = (repo) => {
+        const now = Date.now();
+        if (now - lastClickTime < 300) {
+            window.openRepo(repo.name);
+            setSelectedRepo(null);
+            return;
+        }
+        setLastClickTime(now);
+        setSelectedRepo(prev => 
+        prev?.path === repo.path ? null : repo
+        );
+    };
+
+    //demonstrate the repolist
+    const repolistItem = repolist.map((repo)=>{
+        return(
+            <li key = {repo.path} 
+                className = {`repo-item ${selectedRepo?.path === repo.path ? 'selected' : ''}`} 
+                onClick = {()=>handleRepoClick(repo)}>
+                <span className = 'repo-name'>{repo.name}</span>
+                <span className = 'repo-path'>{repo.path}</span>
+            </li>
+        )
+    })
+
     return(
         <PanelGroup direction = "horizontal" className = 'startwindow-container'>
             <Panel defaultSize = {33} minSize = {20} maxSize = {60} className = 'sw-left'>
                 { demo &&
                     <div className = 'repolist-container'>
-                        <div className = 'repolist'>
-                            {repolist ? JSON.stringify(repolist):"仓库列表为空，请创建仓库"}
-                        </div>
+                        <ul className = 'repolist'>
+                            {repolistItem}
+                        </ul>
                     </div>
                 }
-                左侧面板
             </Panel>
             <PanelResizeHandle className="sw-resize"></PanelResizeHandle>
             <Panel defaultSize = {67} className = 'sw-right'>
                 <Top></Top>
                 <PocketRAG></PocketRAG>
-                <Option setDemo = {setDemo} others = {others} setOthers = {setOthers} receiveRepolist = {receiveRepolist}></Option>
+                <Option setDemo = {setDemo} 
+                        others = {others} 
+                        setOthers = {setOthers} 
+                        receiveRepolist = {receiveRepolist} 
+                        onRepoCreated = {async()=>{const repo = await window.getRepos();setRepolist(repo);}}>
+                </Option>
             </Panel>
         </PanelGroup>
     )

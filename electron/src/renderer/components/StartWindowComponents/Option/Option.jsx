@@ -3,17 +3,20 @@ import ReactDOM from 'react-dom';
 import './Option.css';
 import {Button} from 'antd';
 import PopWindow from '../../../templates/PopWindow/Popwindow';
-const Option =({setDemo,others,setOthers,receiveRepolist})=>{
+const Option =({setDemo,others,setOthers,receiveRepolist,onRepoCreated})=>{
 
     //awake the create-window
-    const handleClick_new =()=>{
-        window.createRepo();
+    const handleClick_new = async ()=>{
+        await window.createRepo();
+        if(onRepoCreated){
+            await onRepoCreated();
+        }
     }
     
-    const handleClick_open =()=>{
-        setDemo(true);
-        receiveRepolist();
-    }
+    // const handleClick_open =()=>{
+    //     setDemo(true);
+    //     receiveRepolist();
+    // }
 
     return(
         <div className = 'option-container'>
@@ -42,9 +45,9 @@ const Option =({setDemo,others,setOthers,receiveRepolist})=>{
                     </div>
                 </span>
                 <span>
-                    <Button className = 'open-button' onClick = {handleClick_open}>
+                    {/* <Button className = 'open-button' onClick = {handleClick_open}>
                         打开仓库
-                    </Button>
+                    </Button> */}
                 </span>
             </div>
             <div className = 'other-container'>
