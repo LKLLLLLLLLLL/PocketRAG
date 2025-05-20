@@ -3,11 +3,15 @@ import ReactDOM from 'react-dom/client';
 import { useState,useRef,useEffect } from 'react';
 import './Search.css';
 import PopWindow from '../../../../templates/PopWindow/Popwindow';
+import { LeftOutlined,RightOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
+
 export default function Search(){
-    const [open,setOpen] =useState(false);
-    const [showResult, setShowResult] = useState(false);
-    const [value,setValue] = useState(null);
-    const [searchResult,setSearchResult] = useState('default');
+    const [open,setOpen] =useState(false);//judge whether to open search list
+    const [showResult, setShowResult] = useState(false);//judge whether to show the result
+    const [value,setValue] = useState(null);//record the text
+    const [searchResult,setSearchResult] = useState(null);//record the result
     const wrapperRef = useRef(null);
 
     //click the search button to open search div
@@ -29,8 +33,11 @@ export default function Search(){
     //press enter to search
     const handleKeyPress = async (e) => {
         if (e.key === 'Enter') {
+            // console.log(value);
+            let result = await window.search(value,true);
+            // console.log(result);
+            setSearchResult(result);
             handleSearch();
-            setSearchResult(await window.search(value,true));
         }
     };
 
@@ -43,15 +50,18 @@ export default function Search(){
     //receive the text from the input
     const handleOnChange = (event) =>{
         setValue(event.target.value);
+        // console.log(value);
     }
 
     return(
         <div className = 'Search-container' ref = {wrapperRef}>
             <div className = 'searchbar'>
-                <button className = 'last'>左</button>
-                <button className = 'next'>右</button>
+                <Button icon = {<LeftOutlined></LeftOutlined>} className = 'last'></Button>
+                <Button icon = {<RightOutlined></RightOutlined>} className = 'next'></Button>
                 <div className = 'searchdiv'>
-                    <button className = 'searchbutton' onClick = {handleClick}>搜索</button>
+                    <Button type="primary" icon={<SearchOutlined></SearchOutlined>} iconPosition={'end'} onClick = {handleClick}>
+                        搜索
+                    </Button>
                     {open && (
                             <div className = 'searchlist-container'>
                                 <div className = 'input00-container'>
@@ -59,7 +69,7 @@ export default function Search(){
                                         placeholder = '输入关键词 按回车确认' 
                                         className = 'input00' 
                                         type = 'text' 
-                                        onKeyUp = {handleKeyPress} 
+                                        onKeyDown = {handleKeyPress} 
                                         onChange = {handleOnChange}>
                                     </input>
                                 </div>
@@ -74,8 +84,7 @@ export default function Search(){
                     }
                 </div>
             </div>
-            {console.log(window.search.toString())}
-            {console.log(searchResult)}
+            {/* {console.log(searchResult)} */}
             {showResult && 
                 <PopWindow onClose = {setShowResult}>
                     <ResultWindow result = {searchResult}></ResultWindow>
@@ -92,7 +101,7 @@ const ResultWindow = ({result}) =>{
             </div>
             <div className = 'result-container'>
                 这里是结果
-                <div className = 'result-demo'>{result}</div>
+                <div className = 'result-demo'>{result ? JSON.stringify(result) : '无结果'}</div>
             </div>
         </div>
     )

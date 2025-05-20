@@ -1,13 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './LeftBar.css';
+import {Button} from 'antd';
 export default function LeftBar(){
     return(
         <div className = 'LeftBar-container'>
             <div className = 'leftbar'>
-                <button className = 'button1'>1</button>
-                <button className = 'button2'>2</button>
-                <button className = 'button3'>3</button>
+                <Button className = 'lb-button1'>1</Button>
+                <Button className = 'lb-button2'>2</Button>
+                <Button className = 'lb-button3'>3</Button>
             </div>
         </div>
     )
