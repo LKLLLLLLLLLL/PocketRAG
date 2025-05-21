@@ -1,42 +1,6 @@
-/*************************react preprocess*********************************/
-//import react modules
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import MainWindow from './views/MainWindow/MainWindow.jsx'
-import StartWindow from './views/StartWindow/StartWindow.jsx'
-import SettingsWindow from './views/SettingsWindow/SettingsWindow.jsx'
-import '@ant-design/v5-patch-for-react-19'
-
-// obtain the window type
-const urlParams = new URLSearchParams(window.location.search)
-const windowType = urlParams.get('windowType')
-
-
-// select different components based on different window types
-const getWindowRenderFunc = () => {
-  switch (windowType) {
-      case 'main':
-        return MainWindow()
-      case 'repoList':
-        return StartWindow()
-      case 'settings':
-        return SettingsWindow()
-      default:
-        return StartWindow()
-    }
-}
-
-
-const renderWindow = getWindowRenderFunc()
-
-
-// render the window
-ReactDOM.createRoot(document.getElementById('root')).render(
-    renderWindow()
-)
-
-
 /**************electron's render process********************/
+const urlParams = new URLSearchParams(window.location.search)
+const windowType = urlParams.get('windowType') // obtain the window type
 const callbacks = new Map()
 const dateNow = await window.electronAPI.dateNow()
 const timeLimit = 30000
@@ -143,6 +107,15 @@ window.electronAPI.onKernelData((data) => {
         console.error('isReply may be wrong, expected: true, but the result is: ', data)
       }
       break
+    case 'createRepo': // all checks have been done in main.js
+      const createRepoSuccessEvent = new CustomEvent('createRepoSuccess')
+      window.dispatchEvent(createRepoSuccessEvent)
+      break
+    case 'deleteRepo': // all checks have been done in main.js
+      const deleteRepoSuccessEvent = new CustomEvent('deleteRepoSuccess')
+      window.dispatchEvent(deleteRepoSuccessEvent)
+      break
+      
   }
 })
 
@@ -193,7 +166,8 @@ switch(windowType){
         status : event.detail.message.status
       }
       console.log(embeddingStatus)
-      //应添加与react通信的内容
+      const embeddingToReactEvent = new CustomEvent('embedding', {detail : embeddingStatus})
+      window.dispatchEvent(embeddingToReactEvent)
     })
 
     window.openRepoListWindow = async () => {
@@ -260,7 +234,7 @@ switch(windowType){
         }
       })
       const conversationId = id ? id : (Date.now() - dateNow)
-      if(!id)conversations.set(conversationId, window.repoPath + `/.PocketRAG/conversation/conversation-${conversationId}.json`)
+      if(!id)conversations.set(conversationId, await window.electronAPI.pathJoin(window.repoPath, `.PocketRAG/conversation/conversation-${conversationId}.json`))
       window.electronAPI.beginConversation(callbackId, modelName, conversationId, query)
       window.addEventListener('conversation', callbacks.get(callbackId))
     }
@@ -333,7 +307,7 @@ switch(windowType){
 
     // window.deleteRepo('123')
     // setTimeout(async () => {console.log(await window.getRepos()); window.createRepo();}, 5000)
-    // setTimeout(async () => {console.log(await window.getRepos())}, 15000)
+    setTimeout(async () => {console.log(await window.getRepos())}, 15000)
     // setTimeout(() => {window.openRepo('123')}, 20000)
 
     break
@@ -342,3 +316,38 @@ switch(windowType){
   case 'settings':
     
 }
+
+/*************************react preprocess*********************************/
+//import react modules
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import MainWindow from './views/MainWindow/MainWindow.jsx'
+import StartWindow from './views/StartWindow/StartWindow.jsx'
+import SettingsWindow from './views/SettingsWindow/SettingsWindow.jsx'
+import '@ant-design/v5-patch-for-react-19'
+
+
+// select different components based on different window types
+const getWindowRenderFunc = () => {
+  switch (windowType) {
+      case 'main':
+        return MainWindow()
+      case 'repoList':
+        return StartWindow()
+      case 'settings':
+        return SettingsWindow()
+      default:
+        return StartWindow()
+    }
+}
+
+
+const renderWindow = getWindowRenderFunc()
+
+
+// render the window
+ReactDOM.createRoot(document.getElementById('root')).render(
+    renderWindow()
+)
+
+

@@ -132,7 +132,7 @@ async function stdoutListener (data) {
               if(result.isReply){
                 const window = windows.get(result.message.sessionId)
                 if(!window){
-                  console.error('Window not found from sessionId: ' + result.message.sessionId)
+                  console.error('Window not found from sessionId: ' + result.message.sessionId + ', the whole message is: ' + result)
                 }
                 else {
                   window.webContents.send('kernelData', result)
@@ -175,6 +175,13 @@ async function stdoutListener (data) {
             case 'createRepo':
               if(result.isReply){
                 if(result.status.code === 'SUCCESS'){
+                  const window = windows.get(result.message.sessionId)
+                  if(!window){
+                    console.error('Window not found from sessionId: ' + result.message.sessionId + ', the whole message is: ' + result)
+                  }
+                  else {
+                    window.webContents.send('kernelData', result)
+                  }
                   callbacks.delete(result.callbackId)
                 }
                 else {
@@ -205,6 +212,13 @@ async function stdoutListener (data) {
             case 'deleteRepo':
               if(result.isReply){
                 if(result.status.code === 'SUCCESS'){
+                  const window = windows.get(result.message.sessionId)
+                  if(!window){
+                    console.error('Window not found from sessionId: ' + result.message.sessionId + ', the whole message is: ' + result)
+                  }
+                  else {
+                    window.webContents.send('kernelData', result)
+                  }
                   callbacks.delete(result.callbackId)
                 }
                 else{
@@ -308,9 +322,10 @@ async function initializeRepo (sessionId, repoName, repoPath){
 
 async function createRepo (event) {
   const {canceled, filePaths} = await dialog.showOpenDialog({properties: ['openDirectory']})
-  const callbackId = callbackRegister(() => {})
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
 
   if (!canceled) {
+    const callbackId = callbackRegister(() => {})
     const createRepo = {
       sessionId : -1,
       toMain : true,
@@ -321,7 +336,8 @@ async function createRepo (event) {
       message : {
         type : 'createRepo',
         repoName : path.basename(filePaths[0]),
-        path : filePaths[0]
+        path : filePaths[0],
+        sessionId : windowId
       }
     }
     kernel.stdin.write(JSON.stringify(createRepo) + '\n')    
@@ -437,6 +453,7 @@ function stopConversation(event, callbackId, conversationId){
 
 function deleteRepo (event, repoName){
   const callbackId = callbackRegister(() => {})
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   const deleteRepo = {
     sessionId : -1,
     toMain : true,
@@ -447,6 +464,7 @@ function deleteRepo (event, repoName){
     message : {
       type : 'deleteRepo',
       repoName : repoName,
+      sessionId : windowId
     }
   }
   kernel.stdin.write(JSON.stringify(deleteRepo) + '\n')
@@ -543,12 +561,16 @@ function getWindowId (window) {
 //get the windowId from the window object
 
 
-async function getReadyPromise (){
+async function getReadyPromise(){
   return readyPromise
 }
 
-async function getDateNow (){
+async function getDateNow(){
   return dateNow
+}
+
+async function pathJoin(event, ...paths){
+  return path.join(...paths)
 }
 
 app.whenReady().then(async () => {
@@ -566,6 +588,7 @@ app.whenReady().then(async () => {
   ipcMain.on('stopConversation', stopConversation)
   ipcMain.on('deleteRepo', deleteRepo)
   ipcMain.on('restartSession', restartSession)
+  ipcMain.handle('pathJoin', pathJoin)
   //add the event listeners before the window is created
 
   createWindow()
