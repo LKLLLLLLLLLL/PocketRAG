@@ -3,14 +3,11 @@ import ReactDOM from 'react-dom';
 import './Option.css';
 import {Button} from 'antd';
 import PopWindow from '../../../templates/PopWindow/Popwindow';
-const Option =({setDemo,others,setOthers,receiveRepolist,onRepoCreated})=>{
+const Option =({others,setOthers})=>{
 
     //awake the create-window
     const handleClick_new = async ()=>{
         await window.createRepo();
-        if(onRepoCreated){
-            await onRepoCreated();
-        }
     }
     
     // const handleClick_open =()=>{
@@ -38,16 +35,16 @@ const Option =({setDemo,others,setOthers,receiveRepolist,onRepoCreated})=>{
             <div className = 'open-container'>
                 <span className = 'open-description'>
                     <div>
-                        打开
+                        undefined
                     </div>
                     <div>
-                        点击右侧“打开仓库”按钮，在左侧面板中显示已有仓库，通过“双击”或“单击+回车”打开仓库。
+                        undefined
                     </div>
                 </span>
                 <span>
-                    {/* <Button className = 'open-button' onClick = {handleClick_open}>
-                        打开仓库
-                    </Button> */}
+                    <Button className = 'open-button'>
+                        undefined
+                    </Button>
                 </span>
             </div>
             <div className = 'other-container'>

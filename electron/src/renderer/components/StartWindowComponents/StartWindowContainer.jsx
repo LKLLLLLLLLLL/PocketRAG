@@ -1,6 +1,8 @@
 import React,{useState,useEffect} from "react";
 import './StartWindowContainer.css';
 import {Panel,PanelGroup,PanelResizeHandle} from 'react-resizable-panels';
+import { DeleteOutlined } from "@ant-design/icons";
+import {Button} from 'antd';
 import Option from './Option/Option.jsx';
 import PocketRAG from './PocketRAG/PocketRAG.jsx';
 import Top from './Top/Top.jsx';
@@ -21,9 +23,21 @@ export default function StartWindowContainer(){
         }
     }
 
-    //preload the repolist from the backend when the StartWindow is opened
+    //dynamically refresh the repolist when changing the repolist
     useEffect(() => {
         receiveRepolist();
+        const handleCreateRepoSuccess =()=>{
+            receiveRepolist();
+        }
+        const handleDeleteRepoSuccess =()=>{
+            receiveRepolist();
+        }
+        window.addEventListener('createRepoSuccess', handleCreateRepoSuccess);
+        window.addEventListener('deleteRepoSuccess', handleDeleteRepoSuccess);
+        return () => {
+            window.removeEventListener('createRepoSuccess', handleCreateRepoSuccess);
+            window.removeEventListener('deleteRepoSuccess', handleDeleteRepoSuccess);
+        };
     }, []);
 
     //single click to highlight the selected repo, double click to open the repo
@@ -46,8 +60,18 @@ export default function StartWindowContainer(){
             <li key = {repo.path} 
                 className = {`repo-item ${selectedRepo?.path === repo.path ? 'selected' : ''}`} 
                 onClick = {()=>handleRepoClick(repo)}>
-                <span className = 'repo-name'>{repo.name}</span>
-                <span className = 'repo-path'>{repo.path}</span>
+                <div className = 'repo-item-container'>
+                    <div className = 'repo-item-info'>
+                        <span className = 'repo-name'>{repo.name}</span>
+                        <span className = 'repo-path'>{repo.path}</span>
+                    </div>
+                    <div className = 'repo-delete-container'>
+                        <Button className = 'repo-delete' 
+                                icon = {<DeleteOutlined />} 
+                                onClick = {async (e)=>{e.stopPropagation();window.deleteRepo(repo.name);}}>
+                        </Button>
+                    </div>
+                </div>
             </li>
         )
     })
@@ -70,8 +94,7 @@ export default function StartWindowContainer(){
                 <Option setDemo = {setDemo} 
                         others = {others} 
                         setOthers = {setOthers} 
-                        receiveRepolist = {receiveRepolist} 
-                        onRepoCreated = {async()=>{const repo = await window.getRepos();setRepolist(repo);}}>
+                        receiveRepolist = {receiveRepolist}>
                 </Option>
             </Panel>
         </PanelGroup>
