@@ -5,11 +5,14 @@
     display: flex;
 }
 .minbutton{
-    flex-grow: 1;
+    height: 50px;
+    width: 50px;
 }
 .maxbutton{
-    flex-grow: 1;
+    height: 50px;
+    width: 50px;
 }
 .closebutton{
-    flex-grow: 1;
+    height: 50px;
+    width: 50px;
 }

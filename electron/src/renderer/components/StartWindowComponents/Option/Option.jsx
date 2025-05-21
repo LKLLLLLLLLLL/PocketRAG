@@ -27,12 +27,14 @@ const Option =({others,setOthers})=>{
                     </div>
                 </span>
                 <span>
-                    <Button className = 'new-button' onClick = {handleClick_new}>
+                    <Button className = 'new-button' 
+                            onClick = {handleClick_new}
+                            >
                         新建仓库
                     </Button>
                 </span>
             </div>
-            <div className = 'open-container'>
+            {/* <div className = 'open-container'>
                 <span className = 'open-description'>
                     <div>
                         undefined
@@ -46,7 +48,7 @@ const Option =({others,setOthers})=>{
                         undefined
                     </Button>
                 </span>
-            </div>
+            </div> */}
             <div className = 'other-container'>
                 <span className = 'other-description'>
                     <div>

@@ -8,27 +8,21 @@
     height: 30%;
     display: flex;
 }
-.open-container{
-    height: 30%;
-    display: flex;
-}
 .other-container{
     height: 30%;
     display: flex;
 }
 .new-button{
     margin-left: auto;
-}
-.open-button{
-    margin-left: auto;
+    background-color: rgb(60, 160, 130);
+    color: white;
 }
 .other-button{
     margin-left: auto;
+    background-color: rgb(60, 160, 130);
+    color: white
 }
 .new-description{
-    flex-grow: 1;
-}
-.open-description{
     flex-grow: 1;
 }
 .other-description{

@@ -8,11 +8,15 @@
     width: 100px;
     margin-left: auto;
 }
-.minimize{
+.minimize_0{
     height: 100%;
     width: 50%;
+    background-color: rgb(60,160,130);
+    color: white;
 }
-.close{
+.close_0{
     height: 100%;
     width: 50%;
+    background-color: rgb(60,160,130);
+    color :white;
 }

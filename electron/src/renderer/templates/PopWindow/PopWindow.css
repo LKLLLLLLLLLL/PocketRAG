@@ -56,14 +56,10 @@
   background: #e0e0e0;
 }
 
-.close:hover {
-  color: #ff4444;
-}
-
 .modal-content {
   flex: 1;
   display: flex;
   padding: 20px;
   overflow: auto;
-  background-color: purple;
+  background-color: #888888;
 }

@@ -2,7 +2,7 @@
     flex-basis: 50px;
     display: flex;
     flex-direction: column; 
-    background-color: rgb(64, 3, 230);
+    background-color: grey;
 }
 .leftbar{
     display: flex;

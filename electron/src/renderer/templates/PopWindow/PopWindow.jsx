@@ -37,7 +37,7 @@ const PopWindow = ({ children, onClose }) => {
                     </button>
                     <button
                         className="control-button close"
-                        onClick={() => onClose(false)}
+                        onClick={onClose}
                         title="关闭"
                     >
                         &times;

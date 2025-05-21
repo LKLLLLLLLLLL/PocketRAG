@@ -4,14 +4,18 @@
     display: flex;
 }
 .button01{
-    flex-grow: 1;
+    height: 50px;
+    width: 50px;
 }
 .button02{
-    flex-grow: 1;
+    height: 50px;
+    width: 50px;
 }
 .button03{
-    flex-grow: 1;
+    height: 50px;
+    width: 50px;
 }
 .button04{
-    flex-grow: 1;
+    height: 50px;
+    width: 50px;
 }

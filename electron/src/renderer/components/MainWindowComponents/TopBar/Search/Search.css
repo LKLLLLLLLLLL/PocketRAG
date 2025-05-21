@@ -1,6 +1,6 @@
 .Search-container{
     height: 50px;
-    flex-grow: 1;
+    width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -15,19 +15,27 @@
 .last{
     width: 20px;
     height: 50%;
+    color: white;
+    background-color: rgb(60,160,130);
+    border: none;
 }
 .next{
     width: 20px;
     height: 50%;
+    color: white;
+    background-color: rgb(60,160,130);
+    border: none;
 }
 .searchdiv{
     width: 80%;
     height: 50%;
-    background-color: rgb(171, 176, 176);
+    /* background-color: rgb(171, 176, 176); */
 }
 .searchbutton{
     width: 100%;
     height: 100%;
+    color: white;
+    background-color: rgb(60,160,130);
 }
 .searchlist-container{
     right: 0;
@@ -86,4 +94,67 @@
     flex-grow: 1;
     height: 100%;
     color: black;
+}
+.result-list-container{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+.result-item{
+    width: 100%;
+    height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.result-item-selected{
+    background-color: rgb(171, 176, 176);
+}
+.result-container{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+}
+.explanation-container{
+    height: 50px;
+    width: 100%;
+}
+.chunkcontent-container{
+    width: 100%;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.metadata-container{
+    width: 100%;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.position-container{
+    width: 100%;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.filepath-container{
+    width: 100%;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.score-container{
+    width: 100%;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
