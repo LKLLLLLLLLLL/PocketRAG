@@ -111,6 +111,7 @@ private:
     const static int maxRestartCount = 3;
 
     void stopBackgroundProcess();
+    void suspendBackgroundProcess(); // only let background release mutex
     void startBackgroundProcess();
 
 public:

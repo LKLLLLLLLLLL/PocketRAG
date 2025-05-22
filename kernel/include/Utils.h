@@ -185,7 +185,7 @@ namespace Utils
     /*
     A timer class can be used to log time cost of some code.
     Will log the time cost when the object is destructed.
-    DO NOT use this class in static initialization, because it relay on global logger.
+    DO NOT use this class in static initialization, it relay on global logger.
     */
     class Timer
     {

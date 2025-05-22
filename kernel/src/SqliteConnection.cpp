@@ -55,7 +55,7 @@ SqliteConnection::SqliteConnection(const std::string &dbDirPath, const std::stri
 
     // activate thread safety mode
     execute("PRAGMA journal_mode=WAL;");      // set journal mode to WAL for better concurrency
-    logger.info("SQLite database opened at " + (this->dbDirPath / (dbName + ".db")).string());
+    logger.info("[SQLite] SQLite database opened at " + (this->dbDirPath / (dbName + ".db")).string());
 }
 
 SqliteConnection::~SqliteConnection()

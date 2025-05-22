@@ -50,8 +50,6 @@ private:
 
     mutable std::shared_mutex mutex; // mutex for thread safety
 
-    cppjieba::Jieba *jieba = nullptr; // Global Jieba tokenizer instance
-
 public:
     TextSearchTable(SqliteConnection &sqlite, const std::string &tableName);
     ~TextSearchTable() = default; // destructor

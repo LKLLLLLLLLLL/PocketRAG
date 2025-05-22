@@ -174,6 +174,8 @@ public:
     // will automatically set stream to true
     virtual std::string getStreamResponse(streamCallbackFunc) = 0;
 
+    // return three type of token usage
+    // for stream response, because api will not return the token usage, it only estimate the token usage
     virtual TokenUsage getLastResponseUsage() = 0;
 
     virtual void stopConnection() = 0;

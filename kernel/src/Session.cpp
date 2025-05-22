@@ -93,6 +93,7 @@ void Session::execCallback(nlohmann::json &json, int64_t callbackId)
 
 void Session::run()
 {
+    Utils::Timer timer("Session " + std::to_string(sessionId) + " started");
     // open repo
     auto docStateReporter_wrap = [this](std::vector<std::string> docs) { docStateReporter(docs); };
     auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
@@ -118,6 +119,7 @@ void Session::run()
     json["message"]["repoName"] = repoName;
     json["message"]["path"] = repoPath;
     send(json, nullptr);
+    timer.stop();
     // handle messages
     logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") started.");
     auto message = sessionMessageQueue->pop();

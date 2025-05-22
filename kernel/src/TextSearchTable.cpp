@@ -122,9 +122,6 @@ const std::string TextSearchTable::ResultChunk::HIGHLIGHT_ENDS = "</mark>";
 
 TextSearchTable::TextSearchTable(SqliteConnection &sqlite, const std::string &tableName): sqlite(sqlite), tableName(tableName)
 {
-    // get the global jieba pointer
-    this->jieba = jiebaTokenizer::get_jieba_ptr();
-
     // create the FTS5 table if it does not exist
     sqlite.execute("CREATE VIRTUAL TABLE IF NOT EXISTS " + tableName + " USING fts5("
         "content, "

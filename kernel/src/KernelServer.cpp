@@ -109,7 +109,7 @@ void KernelServer::run()
     std::string input(2048, '\0'); // max input size: 2048Byte
     while(std::cin.getline(input.data(), input.size()))
     {
-        logger.info("[KernelServer] Received message: " + input.substr(0, input.find('\0')));
+        logger.debug("[KernelServer] Received message: " + input.substr(0, input.find('\0')));
         if (std::strlen(input.data()) == 0)
         {
             continue;
@@ -559,7 +559,7 @@ void KernelServer::messageSender()
                 message->data["sessionId"] = -1; // message from kernel server
             }
             std::cout << message->data.dump() << std::endl << std::flush;
-            logger.info("[KernelServer.messageSender] Send message: " + message->data.dump());
+            logger.debug("[KernelServer.messageSender] Send message: " + message->data.dump());
         }
         message = kernelMessageQueue->pop();
     }

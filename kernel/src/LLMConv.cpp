@@ -495,14 +495,13 @@ std::string OpenAIConv::getStreamResponse(streamCallbackFunc callBack)
     // clear token usage
     tokenUsage = {0, 0, 0};
 
-    // send a test request to get prompt token usage
-    auto testRequest = request;
-    testRequest["max_tokens"] = 1;
-    testRequest["stream"] = false;
-    testRequest["messages"] = history_json;
-    auto testResult = httpClient->sendRequest(testRequest.dump());
-    auto content = handleHttpResult(testResult);
-    parseFullResponse(content);
+    // estimate prompt tokens
+    int prompt_tokens = 0;
+    int message_begin_count = history_json.size();
+    for(auto& message : history_json)
+    {
+        prompt_tokens += static_cast<int>(Utils::utf8Length(message["content"].get<std::string>()) * 0.6);
+    }
 
     // send request
     auto result = httpClient->sendStreamRequest(request.dump(), 
@@ -513,11 +512,17 @@ std::string OpenAIConv::getStreamResponse(streamCallbackFunc callBack)
     if (!response.empty())
         setMessage("assistant", response);
 
-    // send another request to get token usage
-    testRequest["messages"] = history_json;
-    auto usageResult = httpClient->sendRequest(testRequest.dump());
-    auto usageContent = handleHttpResult(usageResult);
-    parseFullResponse(usageContent, true);
+    // estimate completion tokens
+    int completion_tokens = 0;
+    for(int i = message_begin_count; i < history_json.size(); i++)
+    {
+        auto message = history_json[i];
+        completion_tokens = tokenUsage.completion_tokens += static_cast<int>(Utils::utf8Length(message["content"].get<std::string>()) * 0.6);
+    }
+    tokenUsage.prompt_tokens = prompt_tokens;
+    tokenUsage.completion_tokens = completion_tokens;
+    tokenUsage.total_tokens = prompt_tokens + completion_tokens;
+
     return response; 
 }
 

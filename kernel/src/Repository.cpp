@@ -154,8 +154,8 @@ Repository::~Repository()
 
 void Repository::backgroundProcess()
 {
-    jiebaTokenizer::get_jieba_ptr();
     logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process started.");
+    jiebaTokenizer::get_jieba_ptr();
     while (!stopThread)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
@@ -197,6 +197,11 @@ void Repository::backgroundProcess()
     logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process stopped.");
 }
 
+void Repository::suspendBackgroundProcess()
+{
+    stopThread = true;
+}
+
 void Repository::stopBackgroundProcess()
 {
     stopThread = true; 
@@ -208,13 +213,10 @@ void Repository::stopBackgroundProcess()
 
 void Repository::startBackgroundProcess()
 {
-    if(backgroundThread.joinable())
-    {
-        return;
-    }
+    stopBackgroundProcess();
     stopThread = false;
     auto backgroundThreadFunc = [this]() {
-        while(!stopThread)
+        while(true)
         {
             try
             {
@@ -237,6 +239,10 @@ void Repository::startBackgroundProcess()
                 }
                 logger.warning("[Repository.backgroundProcess] Crashed with: " + std::string(e.what())
                     + ", restart count: " + std::to_string(restartCount) + ", restarting...");
+            }
+            if(stopThread)
+            {
+                break;
             }
         }
     };
@@ -559,10 +565,12 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
 void Repository::configEmbedding(const EmbeddingConfigList &configs)
 {
     // stop the background thread
-    stopBackgroundProcess();
+    suspendBackgroundProcess();
+    logger.debug("[Repository::configEmbedding] begin to config embedding");
 
     std::unique_lock writelock(mutex);
     updateEmbeddings(configs); 
+    logger.debug("[Repository::configEmbedding] embedding config done");
 
     // resume the background thread
     startBackgroundProcess();
@@ -570,9 +578,13 @@ void Repository::configEmbedding(const EmbeddingConfigList &configs)
 
 void Repository::configReranker(const std::filesystem::path &modelPath)
 {
+    suspendBackgroundProcess();
+    logger.debug("[Repository::configReranker] begin to config reranker model");
     std::unique_lock writelock(mutex);
     if(!modelPath.empty())
         rerankerModel = std::make_shared<RerankerModel>(modelPath, ONNXModel::device::cpu);
+    logger.debug("[Repository::configReranker] reranker model config done");
+    startBackgroundProcess();
 }
 
 void Repository::reConstruct()
