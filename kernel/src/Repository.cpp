@@ -542,6 +542,15 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         lineStmt.reset();
     }
 
+    // extract keywords again
+    std::vector<std::string> keyWords;
+    jiebaTokenizer::cut(query, keyWords);
+    for(auto &result : uniqueResults)
+    {
+        result.highlightedContent = TextSearchTable::reHighlight(result.highlightedContent, keyWords);
+        result.highlightedMetadata = TextSearchTable::reHighlight(result.highlightedMetadata, keyWords);
+    }
+
     return uniqueResults;
 }
 

@@ -110,7 +110,7 @@ void KernelServer::run()
     while(std::cin.getline(input.data(), input.size()))
     {
         logger.info("[KernelServer] Received message: " + input.substr(0, input.find('\0')));
-        if(input == "")
+        if (std::strlen(input.data()) == 0)
         {
             continue;
         }

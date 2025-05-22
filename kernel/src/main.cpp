@@ -99,7 +99,6 @@ int main()
     std::locale::global(std::locale(".UTF-8"));
     Utils::setup_utf8_console();
     {
-        throw Error{"testError"}; // for debug
         KernelServer::openServer(".\\userData").run();
     }
     logger.info("KernelServer stopped.");
