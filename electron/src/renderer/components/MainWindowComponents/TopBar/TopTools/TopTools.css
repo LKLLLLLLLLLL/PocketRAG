@@ -4,18 +4,26 @@
     display: flex;
 }
 .button01{
-    height: 50px;
+    height: 30px;
     width: 50px;
+    color: white;
+    background-color: rgb(60,160,130);
 }
 .button02{
-    height: 50px;
+    height: 30px;
     width: 50px;
+    color: white;
+    background-color: rgb(60,160,130);
 }
 .button03{
-    height: 50px;
+    height: 30px;
     width: 50px;
+    color: white;
+    background-color: rgb(60,160,130);
 }
 .button04{
-    height: 50px;
+    height: 30px;
     width: 50px;
+    color: white;
+    background-color: rgb(60,160,130);
 }

@@ -22,6 +22,7 @@ export default function Search(){
     const [selectedResultIndex, setSelectedResultIndex] = useState(null);//record the selected result
     const [lastClickTime,setLastClickTime] = useState(0);//record the last click time
     const [loading,setLoading] = useState(false);//record the loading state
+    const [timeout,setTimeOut] = useState(false);//record the timeout state
     const wrapperRef = useRef(null);
 
     //click the search button to open search div
@@ -43,11 +44,23 @@ export default function Search(){
     //press enter to search
     const handleKeyPress = async (e) => {
         if (e.key === 'Enter') {
-            console.log(value);
-            let result = await window.search(value,true);
-            console.log(result);
-            setSearchResult(result);
-            handleSearch();
+            setShowResult(true);
+            setLoading(true);
+            // console.log(value);
+            try{
+                let result = await window.search(value,true);
+                // console.log(result);
+                setSearchResult(result);
+            }
+            catch(error){
+                if(error && error.message && error.message.includes('timeout') ){
+                    setTimeOut(true);
+                }
+            }
+            finally{
+                setOpen(false);
+                setLoading(false);
+            }
         }
     };
 
@@ -65,12 +78,6 @@ export default function Search(){
     //     );
     // };
 
-    //disable the search div and trigger the result window
-    const handleSearch = () => {
-        setOpen(false);
-        setShowResult(true);
-    };
-
     //receive the text from the input
     const handleOnChange = (event) =>{
         setValue(event.target.value);
@@ -82,21 +89,26 @@ export default function Search(){
             <li key = {index}
                 className = {`result-item ${selectedResultIndex === index ? 'selected' : ''}`}
                 onClick = {()=>setSelectedResultIndex(index)}>
-                    <div className = 'result-container'>
+                    <div className = 'result-item-container'>
                         <div className = 'chunkcontent-container'>
+                            分块内容:
                             {item.content}
                         </div>
                         <div className = 'metadata-container'>
+                            元数据:
                             {item.metadata}
                         </div>
                         <div className = 'position-container'>
+                            分块起始行和终止行:
                             {item.beginLine}
                             {item.endLine}
                         </div>
                         <div className = 'filepath-container'>
+                            分块所在文件路径:
                             {item.filePath}
                         </div>
                         <div className = 'score-container'>
+                            分块得分:
                             {item.score}
                         </div>
                     </div>
@@ -143,13 +155,13 @@ export default function Search(){
             {/* {console.log(searchResult)} */}
             {showResult &&
                 <PopWindow onClose = {()=>setShowResult(false)}>
-                    <ResultWindow resultItem = {resultItem}></ResultWindow>
+                    <ResultWindow resultItem = {resultItem} loading = {loading} timeout = {timeout}></ResultWindow>
                 </PopWindow>
             }
         </div>
     )
 }
-const ResultWindow = ({resultItem}) =>{
+const ResultWindow = ({resultItem,loading,timeout}) =>{
     return(
         <div className = 'resultwindow-container'>
             <div className = 'another-container'>
@@ -157,12 +169,15 @@ const ResultWindow = ({resultItem}) =>{
             </div>
             <div className = 'result-container'>
                 <div className = 'explanation-container'>
-                    这里是结果
+                    {loading && <div>Loading…</div>}
+                    {timeout && <div>请求超时</div>}
+                    {(!loading) && <div>搜索结果</div>}
                 </div>
                 <div className = 'result-demo'>
-                    <ul className = 'result-list-container'>
-                        {resultItem}
-                    </ul>
+                    {!loading && 
+                        <ul className = 'result-list-container'>
+                            {resultItem}
+                        </ul>}
                 </div>
             </div>
         </div>
