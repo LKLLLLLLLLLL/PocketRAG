@@ -154,6 +154,7 @@ Repository::~Repository()
 
 void Repository::backgroundProcess()
 {
+    jiebaTokenizer::get_jieba_ptr();
     logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process started.");
     while (!stopThread)
     {

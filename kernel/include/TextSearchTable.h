@@ -77,27 +77,8 @@ public:
     // drop table from sqlite
     static void dropTable(SqliteConnection &sqlite, const std::string &tableName);
 
-    static std::string reHighlight(const std::string &text, const std::vector<std::string> &keywords)
-    {
-        if(text.empty() || keywords.empty())
-        {
-            return text;
-        }
-        std::string result = text;
-        for (const auto &keyword : keywords)
-        {
-            auto pos = result.find(keyword);
-            while (pos != std::string::npos)
-            {
-                result.insert(pos, ResultChunk::HIGHLIGHT_BEGINS);
-                pos += keyword.length() + ResultChunk::HIGHLIGHT_BEGINS.length();
-                result.insert(pos, ResultChunk::HIGHLIGHT_ENDS);
-                pos += ResultChunk::HIGHLIGHT_ENDS.length();
-                pos = result.find(keyword, pos);
-            }
-        }
-        return result;
-    }
+    // highlight keywords in the text
+    static std::string reHighlight(const std::string &text, const std::vector<std::string> &keywords);
 };
 
 
