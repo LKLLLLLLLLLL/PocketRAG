@@ -1,5 +1,6 @@
 #include "Session.h"
 #include "KernelServer.h"
+#include "LLMConv.h"
 #include "Repository.h"
 #include "Utils.h"
 #include <exception>
@@ -105,6 +106,10 @@ void Session::run()
         }
         sessionMessageQueue->shutdown();
     });
+    // initialize sqlite
+    auto dbPath = repoPath / ".PocketRAG" / "db";
+    sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);
+    initializeSqlite();
     // send done message
     nlohmann::json json;
     json["toMain"] = false;
@@ -289,6 +294,28 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
         }
+        else if(type == "getApiUsage")
+        {
+            auto stmt = sqlite->getStatement(
+                "SELECT SUM(input_token), SUM(output_token), generation_model "
+                "FROM turn "
+                "GROUP BY generation_model;"
+            );
+            nlohmann::json apiUsageJson = nlohmann::json::array();
+            while (stmt.step())
+            {
+                nlohmann::json apiUsage;
+                apiUsage["input_token"] = stmt.get<int64_t>(0);
+                apiUsage["output_token"] = stmt.get<int64_t>(1);
+                apiUsage["total_token"] = apiUsage["input_token"].get<int64_t>() + apiUsage["output_token"].get<int64_t>();
+                apiUsage["model_name"] = stmt.get<std::string>(2);
+                apiUsageJson.push_back(apiUsage);
+            }
+            json["data"]["apiUsage"] = apiUsageJson;
+
+            json["status"]["code"] = "SUCCESS";
+            json["status"]["message"] = "";
+        }
         else 
         {
             json["status"]["code"] = "INVALID_TYPE";
@@ -307,6 +334,63 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
         json["status"]["message"] = "Unknown error: " + std::string(e.what());
     }
     sendBack(json);
+}
+
+void Session::initializeSqlite()
+{
+    sqlite->execute(
+        "CREATE TABLE IF NOT EXISTS turn(" // store one Q and A pair
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "conversation_id INTEGER, " // conversation id
+        "generation_model TEXT, " // model name
+        "input_token INTEGER, " // input token count
+        "output_token INTEGER, " // output token count
+        "time INTEGER);" // timestamp
+    );
+
+    sqlite->execute(
+        "CREATE TABLE IF NOT EXISTS reference(" // store reference relationship between turns and chunks
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "turn_id INTEGER, "
+        "chunk_id INTEGER, "
+        "retrieval_index INTEGER, " 
+        "valid BOOLEAN DEFAULT 1, "  // to mark if chunk changed
+        "FOREIGN KEY(turn_id) REFERENCES turn(id) ON DELETE CASCADE, "
+        "FOREIGN KEY(chunk_id) REFERENCES chunks(chunk_id)"
+        ");"
+    );
+
+    // Trigger for UPDATE operations on chunks table
+    sqlite->execute(
+        "CREATE TRIGGER IF NOT EXISTS chunk_update "
+        "AFTER UPDATE ON chunks "
+        "FOR EACH ROW "
+        "BEGIN "
+        "   UPDATE reference "
+        "   SET valid = 0 "
+        "   WHERE chunk_id = OLD.chunk_id;"
+        "END;"
+    );
+
+    // Trigger for DELETE operations on chunks table
+    sqlite->execute(
+        "CREATE TRIGGER IF NOT EXISTS chunk_delete "
+        "AFTER DELETE ON chunks "
+        "FOR EACH ROW "
+        "BEGIN "
+        "   UPDATE reference "
+        "   SET valid = 0 "
+        "   WHERE chunk_id = OLD.chunk_id;"
+        "END;"
+    );
+
+    sqlite->execute(
+        "CREATE TABLE IF NOT EXISTS conversation("
+        "id INTEGER PRIMARY KEY, "
+        "topic TEXT, "
+        "file_path TEXT);" // file which stores full history
+    );
+
 }
 
 void Session::stop()
@@ -362,6 +446,7 @@ Session::AugmentedConversation::~AugmentedConversation()
 void Session::AugmentedConversation::conversationProcess()
 {
     HistoryManager historyManager(*this); // defiene history manager to make sure its destructor is called at the end of conversation
+    LLMConv::TokenUsage tokenUsage = {0, 0, 0};
     try
     {
         logger.info("[Conversation] Conversation id" + std::to_string(conversationId) + " thread started.");
@@ -379,6 +464,7 @@ You are a search query optimizer. Generate the most effective search keywords fo
         conversation->setMessage("system", understandPrompt);
         conversation->setMessage("user", query + "\n```search\n");
         auto searchWord = conversation->getResponse();
+        tokenUsage = tokenUsage + conversation->getLastResponseUsage();
         auto searchWords = Utils::splitLine(extractSearchword(searchWord));
         int searchCount = 0;
         // recursive search
@@ -413,6 +499,7 @@ If the information is sufficient, respond with "YES". If not, respond with "NO" 
             conversation->setMessage("user", query + "\n");
             conversation->setMessage("user", toolContent);
             auto evaluateResult = conversation->getResponse();
+            tokenUsage = tokenUsage + conversation->getLastResponseUsage();
             // parser answer
             bool hasYes = evaluateResult.find("YES") != std::string::npos;
             bool hasNo = evaluateResult.find("NO") != std::string::npos;
@@ -435,6 +522,7 @@ Retrieval phase is done, DO NOT give more search words, Answer the question base
         auto answer = conversation->getStreamResponse([this](const std::string &response) {
             this->sendBack(response, Type::answer);
         });
+        tokenUsage = tokenUsage + conversation->getLastResponseUsage();
         historyManager.push(Type::answer, answer);
     }
     catch (const Error& e)
@@ -448,6 +536,10 @@ Retrieval phase is done, DO NOT give more search words, Answer the question base
             sendBack(e.what(), Type::unknownError);
         }
     }
+    historyManager.setTokenUsage(tokenUsage);
+    logger.debug("[Conversation] Conversation used " + std::to_string(tokenUsage.prompt_tokens) + " prompt tokens, " +
+                 std::to_string(tokenUsage.completion_tokens) + " completion tokens, " +
+                 std::to_string(tokenUsage.total_tokens) + " total tokens.");
 }
 
 std::string Session::AugmentedConversation::extractSearchword(const std::string &answer)
@@ -547,6 +639,26 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
     }
     conversationJson = nlohmann::json::object();
     conversationJson["query"] = parent.query;
+
+    // update sqlite
+    try
+    {
+        auto stmt = parent.session.sqlite->getStatement(
+            "INSERT OR REPLACE INTO conversation (id, topic, file_path) "
+            "VALUES (?, ?, ?)");
+
+        std::string filePath = historyFilePath.string();
+        int64_t currentTime = Utils::getTimeStamp();
+
+        stmt.bind(1, parent.conversationId);
+        stmt.bind(2, parent.query);
+        stmt.bind(3, filePath);
+        stmt.step();
+    }
+    catch (const std::exception &e)
+    {
+        logger.warning("[Conversation] Failed to record conversation in database: " + std::string(e.what()));
+    }
 }
 
 Session::AugmentedConversation::HistoryManager::~HistoryManager()
@@ -585,6 +697,59 @@ Session::AugmentedConversation::HistoryManager::~HistoryManager()
     }
     fullFile << historyMessagesJson.dump(4);
     logger.info("[Conversation] Saved full history file at " + fullHistoryFilePath.string());
+
+    // update sqlite
+    try
+    {
+        // 1. create turn record
+        int64_t currentTime = Utils::getTimeStamp();
+        auto insertTurnStmt = parent.session.sqlite->getStatement(
+            "INSERT INTO turn (conversation_id, generation_model, input_token, output_token, time) "
+            "VALUES (?, ?, ?, ?, ?)");
+
+        insertTurnStmt.bind(1, parent.conversationId);
+        insertTurnStmt.bind(2, parent.conversation->getModelName());
+        insertTurnStmt.bind(3, tokenUsage.prompt_tokens);
+        insertTurnStmt.bind(4, tokenUsage.completion_tokens);
+        insertTurnStmt.bind(5, currentTime);
+
+        insertTurnStmt.step();
+        int64_t turnId = parent.session.sqlite->getLastInsertId();
+
+        // 2. extract chunk_id from conversation json
+        if (conversationJson.contains("retrieval") && conversationJson["retrieval"].is_array())
+        {
+            for(auto i = 0; i < conversationJson["retrieval"].size(); i++)
+            {
+                auto retrieval = conversationJson["retrieval"][i];
+                if (!retrieval.contains("result") && retrieval["result"].is_array())
+                {
+                    continue;
+                }
+                for (const auto &result : retrieval["result"])
+                {
+                    if (!result.contains("chunkId"))
+                    {
+                        continue;
+                    }
+                    auto chunkId = result["chunkId"].get<int64_t>();
+                    // 3. create reference record
+                    auto insertReferenceStmt = parent.session.sqlite->getStatement(
+                        "INSERT INTO reference (turn_id, chunk_id, retrieval_index) "
+                        "VALUES (?, ?, ?)");
+
+                    insertReferenceStmt.bind(1, turnId);
+                    insertReferenceStmt.bind(2, chunkId);
+                    insertReferenceStmt.bind(3, i);
+                    insertReferenceStmt.step();
+                }
+            }
+        }
+    }
+    catch (const std::exception &e)
+    {
+        logger.warning("[Conversation] Failed to write conversation data to database: " + std::string(e.what()));
+    }
 }
 
 std::vector<LLMConv::Message> Session::AugmentedConversation::HistoryManager::getHistoryMessages()
@@ -631,6 +796,7 @@ void Session::AugmentedConversation::HistoryManager::push(Type type, const Repos
     resultJson["beginLine"] = result.beginLine;
     resultJson["endLine"] = result.endLine;
     resultJson["score"] = result.score;
+    resultJson["chunkId"] = result.chunkId;
     parent.sendBack(resultJson.dump(), Type::result);
     tempJson["result"].push_back(resultJson);
 }

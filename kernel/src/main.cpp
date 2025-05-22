@@ -89,7 +89,8 @@
 #include <cstdlib>
 #include <iostream>
 
-Logger logger(".\\userData\\logs", false, Logger::Level::DEBUG);
+std::filesystem::path dataPath = std::filesystem::path (".") / "userData";
+Logger logger(dataPath / "logs", false, Logger::Level::DEBUG);
 
 void server_terminate_handler();
 
@@ -99,7 +100,7 @@ int main()
     std::locale::global(std::locale(".UTF-8"));
     Utils::setup_utf8_console();
     {
-        KernelServer::openServer(".\\userData").run();
+        KernelServer::openServer(dataPath).run();
     }
     logger.info("KernelServer stopped.");
     return 0;

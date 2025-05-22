@@ -33,7 +33,7 @@ void Repository::initializeSqlite()
 
     // create documents table
     sqlite->execute(
-        "CREATE TABLE IF NOT EXISTS documents ("
+        "CREATE TABLE IF NOT EXISTS documents("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "doc_name TEXT UNIQUE NOT NULL, "
         "last_modified INTEGER, "       // file's last modified timestamp
@@ -45,7 +45,7 @@ void Repository::initializeSqlite()
 
     // create embedding config table
     sqlite->execute(
-        "CREATE TABLE IF NOT EXISTS embedding_config ("
+        "CREATE TABLE IF NOT EXISTS embedding_config("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "config_name TEXT NOT NULL UNIQUE, "
         "model_name TEXT NOT NULL, "
@@ -56,7 +56,7 @@ void Repository::initializeSqlite()
 
     // create chunks table
     sqlite->execute(
-        "CREATE TABLE IF NOT EXISTS chunks ("
+        "CREATE TABLE IF NOT EXISTS chunks("
         "chunk_id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "doc_id INTEGER NOT NULL, "
         "embedding_id INTEGER NOT NULL, "
@@ -441,28 +441,6 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         return allResults; // no results
     }
 
-    // get content and metadata for each result
-    std::vector<std::string> contents;
-    for (auto &result : allResults) 
-    {
-        auto [content, metadata] = textTable->getContent(result.chunkId);
-        if (!content.empty() || !metadata.empty()) 
-        {
-            result.content = content;
-            result.metadata = metadata;
-            if (result.highlightedContent.empty()) 
-            {
-                result.highlightedContent = content;
-                result.highlightedMetadata = metadata;
-            }
-            contents.push_back(Utils::chunkTosequence(content, metadata));
-        } 
-        else 
-        {
-            throw Error{"Chunk not found in text_search table, chunk_id: " + std::to_string(result.chunkId), Error::Type::Database};
-        }
-    }
-
     // remove duplicates
     std::vector<SearchResult> uniqueResults;
     for (const auto &result : allResults) 
@@ -487,6 +465,29 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         if(!found) // not found
         {
             uniqueResults.push_back(result);
+        }
+    }
+
+    // get content and metadata for each result
+    std::vector<std::string> contents;
+    for (auto &result : uniqueResults)
+    {
+        auto [content, metadata] = textTable->getContent(result.chunkId);
+        if (!content.empty() || !metadata.empty())
+        {
+            result.content = content;
+            result.metadata = metadata;
+            if (result.highlightedContent.empty())
+            {
+                result.highlightedContent = content;
+                result.highlightedMetadata = metadata;
+            }
+            contents.push_back(Utils::chunkTosequence(content, metadata));
+        }
+        else
+        {
+            throw Error{"Chunk not found in text_search table, chunk_id: " + std::to_string(result.chunkId),
+                        Error::Type::Database};
         }
     }
 
@@ -543,7 +544,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         lineStmt.reset();
     }
 
-    // extract keywords again
+    // mark keywords again
     std::vector<std::string> keyWords;
     jiebaTokenizer::cut(query, keyWords);
     for(auto &result : uniqueResults)

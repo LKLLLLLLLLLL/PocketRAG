@@ -125,6 +125,19 @@ public:
 
     using Config = std::map<std::string, std::string>; // the config of the model, can be used to set api key, api url, etc.
 
+    struct TokenUsage
+    {
+        int prompt_tokens;     // input tokens
+        int completion_tokens; // output tokens
+        int total_tokens;      // equal to prompt_tokens + completion_tokens
+
+        TokenUsage operator+(const TokenUsage &other) const
+        {
+            return {prompt_tokens + other.prompt_tokens, completion_tokens + other.completion_tokens,
+                    total_tokens + other.total_tokens};
+        }
+    };
+
 protected:
     std::string modelName; // the name of the model, must equal to the model name in api or in the model file
     std::vector<Message> history; // the conversation history
@@ -161,6 +174,8 @@ public:
     // will automatically set stream to true
     virtual std::string getStreamResponse(streamCallbackFunc) = 0;
 
+    virtual TokenUsage getLastResponseUsage() = 0;
+
     virtual void stopConnection() = 0;
 
     // export message histroy in a vector
@@ -185,18 +200,20 @@ private:
     OpenAIConv(const std::string &modelName, const Config &config); // private constructor to prevent direct instantiation
     friend class LLMConv; // allow LLMConv to access private members
 
-    class OpenAIResponseParser // nested class to parse response
-    {
-    public:
-        // parse a chunk of stream response
-        static bool parseStreamChunk(const std::string &chunk, std::string &content);
-        // parse the full response
-        static std::string parseFullResponse(const std::string &response);
-    };
+    TokenUsage tokenUsage;
+
+    // parse a chunk of stream response, will not set the token usage
+    bool parseStreamChunk(const std::string &chunk, std::string &content);
+    // parse the full response, this will automatically set the token usage
+    // if setDeltaUsage is true, it will set completion_tokens = new_prompt_tokens - old_prompt_tokens
+    std::string parseFullResponse(const std::string &response, bool setDeltaUsage = false);
 
     // handle http result and return the response
     // will throw an exception if http code is not 200
     static std::string handleHttpResult(const HttpClient::httpResult &result);
+
+    // this method will send two requests to api, to calculate the token usage
+    int calculateTokenUsage();
 
 public: 
     ~OpenAIConv() = default;
@@ -224,6 +241,9 @@ public:
     std::string getResponse() override;
     // will call streamCallBackFunc when a new response is received, set stream to true
     std::string getStreamResponse(streamCallbackFunc callBack) override;
+
+    // return token usage of the last response
+    TokenUsage getLastResponseUsage() override;
 
     // stop connection and return received content
     // safe to be called by other threads

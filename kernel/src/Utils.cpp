@@ -295,12 +295,12 @@ const std::string Logger::levelToString(Level level)
     }
 }
 
-Logger::Logger(const std::string &logFileDir, bool toConsole, Level logLevel)
+Logger::Logger(const std::filesystem::path &logFileDir, bool toConsole, Level logLevel)
     : logLevel(logLevel), toConsole(toConsole)
 {
     std::string timestamp = std::format("{:%Y%m%d-%H%M%S}", std::chrono::system_clock::now());
     std::string filename = timestamp + ".log";
-    logFilePath = logFileDir + "/" + filename;
+    logFilePath = logFileDir / filename;
     if (!std::filesystem::exists(logFileDir))
     {
         std::filesystem::create_directories(logFileDir);

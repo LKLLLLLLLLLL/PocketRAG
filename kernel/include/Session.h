@@ -6,6 +6,7 @@
 
 #include "Repository.h"
 #include "LLMConv.h"
+#include "SqliteConnection.h"
 #include "Utils.h"
 
 class KernelServer;
@@ -22,6 +23,8 @@ private:
 
     std::string repoName;
     std::filesystem::path repoPath;
+
+    std::shared_ptr<SqliteConnection> sqlite;
 
     std::thread conversationThread; // thread for LLMConv
 
@@ -50,6 +53,8 @@ private:
     std::exception_ptr repoThreadError = nullptr;
 
     std::function<void(std::exception_ptr, int64_t)> crashHandler = nullptr;
+
+    void initializeSqlite();
 
 public:
     Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer);
@@ -125,6 +130,9 @@ private:
     std::filesystem::path historyFilePath;
     std::filesystem::path fullHistoryFilePath; // save history messages
     nlohmann::json historyMessagesJson;
+
+    // for sqlite
+    LLMConv::TokenUsage tokenUsage;
 public:
     HistoryManager(AugmentedConversation &parent);
     ~HistoryManager();
@@ -139,4 +147,10 @@ public:
 
     // push search and result into one retrieval object
     void endRetrieval();
+
+    // for sqlite
+    void setTokenUsage(LLMConv::TokenUsage tokenUsage)
+    {
+        this->tokenUsage = tokenUsage;
+    }
 };

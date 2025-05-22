@@ -36,12 +36,12 @@ class Logger
   private:
     Level logLevel = Level::INFO;
     std::mutex mutex;
-    std::string logFilePath;
+    std::filesystem::path logFilePath;
     std::ofstream logFile;
     bool toConsole = true;
 
   public:
-    Logger(const std::string &logFileDir, bool toConsole, Level logLevel = Level::INFO);
+    Logger(const std::filesystem::path &logFileDir, bool toConsole, Level logLevel = Level::INFO);
 
     ~Logger() = default;
 

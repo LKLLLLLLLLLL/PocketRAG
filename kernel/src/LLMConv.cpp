@@ -318,7 +318,7 @@ int LLMConv::getIntConfig(const Config &config, const std::string &key, int defa
 }
 
 //--------------------------OpenAIConv-------------------------//
-bool OpenAIConv::OpenAIResponseParser::parseStreamChunk(const std::string &chunk, std::string &content)
+bool OpenAIConv::parseStreamChunk(const std::string &chunk, std::string &content)
 {
     try
     {
@@ -341,11 +341,25 @@ bool OpenAIConv::OpenAIResponseParser::parseStreamChunk(const std::string &chunk
     }
 }
 
-std::string OpenAIConv::OpenAIResponseParser::parseFullResponse(const std::string &response)
+std::string OpenAIConv::parseFullResponse(const std::string &response, bool setDeltaUsage)
 {
     try
     {
         nlohmann::json json = nlohmann::json::parse(response);
+        if (json.contains("usage") && json["usage"].contains("total_tokens"))
+        {
+            if(!setDeltaUsage)
+            {
+                tokenUsage.total_tokens = json["usage"]["total_tokens"].get<int>();
+                tokenUsage.prompt_tokens = json["usage"]["prompt_tokens"].get<int>();
+                tokenUsage.completion_tokens = json["usage"]["completion_tokens"].get<int>();
+            }
+            else
+            {
+                tokenUsage.completion_tokens = json["usage"]["total_tokens"].get<int>() - tokenUsage.prompt_tokens;
+                tokenUsage.total_tokens = tokenUsage.prompt_tokens + tokenUsage.completion_tokens;
+            }
+        }
         return json["choices"][0]["message"]["content"];
     }
     catch (const std::exception &e)
@@ -460,10 +474,13 @@ std::string OpenAIConv::getResponse()
     request["messages"] = history_json;
     request["stream"] = false;
 
+    // clear token usage
+    tokenUsage = {0, 0, 0};
+
     auto result = httpClient->sendRequest(request.dump()); // send request and handle error in uniform way
     auto content = handleHttpResult(result); // handle http result and return the response
     // parse response
-    auto response = OpenAIResponseParser::parseFullResponse(content);
+    auto response = parseFullResponse(content);
     if(!response.empty())
         setMessage("assistant", response);
     return response;
@@ -475,12 +492,38 @@ std::string OpenAIConv::getStreamResponse(streamCallbackFunc callBack)
     request["messages"] = history_json;
     request["stream"] = true;
 
-    auto result = httpClient->sendStreamRequest(request.dump(), OpenAIResponseParser::parseStreamChunk, callBack); // send request and handle error in uniform way
+    // clear token usage
+    tokenUsage = {0, 0, 0};
+
+    // send a test request to get prompt token usage
+    auto testRequest = request;
+    testRequest["max_tokens"] = 1;
+    testRequest["stream"] = false;
+    testRequest["messages"] = history_json;
+    auto testResult = httpClient->sendRequest(testRequest.dump());
+    auto content = handleHttpResult(testResult);
+    parseFullResponse(content);
+
+    // send request
+    auto result = httpClient->sendStreamRequest(request.dump(), 
+        [this](const std::string& chunk, std::string& content){
+            return parseStreamChunk(chunk, content);
+        }, callBack); // send request and handle error in uniform way
     std::string response = handleHttpResult(result); // handle http result and return the response
-    
     if (!response.empty())
         setMessage("assistant", response);
+
+    // send another request to get token usage
+    testRequest["messages"] = history_json;
+    auto usageResult = httpClient->sendRequest(testRequest.dump());
+    auto usageContent = handleHttpResult(usageResult);
+    parseFullResponse(usageContent, true);
     return response; 
+}
+
+auto OpenAIConv::getLastResponseUsage() -> TokenUsage
+{
+    return tokenUsage;
 }
 
 void OpenAIConv::stopConnection()

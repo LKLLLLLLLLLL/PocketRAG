@@ -317,7 +317,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     if (embedding->inputLength > embedding->model->getMaxLength())
     {
         chunkLength = embedding->model->getMaxLength();
-        logger.warning("Embedding " + embedding->embeddingName + "'s input length is too long, use " + std::to_string(chunkLength) + " instead of " + std::to_string(embedding->inputLength));
+        logger.warning("[DocPipe] Embedding " + embedding->embeddingName + "'s input length is too long, use " + std::to_string(chunkLength) + " instead of " + std::to_string(embedding->inputLength));
     }
     std::vector<Chunker::Chunk> newChunks;
     Chunker chunker(docType, chunkLength); // create chunker

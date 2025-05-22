@@ -931,3 +931,53 @@ return:
         "message" : "http error message"
     }
 }
+```
+## 特殊页面：api用量信息
+该用量信息是与仓库相关联的，并不是全局用量信息；该信息应单独显示在一个页面中。
+window -> session
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "getApiUsage"
+    }
+}
+```
+return:
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : true,
+
+    "message" : {
+        "type" : "getApiUsage"
+    },
+
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    },
+
+    "data" : {
+        "apiUsage" : [
+            {
+                "modelName" : "deepseek", // refer to modelName in localModelManagement, not name
+                "input_token" : 1000,
+                "output_token" : 2000,
+                "total_token" : 3000
+            },
+            {
+                ...
+            }
+        ]
+    }
+}
+```

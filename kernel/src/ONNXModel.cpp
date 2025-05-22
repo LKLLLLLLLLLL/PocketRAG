@@ -8,7 +8,6 @@
 #include <unordered_map>
 #include <filesystem>
 #include <algorithm>
-#include <fstream>
 
 #include <onnxruntime_cxx_api.h>
 
@@ -224,8 +223,7 @@ EmbeddingModel::EmbeddingModel(std::filesystem::path targetModelDirPath, device 
     auto configPath = targetModelDirPath / "config.json";
     if(std::filesystem::exists(configPath))
     {
-        nlohmann::json config;
-        std::ifstream configFile(configPath);
+        auto config = Utils::readJsonFile(configPath);
         try
         {
             maxLength = config["max_position_embeddings"];
@@ -398,12 +396,7 @@ RerankerModel::RerankerModel(std::filesystem::path targetModelDirPath, device de
     auto configPath = targetModelDirPath / "config.json";
     if (std::filesystem::exists(configPath))
     {
-        nlohmann::json config;
-        std::ifstream configFile(configPath);
-        if (configFile.is_open())
-        {
-            configFile >> config; // read json file
-        } 
+        auto config = Utils::readJsonFile(configPath);
         try
         {
             maxLength = config["max_position_embeddings"];
