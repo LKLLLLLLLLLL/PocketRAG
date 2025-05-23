@@ -108,7 +108,7 @@ void DocPipe::check()
     return; // no need to update
 }
 
-void DocPipe::process(std::function<void(double)> callback, std::atomic<bool> &stopFlag)
+void DocPipe::process(std::function<void(double)> callback, std::function<bool(void)> stopFlag)
 {
     switch(state)
     {
@@ -126,7 +126,7 @@ void DocPipe::process(std::function<void(double)> callback, std::atomic<bool> &s
     }
 }
 
-void DocPipe::updateDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag)
+void DocPipe::updateDoc(std::function<void(double)> callback, std::function<bool(void)> stopFlag)
 {
     // create progress object
     std::vector<std::pair<std::string, double>> subProgress;
@@ -139,7 +139,7 @@ void DocPipe::updateDoc(std::function<void(double)> callback, std::atomic<bool> 
     Progress progress(callback, subProgress); // create progress object
 
     updateToTable(progress, stopFlag);
-    if(stopFlag)
+    if(stopFlag())
         return; // stop flag is set, return
     updateSqlite();
     progress.finishSubprogress(); // finish update sqlite progress
@@ -205,7 +205,7 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     progress.update(1.0); // update progress
 }
 
-void DocPipe::addDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag)
+void DocPipe::addDoc(std::function<void(double)> callback, std::function<bool(void)> stopFlag)
 {
     // create progress object
     std::vector<std::pair<std::string, double>> subProgress;
@@ -241,7 +241,7 @@ void DocPipe::addDoc(std::function<void(double)> callback, std::atomic<bool> &st
 
     // split, embed, and add to text table and vector table
     updateToTable(progress, stopFlag);
-    if(stopFlag)
+    if(stopFlag())
         return; 
 
     // update sqlite with new document info
@@ -289,7 +289,7 @@ void DocPipe::updateSqlite(std::string hash)
     return;
 }
 
-void DocPipe::updateToTable(Progress &progress, std::atomic<bool> &stopFlag)
+void DocPipe::updateToTable(Progress &progress, std::function<bool(void)> stopFlag)
 {
     // 1. open file and read content to a string
     auto content = readDoc();
@@ -303,14 +303,14 @@ void DocPipe::updateToTable(Progress &progress, std::atomic<bool> &stopFlag)
         auto &embedding = embeddings[i]; // get embedding model
         auto &vectortable = vTable[i]; // get vector table
         updateOneEmbedding(content, embedding, vectortable, progress, stopFlag); // update embedding for this model
-        if(stopFlag) 
+        if(stopFlag()) 
             return; 
         progress.finishSubprogress(); // finish embedding progress
     }
 }
 
 // a slowly version, can be improved by adding batch process
-void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::atomic<bool> &stopFlag)
+void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::function<bool(void)> stopFlag)
 {
     // 1. split content to chunks
     int chunkLength = embedding->inputLength;
@@ -454,7 +454,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
         progress.updateSubprocess(0.04 + (addCount - addChunkQueue.size()) * 0.95 / addCount); // update progress
 
         // check stop flag
-        if(stopFlag) // check if stop flag is set
+        if(stopFlag()) // check if stop flag is set
         {
             trans2.commit(); // commit part of chunks
             return;

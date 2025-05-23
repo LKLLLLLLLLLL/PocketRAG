@@ -166,7 +166,7 @@ namespace Utils
         };
     private:
         std::queue<std::shared_ptr<Message>> queue;
-        std::mutex mutex;
+        mutable std::mutex mutex;
         std::condition_variable conditionVariable;
         std::atomic<bool> shutdownFlag = false;
 
@@ -201,5 +201,115 @@ namespace Utils
         void stop(std::source_location endLocation = std::source_location::current());
 
         ~Timer();
+    };
+
+    /*
+    A mutex class which supports priority
+    */
+    class PriorityMutex
+    {
+    private:
+        mutable std::mutex mutex; // mutex to protect priority mutex ifself
+        std::condition_variable cv;
+        bool locked = false;
+        std::thread::id ownerThreadId;
+        int priorityCount = 0;
+    public:
+        void lock(bool priority = false)
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            if(priority)
+            {
+                priorityCount++;
+            }
+            cv.wait(lock, [this, priority]{
+                if(priority)
+                {
+                    return !locked;
+                }
+                else
+                {
+                    return !locked && priorityCount == 0;
+                }
+            });
+            locked = true;
+            ownerThreadId = std::this_thread::get_id();
+
+            if(priority)
+            {
+                priorityCount--;
+            }
+        }
+
+        void unlock()
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            if(std::this_thread::get_id() != ownerThreadId)
+            {
+                throw Error{"Unlocking a mutex not owned by this thread", Error::Type::Internal};
+            }
+            locked = false;
+            cv.notify_all();
+        }
+
+        // try to release the mutex, if there is no waiters, return
+        // if there are waiters, unlock the mutex and wait them finished and give back the mutex
+        void yield()
+        {
+            {
+                std::unique_lock<std::mutex> lock(mutex);
+                if(std::this_thread::get_id() != ownerThreadId)
+                {
+                    throw Error{"Unlocking a mutex not owned by this thread", Error::Type::Internal};
+                }
+                if(priorityCount == 0)
+                {
+                    return;
+                }
+                locked = false;
+                cv.notify_all();
+            }
+            lock();
+        }
+
+        bool hasPriorityWaiters() const
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            return priorityCount > 0;
+        }
+
+        bool isLocked() const
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            return locked;
+        }
+    };
+
+    class LockGuard
+    {
+    private:
+        PriorityMutex &mutex;
+        bool priority = false;
+    public:
+        LockGuard(PriorityMutex &mutex, bool priority = false) : mutex(mutex), priority(priority)
+        {
+            mutex.lock(priority);
+        }
+        ~LockGuard()
+        {
+            mutex.unlock();
+        }
+        LockGuard(const LockGuard &) = delete;
+        LockGuard &operator=(const LockGuard &) = delete;
+
+        void yield()
+        {
+            mutex.yield();
+        }
+
+        bool hasPriorityWaiters() const
+        {
+            return mutex.hasPriorityWaiters();
+        }
     };
 }

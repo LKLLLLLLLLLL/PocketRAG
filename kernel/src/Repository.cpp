@@ -159,39 +159,34 @@ void Repository::backgroundProcess()
     while (!stopThread)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
+        Utils::LockGuard lock(mutex); // lock for writing
+        for (auto &vectorTable : vectorTables)
         {
-            std::shared_lock readlock(mutex); // lock for reading
-            for (auto &vectorTable : vectorTables)
+            vectorTable->write();
+            if (vectorTable->getInvalidIds().size() > 0)
             {
-                vectorTable->write();
-                if (vectorTable->getInvalidIds().size() > 0)
-                {
-                    integrity = false;
-                }
+                integrity = false;
             }
         }
+        lock.yield();
         if (!integrity && !stopThread)
         {
             logger.warning("[Repository.backgroundProcess] Database integrity check failed, reconstructing...");
             reConstruct();
         }
+        lock.yield();
+        
 
         std::queue<DocPipe> docqueue; // create a new doc queue for each iteration
+        checkDoc(docqueue); // check for changed documents
+        // though refreshDoc will change vector tables and text table, but this changes will not affect to search result, so no need to use writelock(unique_lock)
+        refreshDoc(docqueue, lock); // process the documents in the queue
+        // logically, there is no other thread use these invalid embedding configs, only need to avoid changes in embedding_config table, so use shared_lock
+        removeInvalidEmbedding();
 
+        for (auto &vectorTable : vectorTables)
         {
-            std::shared_lock readlock(mutex); // lock for reading
-            checkDoc(docqueue); // check for changed documents
-
-            // though refreshDoc will change vector tables and text table, but this changes will not affect to search result, so no need to use writelock(unique_lock)
-            refreshDoc(docqueue); // process the documents in the queue
-
-            // logically, there is no other thread use these invalid embedding configs, only need to avoid changes in embedding_config table, so use shared_lock
-            removeInvalidEmbedding();
-
-            for (auto &vectorTable : vectorTables)
-            {
-                vectorTable->write();
-            }
+            vectorTable->write();
         }
     }
     logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process stopped.");
@@ -304,12 +299,13 @@ void Repository::checkDoc(std::queue<DocPipe>& docqueue)
         docStateReporter(changedDocs); // report changed documents
 }
 
-void Repository::refreshDoc(std::queue<DocPipe> &docqueue)
+void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &lock)
 {
     // process each document in the queue
     bool changed = !docqueue.empty(); // check if there are documents to process
     while(!docqueue.empty())
     {
+        lock.yield();
         auto docPipe = std::move(docqueue.front()); // get the front document
         docqueue.pop(); // remove it from the queue
 
@@ -320,7 +316,11 @@ void Repository::refreshDoc(std::queue<DocPipe> &docqueue)
                 this->progressReporter(path, progress);
             }
         }, 
-        stopThread); // pass the stop flag to the process function
+        [this, &lock]() -> bool
+        {
+            lock.yield();
+            return stopThread;
+        }); // pass the stop flag to the process function
 
         if(doneReporter && !stopThread)
             doneReporter(path); // report the document is done
@@ -379,7 +379,7 @@ void Repository::removeInvalidEmbedding()
 
 auto Repository::search(const std::string &query, searchAccuracy acc, int limit) -> std::vector<SearchResult>
 {
-    std::shared_lock readlock(mutex); // lock for reading embedding models and vector tables
+    Utils::LockGuard lock(mutex, true); // lock for reading embedding models and vector tables
     
     int vectorLimit = limit * 2;
     int fts5Limit = limit * 2 * embeddings.size();
@@ -568,7 +568,7 @@ void Repository::configEmbedding(const EmbeddingConfigList &configs)
     suspendBackgroundProcess();
     logger.debug("[Repository::configEmbedding] begin to config embedding");
 
-    std::unique_lock writelock(mutex);
+    Utils::LockGuard lock(mutex, true);
     updateEmbeddings(configs); 
     logger.debug("[Repository::configEmbedding] embedding config done");
 
@@ -580,7 +580,7 @@ void Repository::configReranker(const std::filesystem::path &modelPath)
 {
     suspendBackgroundProcess();
     logger.debug("[Repository::configReranker] begin to config reranker model");
-    std::unique_lock writelock(mutex);
+    Utils::LockGuard lock(mutex, true);
     if(!modelPath.empty())
         rerankerModel = std::make_shared<RerankerModel>(modelPath, ONNXModel::device::cpu);
     logger.debug("[Repository::configReranker] reranker model config done");
@@ -589,12 +589,6 @@ void Repository::configReranker(const std::filesystem::path &modelPath)
 
 void Repository::reConstruct()
 {
-    if(std::this_thread::get_id() != backgroundThread.get_id())
-    {
-        stopBackgroundProcess();
-    }
-    std::unique_lock writelock(mutex); // lock for writing
-
     vectorTables.clear();
     textTable.reset();
 
@@ -627,9 +621,4 @@ void Repository::reConstruct()
     // open text search table
     textTable = std::make_shared<TextSearchTable>(*sqlite, "text_search");
     updateEmbeddings();
-
-    if(backgroundThread.joinable())
-    {
-        startBackgroundProcess();
-    }
 }

@@ -81,19 +81,19 @@ private:
     std::string& readDoc();
 
     // update document in db
-    void updateDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag);
+    void updateDoc(std::function<void(double)> callback, std::function<bool(void)> stopFlag);
 
     // add new document to db
-    void addDoc(std::function<void(double)> callback, std::atomic<bool> &stopFlag);
+    void addDoc(std::function<void(double)> callback, std::function<bool(void)> stopFlag);
 
     // delete document from db
     void delDoc(std::function<void(double)> callback);
 
     // update document to text search table and vector table
-    void updateToTable(Progress &progress, std::atomic<bool> &stopFlag);
+    void updateToTable(Progress &progress, std::function<bool(void)> stopFlag);
 
     // update one embedding to text search table and vector table
-    void updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::atomic<bool> &stopFlag);
+    void updateOneEmbedding(const std::string &content, std::shared_ptr<Embedding> &embedding, std::shared_ptr<VectorTable> &vectortable, Progress &progress, std::function<bool(void)> stopFlag);
 
     // update last_modified, last_checked, content_hash, file_size in sqlite
     void updateSqlite(std::string hash = "");
@@ -115,7 +115,7 @@ public:
     DocState getState() const { return state; }
 
     // process the task, need callback function to report progress
-    void process(std::function<void(double)> callback, std::atomic<bool> &stopFlag);
+    void process(std::function<void(double)> callback, std::function<bool(void)> stopFlag);
 
     // get docId
     int64_t getId() const { return docId; } 
