@@ -447,36 +447,9 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         return allResults; // no results
     }
 
-    // remove duplicates
-    std::vector<SearchResult> uniqueResults;
-    for (const auto &result : allResults) 
-    {
-        bool found = false;
-        for(auto &uniqueResult : uniqueResults) 
-        {
-            bool isSubstr = (uniqueResult.content.find(result.content) != std::string::npos);
-            if(isSubstr) // found string include current result
-            {
-                found = true;
-                break;
-            }
-            bool isSuperstr = (result.content.find(uniqueResult.content) != std::string::npos);
-            if(isSuperstr) // found current result include string in unique result
-            {
-                uniqueResult = result; // replace it
-                found = true;
-                break;
-            }
-        }
-        if(!found) // not found
-        {
-            uniqueResults.push_back(result);
-        }
-    }
-
     // get content and metadata for each result
     std::vector<std::string> contents;
-    for (auto &result : uniqueResults)
+    for (auto &result : allResults)
     {
         auto [content, metadata] = textTable->getContent(result.chunkId);
         if (!content.empty() || !metadata.empty())
@@ -494,6 +467,33 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         {
             throw Error{"Chunk not found in text_search table, chunk_id: " + std::to_string(result.chunkId),
                         Error::Type::Database};
+        }
+    }
+
+    // remove duplicates
+    std::vector<SearchResult> uniqueResults;
+    for (const auto &result : allResults)
+    {
+        bool found = false;
+        for (auto &uniqueResult : uniqueResults)
+        {
+            bool isSubstr = (uniqueResult.content.find(result.content) != std::string::npos);
+            if (isSubstr) // found string include current result
+            {
+                found = true;
+                break;
+            }
+            bool isSuperstr = (result.content.find(uniqueResult.content) != std::string::npos);
+            if (isSuperstr) // found current result include string in unique result
+            {
+                uniqueResult = result; // replace it
+                found = true;
+                break;
+            }
+        }
+        if (!found) // not found
+        {
+            uniqueResults.push_back(result);
         }
     }
 

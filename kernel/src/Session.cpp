@@ -403,7 +403,7 @@ void Session::stop()
     }
     if(repository)
     {
-        repository.reset();
+        repository->stopBackgroundProcess();
     }
     sessionMessageQueue->shutdown();
 }

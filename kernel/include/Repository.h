@@ -110,7 +110,6 @@ private:
     int restartCount = 0;
     const static int maxRestartCount = 3;
 
-    void stopBackgroundProcess();
     void suspendBackgroundProcess(); // only let background release mutex
     void startBackgroundProcess();
 
@@ -143,4 +142,6 @@ public:
     {
         return {repoName, repoPath.string()};
     }
+
+    void stopBackgroundProcess();
 };
