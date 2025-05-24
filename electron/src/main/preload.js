@@ -34,6 +34,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   deleteRepo : (repoName) => ipcRenderer.send('deleteRepo', repoName),
 
-  pathJoin : (...paths) => ipcRenderer.invoke('pathJoin', ...paths)
+  pathJoin : (...paths) => ipcRenderer.invoke('pathJoin', ...paths),
+
+  close : () => ipcRenderer.invoke('closeWindow'),
+
+  maximize : () => ipcRenderer.invoke('maximizeWindow'),
+
+  minimize : () => ipcRenderer.invoke('minimizeWindow'),
+
+  showMessageBoxSync : (content) => ipcRenderer.invoke('showMessageBoxSync', content),
+
+  getApiUsage : (callbackId) => ipcRenderer.send('getApiUsage', callbackId) 
 })
 //expose apis to the renderer process 

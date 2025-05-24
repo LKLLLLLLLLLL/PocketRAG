@@ -4,6 +4,12 @@ const {spawn} = require('node:child_process')
 const EventEmitter = require('events')
 //import electron and node modules
 
+const dateNow = Date.now()
+const windows = new Map()
+const callbacks = new Map()
+const eventEmitter = new EventEmitter()
+const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
+
 
 const kernelPath = path.join(__dirname, '../../../kernel/bin/PocketRAG_kernel.exe')
 let restartTime = 0
@@ -12,6 +18,14 @@ let kernel = spawn(kernelPath, [], {
 })
 let isKernelRunning = true
 let isKernelManualKill = false
+let readyPromise = new Promise((resolve, reject) => {
+  const kernelReadyListener = () => {
+    eventEmitter.off('kernelReady', kernelReadyListener)
+    resolve()
+  }
+  eventEmitter.on('kernelReady', kernelReadyListener)
+})
+
 kernel.on('error', (err) => {
   console.error('Failed to start kernel:', err)
   isKernelRunning = false
@@ -35,20 +49,14 @@ kernel.stderr.on('data', (err) => {
   console.error(err.toString())
 })
 
-const dateNow = Date.now()
-const windows = new Map()
-const callbacks = new Map()
-const eventEmitter = new EventEmitter()
-const readyPromise = new Promise((resolve, reject) => {
-  eventEmitter.on('kernelReady', () => {
-    resolve()
-  })
-})
-const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
-
 
 function restartKernel (){
+  console.log('restarting kernel...')
   restartTime++
+  if(BrowserWindow.getAllWindows().length === 0){
+    app.quit()
+    return
+  }
   if(restartTime > 3){
     dialog.showMessageBox({
       type: 'error',
@@ -67,6 +75,14 @@ function restartKernel (){
     cwd: path.dirname(kernelPath)
   })
   isKernelRunning = true
+  readyPromise = new Promise((resolve, reject) => {
+    const kernelReadyListener = () => {
+      eventEmitter.off('kernelReady', kernelReadyListener)
+      resolve()
+    }
+    eventEmitter.on('kernelReady', kernelReadyListener)
+  })
+
   kernel.stdout.on('data', stdoutListener)
   kernel.stderr.on('data', (err) => {
     console.error(err.toString())
@@ -283,8 +299,8 @@ function getRepos (event, callbackId) {
 
 function openRepo (event, sessionId, repoName){
   const callbackId = callbackRegister(async (repoName, repoPath) => {
-    await initializeRepo(sessionId, repoName, repoPath)
     BrowserWindow.fromWebContents(event.sender).close()
+    await initializeRepo(sessionId, repoName, repoPath)
   })
 
   const openRepo = {
@@ -471,6 +487,23 @@ function deleteRepo (event, repoName){
   console.log(JSON.stringify(deleteRepo) + '\n')
 }
 
+function getApiUsage(event, callbackId) {
+  const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const getApiUsage = {
+    sessionId : sessionId,
+    toMain : false,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'getApiUsage'
+    }
+  }
+  kernel.stdin.write(JSON.stringify(getApiUsage) + '\n')
+  console.log(JSON.stringify(getApiUsage) + '\n')
+}
+
 
 function createWindow (event, windowType = 'repoList') {
   const {width: srceenWidth, height: screenHeight} = screen.getPrimaryDisplay().workAreaSize
@@ -510,6 +543,7 @@ function createWindow (event, windowType = 'repoList') {
       window = new BrowserWindow({
         width: Math.floor(srceenWidth * 0.5),
         height: Math.floor(srceenWidth * 0.5),
+        resizable: false,
         autoHideMenuBar: true,
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
@@ -524,6 +558,7 @@ function createWindow (event, windowType = 'repoList') {
       window = new BrowserWindow({
         width: Math.floor(srceenWidth * 0.6),
         height: Math.floor(srceenWidth * 0.6),
+        resizable: false,
         autoHideMenuBar: true,
         parent : BrowserWindow.fromWebContents(event.sender),
         modal: true,
@@ -561,16 +596,41 @@ function getWindowId (window) {
 //get the windowId from the window object
 
 
-async function getReadyPromise(){
+async function getReadyPromise() {
   return readyPromise
 }
 
-async function getDateNow(){
+async function getDateNow() {
   return dateNow
 }
 
-async function pathJoin(event, ...paths){
+async function pathJoin(event, ...paths) {
   return path.join(...paths)
+}
+
+function closeWindow(event) {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  window.close()
+}
+
+function maximizeWindow(event) {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if(window.isMaximized()){
+    window.unmaximize()
+  }
+  else {
+    window.maximize()
+  }
+}
+
+function minimizeWindow(event) {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  window.minimize()
+}
+
+function showMessageBoxSync(event, content) {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  dialog.showMessageBoxSync(window, content)
 }
 
 app.whenReady().then(async () => {
@@ -589,6 +649,11 @@ app.whenReady().then(async () => {
   ipcMain.on('deleteRepo', deleteRepo)
   ipcMain.on('restartSession', restartSession)
   ipcMain.handle('pathJoin', pathJoin)
+  ipcMain.handle('closeWindow', closeWindow)
+  ipcMain.handle('maximizeWindow', maximizeWindow)
+  ipcMain.handle('minimizeWindow', minimizeWindow)
+  ipcMain.handle('showMessageBoxSync', showMessageBoxSync)
+  ipcMain.on('getApiUsage', getApiUsage)
   //add the event listeners before the window is created
 
   createWindow()
