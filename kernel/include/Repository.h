@@ -72,9 +72,8 @@ private:
     std::vector<std::shared_ptr<Embedding>> embeddings;
     std::shared_ptr<RerankerModel> rerankerModel = nullptr;
 
-    std::thread backgroundThread; // background thread for processing documents
+    std::shared_ptr<Utils::WorkerThread> backgroundThread; // background thread for processing documents
     mutable Utils::PriorityMutex mutex;
-    std::atomic<bool> stopThread = false; // flag to stop the background thread
 
     std::atomic<bool> integrity = true; // if false, call reConstruct() to fix the database
 
@@ -102,12 +101,12 @@ private:
     // scan the repo path to find changed documents, no mutex lock.
     void checkDoc(std::queue<DocPipe>& docqueue);
     // actually execute updating task, need callback function to report progress, no mutex lock.
-    void refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &lock);
+    void refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &lock, std::atomic<bool>& retFlag);
     // remove invalid embedding_config and their chunks, no mutex lock.
     void removeInvalidEmbedding();
 
     // background thread for processing documents
-    void backgroundProcess();
+    void backgroundProcess(std::atomic<bool> &retFlag);
     int restartCount = 0;
     const static int maxRestartCount = 3;
 

@@ -152,11 +152,11 @@ Repository::~Repository()
     stopBackgroundProcess();
 }
 
-void Repository::backgroundProcess()
+void Repository::backgroundProcess(std::atomic<bool>& retFlag)
 {
     logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process started.");
     jiebaTokenizer::get_jieba_ptr();
-    while (!stopThread)
+    while (!retFlag)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
         Utils::LockGuard lock(mutex); // lock for writing
@@ -169,7 +169,7 @@ void Repository::backgroundProcess()
             }
         }
         lock.yield();
-        if (!integrity && !stopThread)
+        if (!integrity && !retFlag)
         {
             logger.warning("[Repository.backgroundProcess] Database integrity check failed, reconstructing...");
             reConstruct();
@@ -180,7 +180,7 @@ void Repository::backgroundProcess()
         std::queue<DocPipe> docqueue; // create a new doc queue for each iteration
         checkDoc(docqueue); // check for changed documents
         // though refreshDoc will change vector tables and text table, but this changes will not affect to search result, so no need to use writelock(unique_lock)
-        refreshDoc(docqueue, lock); // process the documents in the queue
+        refreshDoc(docqueue, lock, retFlag); // process the documents in the queue
         // logically, there is no other thread use these invalid embedding configs, only need to avoid changes in embedding_config table, so use shared_lock
         removeInvalidEmbedding();
 
@@ -194,54 +194,43 @@ void Repository::backgroundProcess()
 
 void Repository::suspendBackgroundProcess()
 {
-    stopThread = true;
+    if(backgroundThread)
+    {
+        backgroundThread->pause();
+    }
 }
 
 void Repository::stopBackgroundProcess()
 {
-    stopThread = true; 
-    if (backgroundThread.joinable())
+    if(backgroundThread)
     {
-        backgroundThread.join(); // wait for the thread to finish
+        backgroundThread->shutdown();
     }
 }
 
 void Repository::startBackgroundProcess()
 {
-    stopBackgroundProcess();
-    stopThread = false;
-    auto backgroundThreadFunc = [this]() {
-        while(true)
+    auto errorHandler = [this](const std::exception &e) {
+        restartCount++;
+        if (restartCount > maxRestartCount)
         {
-            try
+            logger.warning("[Repository.backgroundProcess] Background process crashed too many times, stop it.");
+            if (errorCallback == nullptr)
             {
-                backgroundProcess();
+                logger.fatal("[Repository.backgroundProcess] No error callback set, call terminate.");
+                throw e;
             }
-            catch (const std::exception &e)
-            {
-                restartCount++;
-                if(restartCount > maxRestartCount)
-                {
-                    logger.warning("[Repository.backgroundProcess] Background process crashed too many times, stop it.");
-                    stopThread = true;
-                    if (errorCallback == nullptr)
-                    {
-                        logger.fatal("[Repository.backgroundProcess] No error callback set, call terminate.");
-                        throw e;
-                    }
-                    errorCallback(std::current_exception());
-                    return;
-                }
-                logger.warning("[Repository.backgroundProcess] Crashed with: " + std::string(e.what())
-                    + ", restart count: " + std::to_string(restartCount) + ", restarting...");
-            }
-            if(stopThread)
-            {
-                break;
-            }
+            errorCallback(std::current_exception());
+            backgroundThread->pause();
+            return;
         }
-    };
-    backgroundThread = std::thread(backgroundThreadFunc);
+        logger.warning("[Repository.backgroundProcess] Crashed with: " + std::string(e.what()) +
+                       ", restart count: " + std::to_string(restartCount) + ", restarting...");
+    }; 
+    backgroundThread = std::make_shared<Utils::WorkerThread>([this](std::atomic<bool>& retFlag){
+        backgroundProcess(retFlag);
+    }, 
+    errorHandler);
 }
 
 void Repository::checkDoc(std::queue<DocPipe>& docqueue)
@@ -299,7 +288,7 @@ void Repository::checkDoc(std::queue<DocPipe>& docqueue)
         docStateReporter(changedDocs); // report changed documents
 }
 
-void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &lock)
+void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &lock, std::atomic<bool> &retFlag)
 {
     // process each document in the queue
     bool changed = !docqueue.empty(); // check if there are documents to process
@@ -316,13 +305,13 @@ void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &loc
                 this->progressReporter(path, progress);
             }
         }, 
-        [this, &lock]() -> bool
+        [this, &lock, &retFlag]() -> bool
         {
             lock.yield();
-            return stopThread;
+            return retFlag;
         }); // pass the stop flag to the process function
 
-        if(doneReporter && !stopThread)
+        if(doneReporter && !retFlag)
             doneReporter(path); // report the document is done
     }
 }

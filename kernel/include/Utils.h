@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include <exception>
 #include <filesystem>
 #include <string>
 #include <functional>
@@ -310,6 +311,100 @@ namespace Utils
         bool hasPriorityWaiters() const
         {
             return mutex.hasPriorityWaiters();
+        }
+    };
+
+    // A safe wrapper for thread, gurantee will not throw exception
+    // The work function must implement retFlag checking to stop the thread.
+    // when error handler is called, the work function will turn to pause state
+    class WorkerThread
+    {
+    private:
+        std::thread thread;
+        mutable std::mutex mutex;
+        std::condition_variable cv;
+        std::atomic<bool> wakeUpFlag = false;
+        std::atomic<bool> shutdownFlag = false;
+        std::atomic<bool> retFlag = false; // flag to notice workfunction to return
+        std::atomic<bool> isRunning = false; // flag if std::thread object is not return
+
+        std::function<void(std::atomic<bool>&)> workFunction;
+        std::function<void(const std::exception&)> errorHandler;
+
+        // wrapper to make work function exception safe and support pause and wakeup
+        void workFuncWrapper()
+        {
+            isRunning = true;
+            while(!shutdownFlag)
+            {
+                retFlag = false;
+                try
+                {
+                    workFunction(retFlag);
+                }
+                catch (const std::exception &e)
+                {
+                    if (errorHandler)
+                    {
+                        errorHandler(e);
+                    }
+                    else
+                    {
+                        logger.warning("Worker thread error: " + std::string(e.what()) +
+                                     ", no error handler, may cause unexpected behavior.");
+                    }
+                }
+                std::unique_lock<std::mutex> lock(mutex);
+                cv.wait(lock, [this] { 
+                    return shutdownFlag.load() || wakeUpFlag.load(); 
+                });
+                wakeUpFlag = false;
+            }
+            isRunning = false;
+        }
+    public:
+        WorkerThread(std::function<void(std::atomic<bool>&)> workFunction, std::function<void(const std::exception& e)> errorHandler = nullptr) : workFunction(workFunction), errorHandler(errorHandler){}
+
+        ~WorkerThread()
+        {
+            shutdown();
+        }
+        
+        void start()
+        {
+            if(isRunning)
+            {
+                return;
+            }
+            shutdownFlag = false;
+            retFlag = false;
+            thread = std::thread(&WorkerThread::workFuncWrapper, this);
+        }
+
+        // This method will stop workfunction but will not destroy the thread
+        void pause()
+        {
+            retFlag = true;
+        }
+
+        void wakeUp()
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            wakeUpFlag = true;
+            cv.notify_all();
+        }
+
+        // this method will stop workfunction and destroy the thread
+        void shutdown()
+        {
+            retFlag = true;
+            shutdownFlag = true;
+            wakeUpFlag = true;
+            cv.notify_all();
+            if (thread.joinable())
+            {
+                thread.join();
+            }
         }
     };
 }
