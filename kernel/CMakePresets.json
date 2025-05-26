@@ -4,7 +4,7 @@
         {
             "name": "ninja",
             "displayName": "ninja-debug",
-            "description": "设置 Ninja 生成器、版本和安装目录",
+            "description": "在Windows上使用Ninja生成器进行调试构建",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
@@ -14,46 +14,92 @@
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
                 "CMAKE_C_COMPILER": "cl.exe",
                 "CMAKE_CXX_COMPILER": "cl.exe",
-                "USE_GPU" : "OFF"
+                "USE_CUDA": "OFF"
+            }
+        },
+        {
+            "name": "ninja-macos",
+            "inherits": "ninja",
+            "displayName": "ninja-macos-debug",
+            "description": "在macOS上使用Ninja生成器进行调试构建",
+            "cacheVariables": {
+            "CMAKE_C_COMPILER": "/opt/homebrew/opt/llvm/bin/clang",
+            "CMAKE_CXX_COMPILER": "/opt/homebrew/opt/llvm/bin/clang++"
             }
         },
         {
             "name": "ninja-release",
             "inherits": "ninja",
             "displayName": "ninja-release",
-            "description": "设置 Ninja 生成器、版本和安装目录",
+            "description": "使用Ninja生成器进行发布版本构建",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
         },
         {
-            "name" : "ninja-release-debInfo",
+            "name": "ninja-macos-release",
+            "inherits": "ninja-macos",
+            "displayName": "ninja-macos-release",
+            "description": "macOS 发布版本构建",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "ninja-release-debInfo",
             "inherits": "ninja-release",
-            "displayName" : "ninja-release-debInfo",
-            "description" : "设置 Ninja 生成器、版本和安装目录",
-            "cacheVariables" : {
-                "CMAKE_BUILD_TYPE" : "RelWithDebInfo"
+            "displayName": "ninja-release-debInfo",
+            "description": "设置 Ninja 生成器、版本和安装目录",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "ninja-macos-release-debInfo",
+            "inherits": "ninja-macos-release",
+            "displayName": "ninja-macos-release-debInfo",
+            "description": "macOS 带调试信息的发布版本",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
         }
     ],
     "buildPresets": [
         {
-            "name" : "ninja",
+            "name": "ninja",
             "configurePreset": "ninja",
             "targets": [
                 "PocketRAG_kernel"
             ],
-            "jobs" : 16
+            "jobs": 16
         },
         {
-            "name" : "ninja-release",
+            "name": "ninja-macos",
+            "configurePreset": "ninja-macos",
+            "targets": [
+                "PocketRAG_kernel"
+            ],
+            "jobs": 10
+        },
+        {
+            "name": "ninja-release",
             "inherits": "ninja",
             "configurePreset": "ninja-release"
         },
         {
-            "name" : "ninja-release-debInfo",
+            "name": "ninja-macos-release",
+            "inherits": "ninja-macos",
+            "configurePreset": "ninja-macos-release"
+        },
+        {
+            "name": "ninja-release-debInfo",
             "inherits": "ninja",
             "configurePreset": "ninja-release-debInfo"
+        },
+        {
+            "name": "ninja-macos-release-debInfo",
+            "inherits": "ninja-macos",
+            "configurePreset": "ninja-macos-release-debInfo"
         }
     ]
 }

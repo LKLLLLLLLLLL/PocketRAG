@@ -5,8 +5,8 @@
 #include "Utils.h"
 #include <exception>
 #include <memory>
-#include <minwindef.h>
 #include <mutex>
+#include <algorithm>
 #include <nlohmann/json_fwd.hpp>
 
 //--------------------------Session--------------------------//
@@ -480,7 +480,7 @@ You are a search query optimizer. Generate the most effective search keywords fo
             for (auto &word : searchWords)
             {
                 historyManager.push(Type::search, word);
-                auto results = session.repository->search(word, Repository::searchAccuracy::high, std::max(1ULL, 10 / searchWords.size()));
+                auto results = session.repository->search(word, Repository::searchAccuracy::high, std::max(static_cast<size_t>(1ULL), 10 / searchWords.size()));
                 for (auto &result : results)
                 {
                     toolContent += "[content]\n" + result.content + "\n";

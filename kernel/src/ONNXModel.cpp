@@ -130,7 +130,11 @@ ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfS
             if (!std::filesystem::exists(modelPath))
                 throw Error{"Model file not found at " + modelPath.string(), Error::Type::FileAccess};
             auto modelPathwString = Utils::string_to_wstring(modelPath.string());
+#ifdef _WIN32
             session.reset(new Ort::Session(*env, modelPathwString.c_str(), sessionOptions));
+#else
+            session.reset(new Ort::Session(*env, modelPath.string().c_str(), sessionOptions));
+#endif
             if (!session)
                 throw Error{"Failed to create ONNX session for model: " + modelPath.string(), Error::Type::Unknown};
             
@@ -430,7 +434,7 @@ std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> Rer
 
     std::vector<int64_t> inputIds(length, tokenizer->pad_id());
     std::copy(queryTokenIds.begin(), queryTokenIds.end(), inputIds.begin() + 1);
-    auto copySize = std::min(contentTokenIds.size(), length - queryTokenIds.size() - 3);
+    auto copySize = std::min(contentTokenIds.size(), static_cast<size_t>(length - queryTokenIds.size() - 3));
     std::copy(contentTokenIds.begin(), contentTokenIds.begin() + copySize, inputIds.begin() + queryTokenIds.size() + 2);
     inputIds[0] = tokenizer->bos_id();
     inputIds[queryTokenIds.size() + 1] = tokenizer->eos_id();

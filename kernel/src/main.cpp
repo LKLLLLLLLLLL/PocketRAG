@@ -93,7 +93,6 @@ void server_terminate_handler();
 int main()
 {
     std::set_terminate(server_terminate_handler);
-    std::locale::global(std::locale(".UTF-8"));
     Utils::setup_utf8_console();
     {
         KernelServer::openServer(dataPath).run();

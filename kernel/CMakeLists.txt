@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 project(PocketRAG_kernel VERSION 0.0.1)
 
-option(USE_GPU "Use GPU" ON) # 是否使用GPU
+option(USE_CUDA "Use CUDA GPU" ON) # 是否使用GPU
 
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin) # 可执行文件输出目录
@@ -47,8 +47,16 @@ find_package(OpenBLAS CONFIG REQUIRED)
 set(BLA_VENDOR OpenBLAS)
 set(BLAS_LIBRARIES ${OpenBLAS_LIBRARIES})
 set(BLAS_INCLUDE_DIRS ${OpenBLAS_INCLUDE_DIRS})
-# 导入lapack
-find_package(LAPACK CONFIG REQUIRED)
+# 导入LAPACK
+if(APPLE)
+    # 在macOS上使用Apple Accelerate Framework
+    find_library(ACCELERATE_FRAMEWORK Accelerate REQUIRED)
+    set(LAPACK_LIBRARIES ${ACCELERATE_FRAMEWORK})
+    message(STATUS "Using Apple's Accelerate Framework for LAPACK")
+else()
+    # 在其他平台上使用LAPACK
+    find_package(LAPACK CONFIG REQUIRED)
+endif()
 
 # 导入faiss
 set(FAISS_ENABLE_GPU OFF)
@@ -112,20 +120,35 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/sentencepiece/src)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/sentencepiece)
 
 # 导入ONNXruntime
-set(ONNXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime-win-x64-gpu-1.21.0")
+set(ONNXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime")
 # 添加ONNX Runtime头文件路径
 include_directories("${ONNXRUNTIME_DIR}/include")
-# 创建ONNX Runtime导入库目标
-add_library(onnxruntime SHARED IMPORTED)
-set(ONNXRUNTIME_LIB "${ONNXRUNTIME_DIR}/lib/onnxruntime.lib")
-set(ONNXRUNTIME_DLL "${ONNXRUNTIME_DIR}/lib/onnxruntime.dll")
-set_target_properties(onnxruntime PROPERTIES
-    IMPORTED_LOCATION "${ONNXRUNTIME_DLL}"
-    IMPORTED_IMPLIB "${ONNXRUNTIME_LIB}"
-)
+# 导入ONNXruntime
+set(ONNXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime")
+# 添加ONNX Runtime头文件路径
+include_directories("${ONNXRUNTIME_DIR}/include")
+
+# 根据平台不同设置 ONNX Runtime 库
+if(APPLE)
+    # macOS 平台
+    add_library(onnxruntime SHARED IMPORTED)
+    set(ONNXRUNTIME_LIB "${ONNXRUNTIME_DIR}/lib/libonnxruntime.dylib")
+    set_target_properties(onnxruntime PROPERTIES
+        IMPORTED_LOCATION "${ONNXRUNTIME_LIB}"
+    )
+else()
+    # Windows 平台
+    add_library(onnxruntime SHARED IMPORTED)
+    set(ONNXRUNTIME_LIB "${ONNXRUNTIME_DIR}/lib/onnxruntime.lib")
+    set(ONNXRUNTIME_DLL "${ONNXRUNTIME_DIR}/lib/onnxruntime.dll")
+    set_target_properties(onnxruntime PROPERTIES
+        IMPORTED_LOCATION "${ONNXRUNTIME_DLL}"
+        IMPORTED_IMPLIB "${ONNXRUNTIME_LIB}"
+    )
+endif()
 
 # 导入cuDNN
-if(USE_GPU)
+if(USE_CUDA)
     set(CUDNN_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/cudnn-windows-x86_64-9.8.0.87_cuda12-archive/bin")
 endif()
 
@@ -157,35 +180,53 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )    
 
 # -------------拷贝动态链接库--------------
-# 拷贝dll到输出目录，解决依赖问题
-set(VCPKG_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/bin")
-
-if(USE_GPU)
-    file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/*.dll") # 收集所有 ONNX Runtime DLL 文件
-    file(GLOB CUDNN_DLL_FILES "${CUDNN_DLL_DIR}/*.dll") # 收集所有 cuDNN DLL 文件
-else()
-    file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/onnxruntime.dll") # 只收集 onnxruntime.dll 文件
-endif()
-# 为每个找到的DLL文件创建复制命令
-foreach(DLL_FILE ${ONNXRUNTIME_DLL_FILES} ${CUDNN_DLL_FILES})
-    get_filename_component(DLL_NAME ${DLL_FILE} NAME)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${DLL_FILE}
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${DLL_NAME}
-        COMMENT "Copying ${DLL_NAME}"
-    )
-endforeach()
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    # 如果是Debug版本，拷贝.pdb文件
-    file(GLOB ONNXRUNTIME_PDB_FILES "${ONNXRUNTIME_DIR}/lib/*.pdb")
-    foreach(PDB_FILE ${ONNXRUNTIME_PDB_FILES})
-        get_filename_component(PDB_NAME ${PDB_FILE} NAME)
+if(APPLE)
+    # macOS 平台复制动态链接库
+    file(GLOB ONNXRUNTIME_DYLIB_FILES "${ONNXRUNTIME_DIR}/lib/*.dylib") # 收集所有 ONNX Runtime dylib 文件
+    
+    # 为每个找到的dylib文件创建复制命令
+    foreach(DYLIB_FILE ${ONNXRUNTIME_DYLIB_FILES})
+        get_filename_component(DYLIB_NAME ${DYLIB_FILE} NAME)
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${PDB_FILE}
-                $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PDB_NAME}
-            COMMENT "Copying ${PDB_NAME}"
+                ${DYLIB_FILE}
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>/${DYLIB_NAME}
+            COMMENT "Copying ${DYLIB_NAME}"
         )
     endforeach()
+else()
+    # Windows平台复制动态链接库
+    set(VCPKG_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/bin")
+
+    if(USE_CUDA)
+        file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/*.dll") # 收集所有 ONNX Runtime DLL 文件
+        file(GLOB CUDNN_DLL_FILES "${CUDNN_DLL_DIR}/*.dll") # 收集所有 cuDNN DLL 文件
+    else()
+        file(GLOB ONNXRUNTIME_DLL_FILES "${ONNXRUNTIME_DIR}/lib/onnxruntime.dll") # 只收集 onnxruntime.dll 文件
+    endif()
+    
+    # 为每个找到的DLL文件创建复制命令
+    foreach(DLL_FILE ${ONNXRUNTIME_DLL_FILES} ${CUDNN_DLL_FILES})
+        get_filename_component(DLL_NAME ${DLL_FILE} NAME)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${DLL_FILE}
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>/${DLL_NAME}
+            COMMENT "Copying ${DLL_NAME}"
+        )
+    endforeach()
+    
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        # 如果是Debug版本，拷贝.pdb文件
+        file(GLOB ONNXRUNTIME_PDB_FILES "${ONNXRUNTIME_DIR}/lib/*.pdb")
+        foreach(PDB_FILE ${ONNXRUNTIME_PDB_FILES})
+            get_filename_component(PDB_NAME ${PDB_FILE} NAME)
+            add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    ${PDB_FILE}
+                    $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PDB_NAME}
+                COMMENT "Copying ${PDB_NAME}"
+            )
+        endforeach()
+    endif()
 endif()

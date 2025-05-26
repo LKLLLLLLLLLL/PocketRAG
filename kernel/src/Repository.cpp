@@ -210,6 +210,11 @@ void Repository::stopBackgroundProcess()
 
 void Repository::startBackgroundProcess()
 {
+    if(backgroundThread && backgroundThread->isRunning())
+    {
+        backgroundThread->wakeUp();
+        return;
+    }
     auto errorHandler = [this](const std::exception &e) {
         restartCount++;
         if (restartCount > maxRestartCount)
@@ -231,6 +236,7 @@ void Repository::startBackgroundProcess()
         backgroundProcess(retFlag);
     }, 
     errorHandler);
+    backgroundThread->start();
 }
 
 void Repository::checkDoc(std::queue<DocPipe>& docqueue)

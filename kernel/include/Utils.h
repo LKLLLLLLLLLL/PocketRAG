@@ -7,6 +7,7 @@
 #include <mutex>
 #include <queue>
 #include <fstream>
+#include <thread>
 #include <source_location>
 namespace xxhash
 {
@@ -326,7 +327,7 @@ namespace Utils
         std::atomic<bool> wakeUpFlag = false;
         std::atomic<bool> shutdownFlag = false;
         std::atomic<bool> retFlag = false; // flag to notice workfunction to return
-        std::atomic<bool> isRunning = false; // flag if std::thread object is not return
+        std::atomic<bool> is_running = false; // flag if std::thread object is not return
 
         std::function<void(std::atomic<bool>&)> workFunction;
         std::function<void(const std::exception&)> errorHandler;
@@ -334,7 +335,7 @@ namespace Utils
         // wrapper to make work function exception safe and support pause and wakeup
         void workFuncWrapper()
         {
-            isRunning = true;
+            is_running = true;
             while(!shutdownFlag)
             {
                 retFlag = false;
@@ -360,7 +361,7 @@ namespace Utils
                 });
                 wakeUpFlag = false;
             }
-            isRunning = false;
+            is_running = false;
         }
     public:
         WorkerThread(std::function<void(std::atomic<bool>&)> workFunction, std::function<void(const std::exception& e)> errorHandler = nullptr) : workFunction(workFunction), errorHandler(errorHandler){}
@@ -372,7 +373,7 @@ namespace Utils
         
         void start()
         {
-            if(isRunning)
+            if(is_running)
             {
                 return;
             }
@@ -405,6 +406,11 @@ namespace Utils
             {
                 thread.join();
             }
+        }
+
+        bool isRunning() const
+        {
+            return is_running.load();
         }
     };
 }

@@ -113,7 +113,7 @@ HttpClient::httpResult HttpClient::curlRequest(std::function<size_t(void *, size
             std::this_thread::sleep_for(std::chrono::milliseconds(wait_time)); // wait for a while before retrying
         }
     }
-    return {http_code, httpResult::getErrorMessage(http_code), retried, ""}; // return the http code and error message
+    return {static_cast<int>(http_code), httpResult::getErrorMessage(http_code), retried, ""}; // return the http code and error message
 }
 
 size_t HttpClient::streamData::streamCallback(void *ptr, size_t size, size_t nmemb, void *streamdata)

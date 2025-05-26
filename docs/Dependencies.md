@@ -2,13 +2,6 @@
 
 该项目的kernel依赖主要通过三种方式添加：vcpkg, source code, precompiled binary。如果需要补全依赖，请依次执行以下步骤。
 
-## 环境要求
-
-- Windows 10/11 x64
-- Visual Studio 2022 with C++工具链
-- CMake 3.15+
-- Ninja
-
 ## 1. vcpkg
 
 vcpkg主要管理依赖如下：
@@ -71,7 +64,8 @@ https://github.com/microsoft/onnxruntime/releases/tag/v1.21.0
 
 1. 下载`onnxruntime-win-x64-gpu-1.21.0.zip`文件
 2. 解压缩到`/kernel/external`目录下
-3. 验证cmake是否能找到onnxruntime
+3. 改名为`onnxruntime`
+4. 验证cmake是否能找到onnxruntime
 
 ### cuDNN
 

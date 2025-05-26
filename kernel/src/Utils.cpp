@@ -117,7 +117,7 @@ std::string Utils::chunkTosequence(const std::string& content, const std::string
 std::string Utils::toLower(const std::string &str)
 {
     std::string lowerStr = str;
-    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), [](unsigned char c) -> unsigned {
+    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), [](unsigned char c) -> unsigned char{
         return (c < 128) ? tolower(c) : c;
     });
     return lowerStr;

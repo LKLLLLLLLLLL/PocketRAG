@@ -190,7 +190,7 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
         std::string safeKeyword;
         for (char c : keywords[i]) 
         {
-            if (std::isalnum(static_cast<unsigned char>(c)) || c > 127) 
+            if (std::isalnum(static_cast<unsigned char>(c)) || c > 127u) 
             { 
                 safeKeyword += c;
             }
