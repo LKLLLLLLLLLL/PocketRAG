@@ -211,18 +211,23 @@ namespace Utils
     class PriorityMutex
     {
     private:
-        mutable std::mutex mutex; // mutex to protect priority mutex ifself
+        mutable std::mutex mutex; // mutex to protect priority mutex itself
         std::condition_variable cv;
         bool locked = false;
+        bool waitingWrite = false; // if there is a thread waiting for write lock
         std::thread::id ownerThreadId;
         int priorityCount = 0;
     public:
-        void lock(bool priority = false)
+        void lock(bool priority = false, bool write = false)
         {
             std::unique_lock<std::mutex> lock(mutex);
             if(priority)
             {
                 priorityCount++;
+            }
+            if(write && priority)
+            {
+                waitingWrite = true;
             }
             cv.wait(lock, [this, priority]{
                 if(priority)
@@ -235,6 +240,7 @@ namespace Utils
                 }
             });
             locked = true;
+            waitingWrite = false;
             ownerThreadId = std::this_thread::get_id();
 
             if(priority)
@@ -285,6 +291,12 @@ namespace Utils
             std::unique_lock<std::mutex> lock(mutex);
             return locked;
         }
+
+        bool isWaitingWrite() const
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            return waitingWrite;
+        }
     };
 
     class LockGuard
@@ -293,9 +305,9 @@ namespace Utils
         PriorityMutex &mutex;
         bool priority = false;
     public:
-        LockGuard(PriorityMutex &mutex, bool priority = false) : mutex(mutex), priority(priority)
+        LockGuard(PriorityMutex &mutex, bool priority = false, bool write = false) : mutex(mutex), priority(priority)
         {
-            mutex.lock(priority);
+            mutex.lock(priority, write);
         }
         ~LockGuard()
         {
@@ -312,6 +324,11 @@ namespace Utils
         bool hasPriorityWaiters() const
         {
             return mutex.hasPriorityWaiters();
+        }
+
+        bool hasWriteWaiters() const
+        {
+            return mutex.isWaitingWrite();
         }
     };
 
@@ -345,6 +362,10 @@ namespace Utils
                 }
                 catch (const std::exception &e)
                 {
+                    if(shutdownFlag.load())
+                    {
+                        break;
+                    }
                     if (errorHandler)
                     {
                         errorHandler(e);
@@ -402,6 +423,7 @@ namespace Utils
             shutdownFlag = true;
             wakeUpFlag = true;
             cv.notify_all();
+            pause();
             if (thread.joinable())
             {
                 thread.join();

@@ -40,8 +40,8 @@ private:
     std::unordered_map<int64_t, std::shared_ptr<Session>> sessions = {}; // session id -> session ptr
     std::unordered_map<int64_t, std::thread> sessionThreads = {};        // session id -> thread
 
-    // prevent multiple instances of KernelServer
-    KernelServer(const std::filesystem::path &userDataPath);
+    // // prevent multiple instances of KernelServer
+    // KernelServer(const std::filesystem::path &userDataPath);
 
     std::shared_ptr<SqliteConnection> sqliteConnection = nullptr; // sqlite connection
     void initializeSqlite();
@@ -75,12 +75,13 @@ private:
     // interface for settings class
     std::string getApiKey(const std::string &modelName) const;
 public:
-    // initialize a server and return a instance.
-    static KernelServer& openServer(const std::filesystem::path& userDataPath)
-    {
-        static KernelServer instance(userDataPath); 
-        return instance; 
-    }
+    // // initialize a server and return a instance.
+    // static KernelServer& openServer(const std::filesystem::path& userDataPath)
+    // {
+    //     static KernelServer instance(userDataPath); 
+    //     return instance; 
+    // }
+    KernelServer(const std::filesystem::path &userDataPath); // for debug
     ~KernelServer();
 
     // start the server and open a thread to handle messages from sessions.

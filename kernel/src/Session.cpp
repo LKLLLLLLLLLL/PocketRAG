@@ -99,6 +99,7 @@ void Session::run()
     auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
     auto doneReporter_wrap = [this](std::string path) { doneReporter(path); };
     repository = std::make_shared<Repository>(repoName, repoPath, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
+    sqliteMutex = repository->getMutex();
     config();
     repository->setErrorCallback([this](std::exception_ptr e) {
         {
@@ -340,6 +341,7 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
 
 void Session::initializeSqlite()
 {
+    Utils::LockGuard lock(*sqliteMutex, true);
     sqlite->execute(
         "CREATE TABLE IF NOT EXISTS turn(" // store one Q and A pair
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -645,6 +647,7 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
     // update sqlite
     try
     {
+        Utils::LockGuard lock(*parent.session.sqliteMutex, true, true);
         auto stmt = parent.session.sqlite->getStatement(
             "INSERT OR REPLACE INTO conversation (id, topic, file_path) "
             "VALUES (?, ?, ?)");
@@ -703,6 +706,7 @@ Session::AugmentedConversation::HistoryManager::~HistoryManager()
     // update sqlite
     try
     {
+        Utils::LockGuard lock(*parent.session.sqliteMutex, true, true);
         // 1. create turn record
         int64_t currentTime = Utils::getTimeStamp();
         auto insertTurnStmt = parent.session.sqlite->getStatement(

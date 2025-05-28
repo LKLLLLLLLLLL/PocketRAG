@@ -48,7 +48,7 @@ public:
     // initialize the ONNX environment for all ONNX models
     static void initialize();
     // destructor
-    virtual ~ONNXModel();
+    ~ONNXModel();
 
 };
 
@@ -79,6 +79,11 @@ public:
     // will find `model.onnx` & `model.onnx_data` & `sentencepiece.bpe.model` in the modelDirPath,
     // modelDirPath should end with `/`
     EmbeddingModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+    ~EmbeddingModel() 
+    {
+        // release tokenizer
+        tokenizer.reset();
+    }
 
     // get embedding dimension
     inline int getDimension() const { return embeddingDimension; }

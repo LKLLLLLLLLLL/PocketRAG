@@ -205,6 +205,7 @@ void Repository::stopBackgroundProcess()
     if(backgroundThread)
     {
         backgroundThread->shutdown();
+        embeddings.clear();
     }
 }
 
@@ -313,11 +314,20 @@ void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &loc
         }, 
         [this, &lock, &retFlag]() -> bool
         {
+            if(lock.hasWriteWaiters())
+            {
+                return true;
+            }
             lock.yield();
             return retFlag;
         }); // pass the stop flag to the process function
 
-        if(doneReporter && !retFlag)
+        if(retFlag)
+        {
+            return;
+        }
+
+        if(doneReporter)
             doneReporter(path); // report the document is done
     }
 }

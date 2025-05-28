@@ -95,7 +95,8 @@ int main()
     std::set_terminate(server_terminate_handler);
     Utils::setup_utf8_console();
     {
-        KernelServer::openServer(dataPath).run();
+        KernelServer(dataPath).run();
+        // KernelServer::openServer(dataPath).run(); // for debug
     }
     logger.info("KernelServer stopped.");
     return 0;

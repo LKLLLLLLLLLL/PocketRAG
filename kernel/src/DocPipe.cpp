@@ -9,7 +9,6 @@
 #include "VectorTable.h"
 #include "TextSearchTable.h"
 #include "Chunker.h"
-#include "ONNXModel.h"
 #include "Utils.h"
 
 //-------------------------------------DocPipe-------------------------------------//
