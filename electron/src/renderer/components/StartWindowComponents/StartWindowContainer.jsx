@@ -5,7 +5,7 @@ import { DeleteOutlined } from "@ant-design/icons";
 import {Button} from 'antd';
 import Option from './Option/Option.jsx';
 import PocketRAG from './PocketRAG/PocketRAG.jsx';
-import Top from './Top/Top.jsx';
+import WindowControl_WithoutMax from '../../templates/WindowControl_WithoutMax/WindowControl_WithoutMax.jsx';
 export default function StartWindowContainer(){
     const [demo,setDemo] = useState(true);
     const [others,setOthers] = useState(false);
@@ -89,7 +89,9 @@ export default function StartWindowContainer(){
             </Panel>
             <PanelResizeHandle className="sw-resize"></PanelResizeHandle>
             <Panel defaultSize = {67} className = 'sw-right'>
-                <Top></Top>
+                <div style = {{display :'flex',marginLeft: 'auto'}}>
+                    <WindowControl_WithoutMax></WindowControl_WithoutMax>
+                </div>
                 <PocketRAG></PocketRAG>
                 <Option setDemo = {setDemo} 
                         others = {others} 

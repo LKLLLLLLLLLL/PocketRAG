@@ -6,9 +6,11 @@ import RightScreen from './RightScreen/RightScreen';
 export default function SettingsWindowContainer(){
     const [content,setContent] = useState('');
     return(
-        <div className = 'settingswindow-container'>
-            <LeftBar setContent = {setContent}></LeftBar>
-            <RightScreen content = {content}></RightScreen>
+        <div>
+            <div className = 'settingswindow-container'>
+                <LeftBar setContent = {setContent}></LeftBar>
+                <RightScreen content = {content}></RightScreen>
+            </div>
         </div>
     )
 }

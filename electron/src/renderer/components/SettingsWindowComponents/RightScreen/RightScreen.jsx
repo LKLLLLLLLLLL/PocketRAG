@@ -1,6 +1,7 @@
 import React, { Children } from 'react';
 import ReactDOM from 'react-dom';
 import './RightScreen.css'
+import WindowControl from '../../../templates/WindowControl/WindowControl.jsx';
 export default function RightScreen({content}){
     switch(content){
         case 'lidongdong':
@@ -36,6 +37,9 @@ export default function RightScreen({content}){
 function RightScreenContainer({children}){
     return(
         <div className = 'rightscreen-container'>
+            <div style = {{display: 'flex', marginLeft: 'auto'}}>
+                <WindowControl></WindowControl>
+            </div>
             {children}
         </div>
     )

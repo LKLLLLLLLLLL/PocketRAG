@@ -1,0 +1,25 @@
+.top-button-container{
+    height: 30px;
+    width: 120px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+}
+.minimize{
+    height: 100%;
+    flex: 1;
+    background-color: rgb(60,160,130);
+    color: white;
+}
+.close{
+    height: 100%;
+    flex: 1;
+    background-color: rgb(60,160,130);
+    color :white;
+}
+.maximize{
+    height: 100%;
+    flex: 1;
+    background-color: rgb(60,160,130);
+    color :white;
+}

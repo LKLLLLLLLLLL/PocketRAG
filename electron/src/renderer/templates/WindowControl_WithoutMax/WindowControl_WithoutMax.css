@@ -1,22 +1,19 @@
-.top-container{
-    height: 50px;
+.top-button-container_0{
+    height: 30px;
+    width: 80px;
     display: flex;
     justify-content: flex-end;
-}
-.top-button-container{
-    height: 100%;
-    width: 100px;
-    margin-left: auto;
+    flex-shrink: 0;
 }
 .minimize_0{
     height: 100%;
-    width: 50%;
+    flex: 1;
     background-color: rgb(60,160,130);
     color: white;
 }
 .close_0{
     height: 100%;
-    width: 50%;
+    flex: 1;
     background-color: rgb(60,160,130);
     color :white;
 }

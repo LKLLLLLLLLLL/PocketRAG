@@ -1,15 +1,8 @@
-//react
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { useState,useRef,useEffect } from 'react';
-
-//css
 import './Search.css';
-
-//child-components
-import PopWindow from '../../../../templates/PopWindow/Popwindow';
-
-//antd
+import PopWindow from '../PopWindow/Popwindow';
 import { LeftOutlined,RightOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';

@@ -6,4 +6,5 @@
     overflow-y: auto;
     min-height: 0;
     border: 2px solid red;
+    box-sizing: border-box;
 }

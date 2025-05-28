@@ -45,8 +45,9 @@
 }
 
 .control-button {
-  width: 40px;
-  height: 32px;
+  background-color: aquamarine;
+  width: 50px;
+  height: 30px;
   border: none;
   background: none;
   cursor: pointer;
