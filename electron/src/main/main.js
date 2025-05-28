@@ -4,14 +4,21 @@ const {spawn} = require('node:child_process')
 const EventEmitter = require('events')
 //import electron and node modules
 
+const platform = process.platform
 const dateNow = Date.now()
 const windows = new Map()
 const callbacks = new Map()
 const eventEmitter = new EventEmitter()
 const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
 
-
-const kernelPath = path.join(__dirname, '../../../kernel/bin/PocketRAG_kernel.exe')
+let kernelPath
+if (platform === 'win32') {
+  kernelPath = path.join(__dirname, '..','..','..','kernel','bin','PocketRAG_kernel.exe')
+} else if (platform === 'darwin') {
+  kernelPath = path.join(__dirname, '..','..','..','kernel','bin','PocketRAG_kernel')
+} else {
+  kernelPath = path.join(__dirname, '..','..','..','kernel','bin','PocketRAG_kernel')
+}
 let restartTime = 0
 let kernel = spawn(kernelPath, [], {
   cwd: path.dirname(kernelPath) // set work directory to the same as the kernel path
@@ -541,8 +548,8 @@ function createWindow (event, windowType = 'repoList') {
     
     case 'repoList':
       window = new BrowserWindow({
-        width: Math.floor(srceenWidth * 0.5),
-        height: Math.floor(srceenWidth * 0.5),
+        width: Math.floor(srceenWidth * 0.4),
+        height: Math.floor(screenHeight * 0.8),
         resizable: false,
         autoHideMenuBar: true,
         webPreferences: {
@@ -556,8 +563,8 @@ function createWindow (event, windowType = 'repoList') {
 
     case 'settings':
       window = new BrowserWindow({
-        width: Math.floor(srceenWidth * 0.6),
-        height: Math.floor(srceenWidth * 0.6),
+        width: Math.floor(srceenWidth * 0.5),
+        height: Math.floor(screenHeight * 0.85),
         resizable: false,
         autoHideMenuBar: true,
         parent : BrowserWindow.fromWebContents(event.sender),
@@ -575,7 +582,7 @@ function createWindow (event, windowType = 'repoList') {
 
   const startUrl = isDev
       ? `http://localhost:3000?windowType=${windowType}&windowId=${windowId}`
-      : `file://${path.join(__dirname, '../../build/index.html')}?windowType=${windowType}&windowId=${windowId}`  
+      : `file://${path.join(__dirname, '..','..','build','index.html')}?windowType=${windowType}&windowId=${windowId}`  
 
   windows.set(windowId, window)//add the window to the map
 
@@ -663,7 +670,7 @@ app.whenReady().then(async () => {
   })// for macOS
 
   app.on('window-all-closed', function () {
-    if (process.platform !== 'darwin') app.quit()
+    if (platform !== 'darwin') app.quit()
   })// for macOS
 })
 

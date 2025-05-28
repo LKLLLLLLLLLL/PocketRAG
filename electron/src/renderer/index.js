@@ -66,10 +66,13 @@ window.electronAPI.onKernelData((data) => {
           window.electronAPI.sendSessionCrashed(data.message.error)
         }
         else {
+          const sessionCrashedEvent = new CustomEvent('sessionCrashed')
+          window.dispatchEvent(sessionCrashedEvent)
           window.sessionPreparedPromise = new Promise((resolve, reject) => {
             let timeout
             const sessionPreparedListener = (event) => {
               clearTimeout(timeout)
+              window.removeEventListener('sessionCrashed', sessionCrashedListener)
               window.removeEventListener('sessionPrepared', sessionPreparedListener)
               let reply = event.detail
               reply.isReply = true
@@ -80,11 +83,17 @@ window.electronAPI.onKernelData((data) => {
               window.electronAPI.sendSessionPreparedReply(reply)
               resolve()
             }
+            const sessionCrashedListener = () =>{
+              clearTimeout(timeout)
+              removeEventListener('sessionPrepared', sessionPreparedListener)
+            }
+            window.addEventListener('sessionCrashed', sessionCrashedListener, {once : true})
             window.addEventListener('sessionPrepared', sessionPreparedListener)
             timeout = setTimeout(() => {
+              window.removeEventListener('sessionCrashed', sessionCrashedListener)
               window.removeEventListener('sessionPrepared', sessionPreparedListener)
               reject(new Error('session preparation time out!'))
-            }, window.timeLimit);
+            }, window.timeLimit)
           }).catch(async (err) => {
             await window.electronAPI.showMessageBoxSync({
               type : 'error',
@@ -173,12 +182,12 @@ switch(windowType){
   case 'main':
     MainWindowInit()
     // setTimeout(() => {
-    //   window.beginConversation('deepseek','刘慈欣是谁')
-    // }, 5000);
+    //   window.beginConversation('deepseek','PocketRAG是什么')
+    // }, 10000);
     // setTimeout(async () => {
     //   let a = await window.getApiUsage()
     //   console.log(a)
-    // }, 60000);
+    // }, 90000);
     break
   case 'repoList':
     RepoListWindowInit()

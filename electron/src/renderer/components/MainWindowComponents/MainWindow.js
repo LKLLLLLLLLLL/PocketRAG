@@ -20,6 +20,7 @@ export function MainWindowInit() {
       let timeout
       const sessionPreparedListener = (event) => {
         clearTimeout(timeout)
+        window.removeEventListener('sessionCrashed', sessionCrashedListener)
         window.removeEventListener('sessionPrepared', sessionPreparedListener)
         let reply = event.detail
         reply.isReply = true
@@ -30,11 +31,17 @@ export function MainWindowInit() {
         window.electronAPI.sendSessionPreparedReply(reply)
         resolve()
       }
+      const sessionCrashedListener = () =>{
+        clearTimeout(timeout)
+        removeEventListener('sessionPrepared', sessionPreparedListener)
+      } 
+      window.addEventListener('sessionCrashed', sessionCrashedListener, {once : true})
       window.addEventListener('sessionPrepared', sessionPreparedListener)
       timeout = setTimeout(() => {
+        window.removeEventListener('sessionCrashed', sessionCrashedListener)
         window.removeEventListener('sessionPrepared', sessionPreparedListener)
         reject(new Error('session preparation time out!'))
-      }, window.timeLimit);
+      }, window.timeLimit)
     }).catch(async (err) => {
       await window.electronAPI.showMessageBoxSync({
         type : 'error',
@@ -128,8 +135,8 @@ export function MainWindowInit() {
             break
         }
       })
-      const conversationId = id ? id : (Date.now() - window.dateNow)
-      if(!id)window.conversations.set(conversationId, await window.electronAPI.pathJoin(window.repoPath, `.PocketRAG/conversation/conversation-${conversationId}.json`))
+      const conversationId = id ? id : Date.now()
+      if(!id)window.conversations.set(conversationId, await window.electronAPI.pathJoin(window.repoPath, '.PocketRAG','conversation',`conversation-${conversationId}.json`))
       window.electronAPI.beginConversation(callbackId, modelName, conversationId, query)
       window.addEventListener('conversation', window.callbacks.get(callbackId))
     }
