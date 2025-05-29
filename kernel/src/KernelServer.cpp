@@ -5,16 +5,13 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <string>
 
 //--------------------------KernelServer--------------------------//
 KernelServer::KernelServer(const std::filesystem::path &userDataPath) : userDataPath(std::filesystem::absolute(userDataPath))
 {
-    kernelMessageQueue = std::make_shared<Utils::MessageQueue>();
-
-    startMessageSender();
-
     initializeSqlite();
 
     settings = std::make_shared<Settings>(userDataPath, *this);
@@ -59,6 +56,7 @@ KernelServer::~KernelServer()
 {
     stopAllFlag = true;
     stopMessageSender();
+    stopMessageReceiver();
     stopAllSessions(); // stop session threads
     for(auto& session : sessions) // release session resuorces
     {
@@ -72,29 +70,28 @@ void KernelServer::stopAllSessions()
     std::unique_lock lock(sessionMutex);
     for(auto& session : sessions)
     {
-        session.second->stop();
+        if(session.second)
+            session.second->stop();
     }
     for(auto& thread : sessionThreads)
     {
-        if(thread.second.joinable())
-        {
-            thread.second.join();
-        }
+        if(thread.second)
+            thread.second->shutdown();
     }
     while(!crashedThreads.empty())
     {
         auto thread = std::move(crashedThreads.front());
         crashedThreads.pop();
-        if(thread.joinable())
-        {
-            thread.join();
-        }
+        if(thread)
+            thread->shutdown();
     }
     sessionThreads.clear();
 }
 
 void KernelServer::run()
-{  
+{
+    startMessageSender();
+    startMessageReceiver();
     updateSettings();
     // sent message to frontend
     nlohmann::json initMessage;
@@ -106,31 +103,15 @@ void KernelServer::run()
     send(initMessage, nullptr);
     // receive message
     logger.info("[KernelServer] KernelServer ready, begin main loop.");
-    std::string input(2048, '\0'); // max input size: 2048Byte
-    while(std::cin.getline(input.data(), input.size()))
+    while(true)
     {
-        logger.debug("[KernelServer] Received message: " + input.substr(0, input.find('\0')));
-        if (std::strlen(input.data()) == 0)
         {
-            continue;
-        }
-        nlohmann::json inputJson;
-        int64_t windowId;
-        bool toMain;
-        std::string messageType;
-        try
-        {
-            inputJson = nlohmann::json::parse(input);
-            windowId = inputJson["sessionId"].get<int64_t>();
-            toMain = inputJson["toMain"].get<bool>();
-            messageType = inputJson["message"]["type"].get<std::string>();
-        }
-        catch(std::exception& e)
-        {
-            inputJson["status"]["code"] = "WRONG_PARAM";
-            inputJson["status"]["message"] = "Invalid message format, parser error: " + std::string(e.what());
-            sendBack(inputJson);
-            continue;
+            std::lock_guard<std::mutex> lock(errorMutex);
+            if (error)
+            {
+                logger.warning("[KernelServer] Error in other thread, will stop server.");
+                std::rethrow_exception(error);
+            }
         }
         // join all crashed threads
         {
@@ -138,21 +119,17 @@ void KernelServer::run()
             while(!crashedThreads.empty())
             {
                 auto thread = std::move(crashedThreads.front());
-                crashedThreads.pop();
-                if(thread.joinable())
-                {
-                    thread.join();
-                }
+                thread->shutdown();
             }
         }
-        if(!toMain)
-            transmitMessage(inputJson);
-        else
-            handleMessage(inputJson);
+        auto message = receiveMessageQueue->tryPop();
+        if(message)
+            handleMessage(message->data);
         if(stopAllFlag)
         {
             break;
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -483,23 +460,31 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
     }
     auto sessionId = Utils::getTimeStamp();
     auto session = std::make_shared<Session>(sessionId, repoName, repoPath, *this);
-    session->setCrashHandler([this](std::exception_ptr e, int64_t sessionId)
+    auto sessionThreadIt = sessionThreads.find(sessionId);
+    sessions[sessionId] = session;
+    // sessionThreads[sessionId] = std::thread(&Session::run, session);
+    sessionThreads[sessionId] = std::make_shared<Utils::WorkerThread>([session](std::atomic<bool>& stopFlag)
     {
+        session->run(stopFlag);
+    },[this, sessionId](const std::exception& e)
+    {
+        // handle crash
         try
         {
-            std::rethrow_exception(e);
+            std::rethrow_exception(std::current_exception());
         }
         catch (const std::exception& e)
         {
             std::lock_guard<std::mutex> lock(sessionMutex);
             auto sessionIt = sessions.find(sessionId);
-            if(sessionIt == sessions.end())
+            if (sessionIt == sessions.end())
             {
-                throw Error{"Session not found: " + std::to_string(sessionId) + " failed to handle crash.", Error::Type::Internal};
+                throw Error{"Session not found: " + std::to_string(sessionId) + " failed to handle crash.",
+                            Error::Type::Internal};
             }
             sessions.erase(sessionIt);
             auto windowIdIt = sessionIdToWindowId.find(sessionId);
-            if(windowIdIt == sessionIdToWindowId.end())
+            if (windowIdIt == sessionIdToWindowId.end())
             {
                 throw Error{"WindowId not found: " + std::to_string(sessionId) + " failed to handle crash.",
                             Error::Type::Internal};
@@ -507,17 +492,25 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
             windowIdToSessionId.erase(windowIdIt->second);
             sessionIdToWindowId.erase(sessionId);
             auto threadIt = sessionThreads.find(sessionId);
-            if(threadIt == sessionThreads.end())
+            if (threadIt == sessionThreads.end())
             {
-                throw Error{"Thread not found: " + std::to_string(sessionId) + " failed to handle crash.", Error::Type::Internal};
+                throw Error{"Thread not found: " + std::to_string(sessionId) + " failed to handle crash.",
+                            Error::Type::Internal};
             }
             auto thisThread = std::move(threadIt->second);
+            thisThread->pause();
             crashedThreads.push(std::move(thisThread));
+            {
+                std::lock_guard<std::mutex> lock(errorMutex);
+                if(!error)
+                {
+                    error = std::make_exception_ptr(e);
+                }
+            }
+            logger.warning("[KernelServer] Session thread crashed: " + std::string(e.what()) + ", sessionId: " + std::to_string(sessionId));
         }
     });
-    auto sessionThreadIt = sessionThreads.find(sessionId);
-    sessions[sessionId] = session;
-    sessionThreads[sessionId] = std::thread(&Session::run, session);
+    sessionThreads[sessionId]->start();
     windowIdToSessionId[windowId] = sessionId;
     sessionIdToWindowId[sessionId] = windowId;
     logger.info("[KernelServer] Open session, sessionId " + std::to_string(sessionId) + ", windowId: " + std::to_string(windowId));
@@ -525,24 +518,50 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
 
 void KernelServer::startMessageSender()
 {
-    messageSenderThread = std::thread(&KernelServer::messageSender, this);
+    // messageSenderThread = std::thread(&KernelServer::messageSender, this);
+    messageSenderThread = std::make_shared<Utils::WorkerThread>([this](std::atomic<bool>& stopFlag)
+    {
+        messageSender(stopFlag);
+    },[this](const std::exception& e)
+    {
+        std::lock_guard<std::mutex> lock(errorMutex);
+        if(!error)
+        {
+            error = std::make_exception_ptr(e);
+        }
+        logger.warning("[KernelServer] Message sender thread crashed: " + std::string(e.what()));
+        messageSenderThread->pause();
+    });
+    messageSenderThread->start();
 }
 
 void KernelServer::stopMessageSender()
 {
     kernelMessageQueue->shutdown();
-    if(messageSenderThread.joinable())
+    if(messageSenderThread)
     {
-        messageSenderThread.join();
+        messageSenderThread->shutdown();
     }
 }
 
-void KernelServer::messageSender()
+void KernelServer::messageSender(std::atomic<bool>& stopFlag)
 {
     logger.info("[KernelServer.messageSender] thread started.");
-    auto message = kernelMessageQueue->pop();
-    while(message != nullptr)
+    std::shared_ptr<Utils::MessageQueue::Message> message = nullptr;
+    while(true)
     {
+        while(message == nullptr && !stopFlag.load())
+        {
+            message = kernelMessageQueue->tryPop();
+            if (message == nullptr)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100)); // avoid busy waiting
+            }
+        }
+        if(stopFlag.load())
+        {
+            break;
+        }
         if(message->data.empty())
         {
             continue;
@@ -564,6 +583,77 @@ void KernelServer::messageSender()
         message = kernelMessageQueue->pop();
     }
     logger.info("[KernelServer.messageSender] thread stopped.");
+}
+
+void KernelServer::startMessageReceiver()
+{
+    // messageSenderThread = std::thread(&KernelServer::messageSender, this);
+    messageReceiverThread= std::make_shared<Utils::WorkerThread>(
+        [this](std::atomic<bool> &stopFlag) { messageReceiver(stopFlag); },
+        [this](const std::exception &e) {
+            std::lock_guard<std::mutex> lock(errorMutex);
+            if (!error)
+            {
+                error = std::make_exception_ptr(e);
+            }
+            logger.warning("[KernelServer] Message receiver thread crashed: " + std::string(e.what()));
+            messageReceiverThread->pause();
+        });
+    messageReceiverThread->start();
+}
+
+void KernelServer::stopMessageReceiver()
+{
+    if(messageReceiverThread)
+    {
+        messageReceiverThread->shutdown();
+    }
+}
+
+void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
+{
+    logger.info("[KernelServer.messageReceiver] thread started.");
+    std::string input = {}; // max input size: 2048Byte
+    while (true)
+    {
+        while(input.empty() && !stopFlag.load())
+        {
+            if (Utils::hasInput())
+            {
+                std::getline(std::cin, input);
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        if(stopFlag.load())
+        {
+            break;
+        }
+        logger.debug("[KernelServer.messageReceiver] Received message: " + input);
+        nlohmann::json inputJson;
+        int64_t windowId;
+        bool toMain;
+        std::string messageType;
+        try
+        {
+            inputJson = nlohmann::json::parse(input);
+            windowId = inputJson["sessionId"].get<int64_t>();
+            toMain = inputJson["toMain"].get<bool>();
+            messageType = inputJson["message"]["type"].get<std::string>();
+            if (!toMain)
+                transmitMessage(inputJson);
+            else
+                receiveMessageQueue->push(std::make_shared<Utils::MessageQueue::Message>(-1, std::move(inputJson)));
+        }
+        catch (std::exception &e)
+        {
+            inputJson["status"]["code"] = "WRONG_PARAM";
+            inputJson["status"]["message"] = "Invalid message format, parser error: " + std::string(e.what());
+            sendBack(inputJson);
+        }
+        input.clear();
+    }
+    logger.info("[KernelServer.messageReceiver] thread stopped.");
 }
 
 void KernelServer::updateSettings()

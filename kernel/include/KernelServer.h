@@ -1,5 +1,4 @@
 #pragma once
-#include <thread>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -31,17 +30,16 @@ private:
     const std::filesystem::path logPath = userDataPath / "log";
 
     // messagequeue for frontend and backend communication
-    std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = nullptr; // for kernel server
+    std::shared_ptr<Utils::MessageQueue> kernelMessageQueue = std::make_shared<Utils::MessageQueue>(); // for kernel server
+
+    std::shared_ptr<Utils::MessageQueue> receiveMessageQueue = std::make_shared<Utils::MessageQueue>(); // for receiving messages from frontend
 
     std::mutex sessionMutex;
-    std::queue<std::thread> crashedThreads = {};
+    std::queue<std::shared_ptr<Utils::WorkerThread>> crashedThreads = {};
     std::unordered_map<int64_t, int64_t> windowIdToSessionId = {};
     std::unordered_map<int64_t, int64_t> sessionIdToWindowId = {};
     std::unordered_map<int64_t, std::shared_ptr<Session>> sessions = {}; // session id -> session ptr
-    std::unordered_map<int64_t, std::thread> sessionThreads = {};        // session id -> thread
-
-    // // prevent multiple instances of KernelServer
-    // KernelServer(const std::filesystem::path &userDataPath);
+    std::unordered_map<int64_t, std::shared_ptr<Utils::WorkerThread>> sessionThreads = {}; // session id -> thread
 
     std::shared_ptr<SqliteConnection> sqliteConnection = nullptr; // sqlite connection
     void initializeSqlite();
@@ -59,13 +57,22 @@ private:
     void openSession(int64_t windowId, const std::string &repoName, const std::string &repoPath);
     void stopAllSessions(); // stop all session threads, but not deconstruct them
 
-    std::atomic<bool> stopAllFlag = false;
+    std::mutex errorMutex;
+    std::exception_ptr error = nullptr; // error from other threads
+
+    std::atomic<bool> stopAllFlag = false; // stop all session threads
 
     // this thread will transmit all messages to the frontend
-    std::thread messageSenderThread;
+    std::shared_ptr<Utils::WorkerThread> messageSenderThread;
     void startMessageSender();
     void stopMessageSender();
-    void messageSender();
+    void messageSender(std::atomic<bool> &stopFlag);
+
+    // this thread will receive messages from frontend
+    std::shared_ptr<Utils::WorkerThread> messageReceiverThread;
+    void startMessageReceiver();
+    void stopMessageReceiver();
+    void messageReceiver(std::atomic<bool> &stopFlag);
 
     class Settings;
     friend class Settings;
@@ -75,13 +82,7 @@ private:
     // interface for settings class
     std::string getApiKey(const std::string &modelName) const;
 public:
-    // // initialize a server and return a instance.
-    // static KernelServer& openServer(const std::filesystem::path& userDataPath)
-    // {
-    //     static KernelServer instance(userDataPath); 
-    //     return instance; 
-    // }
-    KernelServer(const std::filesystem::path &userDataPath); // for debug
+    KernelServer(const std::filesystem::path &userDataPath);
     ~KernelServer();
 
     // start the server and open a thread to handle messages from sessions.

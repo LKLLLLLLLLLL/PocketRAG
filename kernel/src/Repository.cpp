@@ -132,9 +132,9 @@ void Repository::updateEmbeddings(const EmbeddingConfigList &configs)
         int inputLength = stmt.get<int>(3);
 
         // create embedding model
-        auto embeddingModel = EmbeddingModel(modelPath, ONNXModel::device::cpu);
-        int dimension = embeddingModel.getDimension();
-        auto embedding = std::make_shared<Embedding>(id, name, dimension, inputLength, std::make_shared<EmbeddingModel>(embeddingModel));
+        auto embeddingModel = std::make_shared<EmbeddingModel>(modelPath, ONNXModel::device::cpu);
+        int dimension = embeddingModel->getDimension();
+        auto embedding = std::make_shared<Embedding>(id, name, dimension, inputLength, embeddingModel);
         tempEmbeddings.push_back(embedding);
 
         // create vector table for this embedding model

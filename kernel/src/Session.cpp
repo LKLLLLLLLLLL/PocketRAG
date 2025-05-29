@@ -91,7 +91,7 @@ void Session::execCallback(nlohmann::json &json, int64_t callbackId)
     callbackManager->callCallback(callbackId, json);
 }
 
-void Session::run()
+void Session::run(std::atomic<bool> &stopFlag)
 {
     Utils::Timer timer("Session " + std::to_string(sessionId) + " started");
     // open repo
@@ -123,46 +123,29 @@ void Session::run()
     timer.stop();
     // handle messages
     logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") started.");
-    auto message = sessionMessageQueue->pop();
+    std::shared_ptr<Utils::MessageQueue::Message> message = nullptr;
     while (true)
     {
-        std::lock_guard<std::mutex> lock(errorMutex);
-        if(message == nullptr && repoThreadError == nullptr)
+        message = sessionMessageQueue->tryPop();
+        if(stopFlag.load())
         {
             break;
         }
-        try
         {
+            std::lock_guard<std::mutex> lock(errorMutex);
             if (repoThreadError)
             {
                 auto error = repoThreadError;
                 repoThreadError = nullptr;
                 std::rethrow_exception(error);
             }
-            handleMessage(*message);
         }
-        catch (const std::exception &e)
+        if(message)
         {
-            logger.warning("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName +
-                           ") crashed with error: " + std::string(e.what()));
-            nlohmann::json json;
-            json["toMain"] = false;
-            json["message"]["type"] = "sessionCrash";
-            json["message"]["error"] = std::string(e.what());
-            send(json, nullptr);
-            if (crashHandler)
-            {
-                crashHandler(std::current_exception(), sessionId);
-                return;
-            }
-            else
-            {
-                logger.fatal("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName +
-                            ") Has no crash handler registered, terminate.");
-                throw e;
-            }
+            handleMessage(*message);
+            message = nullptr;
         }
-        message = sessionMessageQueue->pop();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") quitted.");
 }
@@ -170,6 +153,7 @@ void Session::run()
 void Session::handleMessage(Utils::MessageQueue::Message& message)
 {
     auto& json = message.data;
+    auto js = json.dump(); // for debug
     try 
     {
         bool isReply = message.data["isReply"].get<bool>();
@@ -437,24 +421,17 @@ Session::AugmentedConversation::AugmentedConversation(std::filesystem::path hist
 
 Session::AugmentedConversation::~AugmentedConversation()
 {
-    if(conversation)
-    {
-        shutdownFlag = true;
-    }
-    if(conversationThread.joinable())
-    {
-        conversationThread.join();
-    }
+    stopConversation();
 }
 
-void Session::AugmentedConversation::conversationProcess()
+void Session::AugmentedConversation::conversationProcess(std::atomic<bool> &stopFlag)
 {
     HistoryManager historyManager(*this); // defiene history manager to make sure its destructor is called at the end of conversation
     LLMConv::TokenUsage tokenUsage = {0, 0, 0};
     try
     {
         logger.info("[Conversation] Conversation id" + std::to_string(conversationId) + " thread started.");
-        if(shutdownFlag.load())
+        if(stopFlag)
             return;
 
         // read history from disk if exists
@@ -476,7 +453,7 @@ You are a search query optimizer. Generate the most effective search keywords fo
         {
             // 2. search the documents
             historyManager.beginRetrieval("Retrieving information: " + std::to_string(searchCount + 1));
-            if (shutdownFlag)
+            if (stopFlag)
                 return;
             std::string toolContent = "```retieved_information\n";
             for (auto &word : searchWords)
@@ -489,7 +466,7 @@ You are a search query optimizer. Generate the most effective search keywords fo
                     toolContent += "[metadata]\n" + result.metadata + "\n";
                     historyManager.push(Type::result, result);
                 }
-                if (shutdownFlag)
+                if (stopFlag)
                     return;
             }
             toolContent += "```\n";
@@ -514,7 +491,7 @@ If the information is sufficient, respond with "YES". If not, respond with "NO" 
             }
             searchCount++;
         }
-        if(shutdownFlag)
+        if(stopFlag)
             return;
         // 4. generate the final answer
         conversation->setOptions("max_tokens", 2000);
@@ -561,25 +538,33 @@ std::string Session::AugmentedConversation::extractSearchword(const std::string 
 
 void Session::AugmentedConversation::openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int64_t conversationId)
 {
-    stopConversation();
     conversation = conv;
     this->sendBack = sendBack;
-    shutdownFlag = false;
     this->conversationId = conversationId;
     this->query = prompt;
-    conversationThread = std::thread(&Session::AugmentedConversation::conversationProcess, this);
+    if (conversationThread && conversationThread->isRunning())
+    {
+        conversationThread->start();
+        return;
+    }
+    conversationThread = std::make_shared<Utils::WorkerThread>(
+        [this](std::atomic<bool> &stopFlag) {
+            conversationProcess(stopFlag);
+        },
+        nullptr
+    );
+    conversationThread->start();
 }
 
 void Session::AugmentedConversation::stopConversation()
 {
-    shutdownFlag = true;
     if(conversation)
     {
         conversation->stopConnection();
     }
-    if(conversationThread.joinable())
+    if(conversationThread)
     {
-        conversationThread.join();
+        conversationThread->shutdown();
     }
 }
 

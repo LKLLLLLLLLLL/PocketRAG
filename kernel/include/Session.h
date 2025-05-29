@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <exception>
 #include <memory>
 #include <string>
@@ -53,8 +54,6 @@ private:
     std::mutex errorMutex;
     std::exception_ptr repoThreadError = nullptr;
 
-    std::function<void(std::exception_ptr, int64_t)> crashHandler = nullptr;
-
     void initializeSqlite();
 
 public:
@@ -62,7 +61,7 @@ public:
     ~Session();
 
     // this method can only be called in one thread
-    void run();
+    void run(std::atomic<bool>& stopFlag);
 
     // this function can be called by another thread, it will shuddown all threads under this session
     void stop();
@@ -72,11 +71,6 @@ public:
 
     // called by kernel server
     void sendMessage(const std::shared_ptr<Utils::MessageQueue::Message>& message);
-
-    void setCrashHandler(std::function<void(std::exception_ptr, int64_t)> handler)
-    {
-        crashHandler = handler;
-    }
 };
 
 class Session::AugmentedConversation
@@ -92,13 +86,12 @@ private:
     Session& session;
     std::function<void(std::string, Type)> sendBack = nullptr;
 
-    std::atomic<bool> shutdownFlag = false;
-    std::thread conversationThread;
+    std::shared_ptr<Utils::WorkerThread> conversationThread = nullptr;
 
     // only read maxHistoryLength characters from conversation history
     static const int maxHistoryLength = 1000;
 
-    void conversationProcess();
+    void conversationProcess(std::atomic<bool>& stopFlag);
 
     static std::string extractSearchword(const std::string& answer);
     struct HistoryManager;
