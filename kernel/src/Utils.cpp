@@ -295,8 +295,45 @@ const std::string Logger::levelToString(Level level)
     }
 }
 
-Logger::Logger(const std::filesystem::path &logFileDir, bool toConsole, Level logLevel)
-    : logLevel(logLevel), toConsole(toConsole)
+void Logger::cleanOldLogFiles(std::filesystem::path logFileDir)
+{
+    // 获取所有日志文件
+    std::vector<std::filesystem::path> logFiles = {};
+
+    try
+    {
+        for (const auto &entry : std::filesystem::directory_iterator(logFileDir))
+        {
+            if (entry.is_regular_file() && entry.path().extension() == ".log") // filter .log files
+            {
+                logFiles.push_back(entry.path());
+            }
+        }
+
+        if (logFiles.size() <= maxLogFileCount)
+        {
+            return;
+        }
+
+        std::sort(logFiles.begin(), logFiles.end(), [](const std::filesystem::path &a, const std::filesystem::path &b) {
+            return std::filesystem::last_write_time(a) < std::filesystem::last_write_time(b);
+        });
+
+        size_t filesToDelete = logFiles.size() - maxLogFileCount;
+        for (size_t i = 0; i < filesToDelete; ++i)
+        {
+            std::filesystem::remove(logFiles[i]);
+            logger.info("Removed old log file: " + logFiles[i].filename().string());
+        }
+    }
+    catch (const std::exception &e)
+    {
+        logger.warning("Error during log file cleanup: " + std::string(e.what()));
+    }
+}
+
+Logger::Logger(const std::filesystem::path &logFileDir, bool toConsole, Level logLevel, int maxLogFileCount)
+    : logLevel(logLevel), toConsole(toConsole), maxLogFileCount(maxLogFileCount)
 {
     std::string timestamp = std::format("{:%Y%m%d-%H%M%S}", std::chrono::system_clock::now());
     std::string filename = timestamp + ".log";
@@ -311,6 +348,7 @@ Logger::Logger(const std::filesystem::path &logFileDir, bool toConsole, Level lo
         std::cerr << "Failed to open log file: " << logFilePath << ", may not record logs." << std::endl;
     }
     log("[Logger] Logger initialized with log level: " + levelToString(logLevel), Level::INFO);
+    cleanOldLogFiles(logFileDir);
 }
 
 void Logger::log(const std::string &message, Level level)
@@ -393,4 +431,22 @@ const char* Error::what() const noexcept
 auto Error::getType() const -> Type
 {
     return type;
+}
+
+bool Utils::hasInput()
+{
+#ifdef _WIN32
+    return _kbhit() != 0;
+#else
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(STDIN_FILENO, &readfds);
+
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    // 检查stdin是否可读，0表示立即返回
+    return select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) > 0;
+#endif
 }

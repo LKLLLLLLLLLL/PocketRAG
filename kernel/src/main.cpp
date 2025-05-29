@@ -86,10 +86,9 @@
 #include <iostream>
 
 std::filesystem::path dataPath = std::filesystem::path (".") / "userData";
-Logger logger(dataPath / "logs", false, Logger::Level::DEBUG);
+Logger logger(dataPath / "logs", false, Logger::Level::DEBUG, 20);
 
 void crash_handler();
-
 void server_terminate_handler();
 
 int main()
@@ -108,6 +107,7 @@ int main()
             return EXIT_FAILURE;
         }
     }
+    throw Error{"test error", Error::Type::Internal};
     logger.info("KernelServer stopped.");
     return 0;
 }

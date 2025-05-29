@@ -9,8 +9,12 @@
 #include <fstream>
 #include <thread>
 #include <source_location>
-#include <sys/select.h>
-#include <unistd.h>
+#ifdef _WIN32
+    #include <conio.h>
+#else
+    #include <sys/select.h>
+    #include <unistd.h>
+#endif
 namespace xxhash
 {
     #include <xxhash.h>
@@ -43,9 +47,12 @@ private:
     std::filesystem::path logFilePath;
     std::ofstream logFile;
     bool toConsole = true;
+    int maxLogFileCount;
+
+    void cleanOldLogFiles(std::filesystem::path logFileDir);
 
 public:
-    Logger(const std::filesystem::path &logFileDir, bool toConsole, Level logLevel = Level::INFO);
+    Logger(const std::filesystem::path &logFileDir, bool toConsole, Level logLevel = Level::INFO, int maxLogFileCount = 20);
 
     ~Logger() = default;
 
@@ -376,10 +383,6 @@ namespace Utils
                 }
                 catch (const std::exception &e)
                 {
-                    // if(shutdownFlag.load())
-                    // {
-                    //     break;
-                    // }
                     if (errorHandler)
                     {
                         errorHandler(e);
@@ -410,6 +413,7 @@ namespace Utils
         {
             if(is_running)
             {
+                wakeUp();
                 return;
             }
             shutdownFlag = false;
@@ -433,11 +437,9 @@ namespace Utils
         // this method will stop workfunction and destroy the thread
         void shutdown()
         {
-            retFlag = true;
             shutdownFlag = true;
-            wakeUpFlag = true;
-            cv.notify_all();
             pause();
+            wakeUp();
             if (thread.joinable())
             {
                 thread.join();
@@ -450,17 +452,6 @@ namespace Utils
         }
     };
 
-    inline bool hasInput(int timeoutSec = 0, int timeoutUSec = 0)
-    {
-        fd_set readfds;
-        FD_ZERO(&readfds);
-        FD_SET(STDIN_FILENO, &readfds);
-
-        struct timeval timeout;
-        timeout.tv_sec = timeoutSec;
-        timeout.tv_usec = timeoutUSec;
-
-        // 检查stdin是否可读，0表示立即返回
-        return select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) > 0;
-    }
+    // a non-blocking check for input
+    bool hasInput();
 }
