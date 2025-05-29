@@ -2,14 +2,17 @@ const { app, BrowserWindow, ipcMain, dialog, screen} = require('electron/main')
 const path = require('node:path')
 const {spawn} = require('node:child_process')
 const EventEmitter = require('events')
+const fs = require('node:fs')
 //import electron and node modules
 
+const stateFile = path.join(app.getPath('userData'), 'windowState.json')
 const platform = process.platform
 const dateNow = Date.now()
 const windows = new Map()
 const callbacks = new Map()
 const eventEmitter = new EventEmitter()
 const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
+console.log('stateFile is: ', stateFile)
 
 let kernelPath
 if (platform === 'win32') {
@@ -512,20 +515,63 @@ function getApiUsage(event, callbackId) {
 }
 
 
-function createWindow (event, windowType = 'repoList') {
+async function saveWindowState(window, windowType) {
+  if (!window) return
+  const bounds = window.getBounds()
+  const repoName = await window.webContents.executeJavaScript('window.repoName')
+  const repoPath = await window.webContents.executeJavaScript('window.repoPath')
+  const state = {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    isMaximized: window.isMaximized(),
+    windowType : windowType,
+    repoName: repoName,
+    repoPath: repoPath
+  }
+  fs.writeFileSync(stateFile, JSON.stringify(state))
+  console.log('Window state saved:', state)  
+}
+
+
+function createWindow (event, windowType = 'repoList', windowState = null) {
   const {width: srceenWidth, height: screenHeight} = screen.getPrimaryDisplay().workAreaSize
   const windowId = Date.now() - dateNow// use timestamp as windowId
   let window
   switch(windowType){
     case 'main':
-      window = new BrowserWindow({
+      let mainOptions = {
         width: Math.floor(srceenWidth * 0.8),
-        height: Math.floor(screenHeight * 0.9),
-        autoHideMenuBar: true,
+        height: Math.floor(screenHeight * 0.9),     
+        frame: false,
+        autoHideMenuBar: true,   
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
         }
-      })
+      }
+      if(windowState && !windowState.isMaximized) {
+        mainOptions.x = windowState.x
+        mainOptions.y = windowState.y
+        mainOptions.width = windowState.width
+        mainOptions.height = windowState.height
+      }
+      if(platform === 'win32') {
+        mainOptions.titleBarOverlay = {
+          color: '#2f3241',
+          symbolColor: '#74b1be',
+          height: 20
+        }
+        mainOptions.titleBarStyle = 'hidden'        
+      }
+      else {
+        mainOptions.titleBarStyle = 'hiddenInset'
+        mainOptions.trafficLightPosition = { x: 10, y: 10 }
+      }
+      window = new BrowserWindow(mainOptions)
+      if(windowState && windowState.isMaximized) {
+        window.maximize()
+      }
       window.on('closed', () => {
         const callbackId = callbackRegister(() => {})
         const closeRepo = {
@@ -547,38 +593,84 @@ function createWindow (event, windowType = 'repoList') {
     break
     
     case 'repoList':
-      window = new BrowserWindow({
+      let repoListOptions = {
         width: Math.floor(srceenWidth * 0.4),
-        height: Math.floor(screenHeight * 0.8),
+        height: Math.floor(srceenWidth * 0.3),
+        frame: false,
+        maximizable: false,
+        fullscreenable: false,
         resizable: false,
         autoHideMenuBar: true,
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
         }
-      })
+      }
+      if(windowState) {
+        repoListOptions.x = windowState.x
+        repoListOptions.y = windowState.y
+        repoListOptions.width = windowState.width
+        repoListOptions.height = windowState.height
+      }
+      if(platform === 'win32') {
+        repoListOptions.titleBarOverlay = {
+          color: '#2f3241',
+          symbolColor: '#74b1be',
+          height: 20
+        }
+        repoListOptions.titleBarStyle = 'hidden'
+      }
+      else {
+        repoListOptions.titleBarStyle = 'hiddenInset'
+        repoListOptions.trafficLightPosition = { x: 10, y: 10 }
+      }
+      window = new BrowserWindow(repoListOptions)
       window.on('closed', () => {
         windows.delete(windowId)
       })
       break
 
     case 'settings':
-      window = new BrowserWindow({
+      let settingsOptions = {
+        x: Math.floor(srceenWidth * 0.25),
+        y: Math.floor(screenHeight * 0.1),
         width: Math.floor(srceenWidth * 0.5),
         height: Math.floor(screenHeight * 0.85),
+        frame: false,
+        minimizable: false,
+        maximizable: false,
+        fullscreenable: false,
         resizable: false,
         autoHideMenuBar: true,
         parent : BrowserWindow.fromWebContents(event.sender),
         modal: true,
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
+        }        
+      }
+      if(platform === 'win32') {
+        settingsOptions.titleBarOverlay = {
+          color: '#2f3241',
+          symbolColor: '#74b1be',
+          height: 20
         }
-      })
+        settingsOptions.titleBarStyle = 'hidden'        
+      }
+      else {
+        settingsOptions.titleBarStyle = 'hiddenInset'
+        settingsOptions.trafficLightPosition = { x: 10, y: 10 }
+      }
+      window = new BrowserWindow(settingsOptions)
       window.on('closed', () => {
         windows.delete(windowId)
       })
       break 
 
   }
+
+  window.on('close', () => {
+    saveWindowState(window, windowType)
+  })
+  console.log('create window with windowId: ', windowId, ' and windowType: ', windowType)
 
   const startUrl = isDev
       ? `http://localhost:3000?windowType=${windowType}&windowId=${windowId}`
@@ -589,6 +681,49 @@ function createWindow (event, windowType = 'repoList') {
   window.loadURL(startUrl)
 
   return windowId
+}
+
+
+async function createFirstWindow() {
+  try {
+    const data = fs.readFileSync(stateFile, 'utf-8')
+    let lastState = JSON.parse(data)
+    console.log('lastState is: ', lastState)
+    const windowType = lastState.windowType
+    const repoName = lastState.repoName
+    const repoPath = lastState.repoPath
+    if(windowType !== 'main' && windowType !== 'repoList' && windowType !== 'settings') {
+      throw new Error('cannot get windowType')
+    }
+    if(windowType === 'main' && (!repoName || !repoPath)) {
+      throw new Error('cannot get repoName or repoPath')
+    }
+    const windowId = createWindow(null, windowType, lastState)
+    if(windowType === 'main') {
+      const callbackId = callbackRegister(async () => {
+        await initializeRepo(windowId, repoName, repoPath)
+      })
+      const openRepo = {
+        sessionId : -1,
+        toMain : true,
+
+        callbackId : callbackId,
+        isReply : false,
+
+        message : {
+          type : 'openRepo',
+          repoName : repoName,
+          sessionId : windowId
+        }
+      }
+      await readyPromise
+      kernel.stdin.write(JSON.stringify(openRepo) + '\n')
+      console.log(JSON.stringify(openRepo) + '\n')
+    }
+  } catch(err) {
+    console.log(err)
+    createWindow()
+  }
 }
 
 
@@ -663,7 +798,7 @@ app.whenReady().then(async () => {
   ipcMain.on('getApiUsage', getApiUsage)
   //add the event listeners before the window is created
 
-  createWindow()
+  createFirstWindow()
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
