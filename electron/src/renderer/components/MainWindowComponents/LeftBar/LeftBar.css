@@ -1,0 +1,24 @@
+.LeftBar-container{
+    flex-basis: 50px;
+    display: flex;
+    flex-direction: column; 
+    background-color: grey;
+}
+.leftbar{
+    display: flex;
+    flex-direction: column;
+}
+.lb-button{
+    color: white;
+    background-color: rgb(60,160,130);
+    display: flex;
+    padding: 0;
+}
+.lb-button-icon {
+  font-size: 35px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
