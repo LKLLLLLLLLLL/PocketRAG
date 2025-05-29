@@ -12,7 +12,7 @@
 #include "DocPipe.h"
 #include "Utils.h"
 
-Repository::Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter, std::function<void(std::string)> doneReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter), doneReporter(doneReporter)
+Repository::Repository(std::string repoName, std::filesystem::path repoPath, Utils::PriorityMutex& sqliteMutex, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter, std::function<void(std::string)> doneReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter), doneReporter(doneReporter), sqliteMutex(sqliteMutex)
 {
     // initialize sqliteDB
     initializeSqlite();
@@ -30,6 +30,7 @@ void Repository::initializeSqlite()
 {
     dbPath = repoPath / ".PocketRAG" / "db";
     sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);
+    Utils::LockGuard lock(sqliteMutex, true, true);
 
     // create documents table
     sqlite->execute(
@@ -72,8 +73,15 @@ void Repository::initializeSqlite()
     );
 }
 
-void Repository::updateEmbeddings(const EmbeddingConfigList &configs)
+void Repository::updateEmbeddings(const EmbeddingConfigList &configs, bool needLock)
 {
+    std::shared_ptr<Utils::LockGuard> sqliteLockPtr;
+    std::shared_ptr<Utils::LockGuard> repoLockPtr;
+    if(needLock)
+    {
+        sqliteLockPtr = std::make_shared<Utils::LockGuard>(sqliteMutex, true, true);
+        repoLockPtr = std::make_shared<Utils::LockGuard>(repoMutex, true, true);
+    }
     auto trans = sqlite->beginTransaction(); // avoid unfinished changes be readed by other threads
     if (!configs.empty())
     {
@@ -159,7 +167,16 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
     while (!retFlag)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
-        Utils::LockGuard lock(mutex); // lock for writing
+        Utils::LockGuard lock(sqliteMutex, false, true);      // lock for writing
+        Utils::LockGuard repoLock(repoMutex, false, false); // lock for vector tables and embeddings
+
+        lock.yield();
+        repoLock.yield();
+        if (lock.needRelease() || repoLock.needRelease() || retFlag)
+        {
+            continue;
+        }
+
         for (auto &vectorTable : vectorTables)
         {
             vectorTable->write();
@@ -168,20 +185,40 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
                 integrity = false;
             }
         }
+
         lock.yield();
-        if (!integrity && !retFlag)
+        repoLock.yield();
+        if (lock.needRelease() || repoLock.needRelease() || retFlag)
+        {
+            continue;
+        }
+
+        if (!integrity)
         {
             logger.warning("[Repository.backgroundProcess] Database integrity check failed, reconstructing...");
-            reConstruct();
+            reConstruct(false);
         }
+
         lock.yield();
-        
+        repoLock.yield();
+        if (lock.needRelease() || repoLock.needRelease() || retFlag)
+        {
+            continue;
+        }
 
         std::queue<DocPipe> docqueue; // create a new doc queue for each iteration
         checkDoc(docqueue); // check for changed documents
         // though refreshDoc will change vector tables and text table, but this changes will not affect to search result, so no need to use writelock(unique_lock)
-        refreshDoc(docqueue, lock, retFlag); // process the documents in the queue
+        refreshDoc(docqueue, lock, repoLock, retFlag); // process the documents in the queue
         // logically, there is no other thread use these invalid embedding configs, only need to avoid changes in embedding_config table, so use shared_lock
+
+        lock.yield();
+        repoLock.yield();
+        if (lock.needRelease() || repoLock.needRelease() || retFlag)
+        {
+            continue;
+        }
+
         removeInvalidEmbedding();
 
         for (auto &vectorTable : vectorTables)
@@ -213,7 +250,7 @@ void Repository::startBackgroundProcess()
 {
     if(backgroundThread && backgroundThread->isRunning())
     {
-        backgroundThread->wakeUp();
+        backgroundThread->start();;
         return;
     }
     auto errorHandler = [this](const std::exception &e) {
@@ -233,7 +270,7 @@ void Repository::startBackgroundProcess()
         logger.warning("[Repository.backgroundProcess] Crashed with: " + std::string(e.what()) +
                        ", restart count: " + std::to_string(restartCount) + ", restarting...");
     }; 
-    backgroundThread = std::make_shared<Utils::WorkerThread>([this](std::atomic<bool>& retFlag){
+    backgroundThread = std::make_shared<Utils::WorkerThread>(repoName + "backGround", [this](std::atomic<bool>& retFlag){
         backgroundProcess(retFlag);
     }, 
     errorHandler);
@@ -295,34 +332,40 @@ void Repository::checkDoc(std::queue<DocPipe>& docqueue)
         docStateReporter(changedDocs); // report changed documents
 }
 
-void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &lock, std::atomic<bool> &retFlag)
+void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &sqliteLock, Utils::LockGuard& repoLock, std::atomic<bool> &retFlag)
 {
     // process each document in the queue
     bool changed = !docqueue.empty(); // check if there are documents to process
     while(!docqueue.empty())
     {
-        lock.yield();
+        sqliteLock.yield();
+        repoLock.yield();
         auto docPipe = std::move(docqueue.front()); // get the front document
         docqueue.pop(); // remove it from the queue
 
         auto path = docPipe.getPath(); // get the path of the document
-        docPipe.process([&path, this](double progress) { // process the document
-            if (this->progressReporter)
-            {
-                this->progressReporter(path, progress);
-            }
-        }, 
-        [this, &lock, &retFlag]() -> bool
-        {
-            if(lock.hasWriteWaiters())
-            {
-                return true;
-            }
-            lock.yield();
-            return retFlag;
-        }); // pass the stop flag to the process function
+        docPipe.process(
+            [&path, this](double progress) { // process the document
+                if (this->progressReporter)
+                {
+                    this->progressReporter(path, progress);
+                }
+            },
+            [this, &sqliteLock, &repoLock, &retFlag]() -> bool {
+                if (sqliteLock.needRelease() || repoLock.needRelease())
+                {
+                    return true;
+                }
+                sqliteLock.yield();
+                repoLock.yield();
+                return retFlag;
+            }); // pass the stop flag to the process function
 
         if(retFlag)
+        {
+            return;
+        }
+        if (sqliteLock.needRelease() || repoLock.needRelease())
         {
             return;
         }
@@ -384,8 +427,11 @@ void Repository::removeInvalidEmbedding()
 
 auto Repository::search(const std::string &query, searchAccuracy acc, int limit) -> std::vector<SearchResult>
 {
-    Utils::LockGuard lock(mutex, true); // lock for reading embedding models and vector tables
-    
+    Utils::LockGuard lock(sqliteMutex, true, false); // lock for reading embedding models and vector tables
+    Utils::LockGuard repoLock(repoMutex, true, false); // lock for vector tables and embeddings
+
+    suspendBackgroundProcess(); // for better performance
+
     int vectorLimit = limit * 2;
     int fts5Limit = limit * 2 * embeddings.size();
 
@@ -564,16 +610,16 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         result.highlightedMetadata = TextSearchTable::reHighlight(result.highlightedMetadata, keyWords);
     }
 
+    startBackgroundProcess();
+
     return uniqueResults;
 }
 
 void Repository::configEmbedding(const EmbeddingConfigList &configs)
 {
     // stop the background thread
-    suspendBackgroundProcess();
     logger.debug("[Repository::configEmbedding] begin to config embedding");
 
-    Utils::LockGuard lock(mutex, true);
     updateEmbeddings(configs); 
     logger.debug("[Repository::configEmbedding] embedding config done");
 
@@ -583,16 +629,15 @@ void Repository::configEmbedding(const EmbeddingConfigList &configs)
 
 void Repository::configReranker(const std::filesystem::path &modelPath)
 {
-    suspendBackgroundProcess();
     logger.debug("[Repository::configReranker] begin to config reranker model");
-    Utils::LockGuard lock(mutex, true);
+    Utils::LockGuard lock(repoMutex, true, true);
     if(!modelPath.empty())
         rerankerModel = std::make_shared<RerankerModel>(modelPath, ONNXModel::device::cpu);
     logger.debug("[Repository::configReranker] reranker model config done");
     startBackgroundProcess();
 }
 
-void Repository::reConstruct()
+void Repository::reConstruct(bool needLock)
 {
     vectorTables.clear();
     textTable.reset();
@@ -625,5 +670,5 @@ void Repository::reConstruct()
     initializeSqlite();
     // open text search table
     textTable = std::make_shared<TextSearchTable>(*sqlite, "text_search");
-    updateEmbeddings();
+    updateEmbeddings({}, needLock);
 }

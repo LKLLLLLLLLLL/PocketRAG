@@ -168,6 +168,46 @@ std::string Utils::getTimeStr()
     return std::string(buffer);
 }
 
+bool Utils::hasInput()
+{
+#ifdef _WIN32
+    return _kbhit() != 0;
+#else
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(STDIN_FILENO, &readfds);
+
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    // 检查stdin是否可读，0表示立即返回
+    return select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) > 0;
+#endif
+}
+
+void Utils::setThreadName(const std::string &name)
+{
+#if defined(__APPLE__)
+    pthread_setname_np(name.substr(0, 15).c_str());
+
+#elif defined(__linux__)
+    pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
+
+#elif defined(_WIN32)
+#include <windows.h>
+
+    const int bufferSize = MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, NULL, 0);
+    if (bufferSize == 0)
+        return;
+
+    std::wstring wideName(bufferSize, 0);
+    MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, &wideName[0], bufferSize);
+
+    HRESULT hr = SetThreadDescription(GetCurrentThread(), wideName.c_str());
+#endif
+}
+
 //--------------------------CallbackManager--------------------------//
 int64_t Utils::CallbackManager::registerCallback(const Callback &callback)
 {
@@ -224,6 +264,18 @@ auto Utils::MessageQueue::pop() -> std::shared_ptr<Message>
     auto message = queue.front();
     queue.pop();
 
+    return message;
+}
+
+auto Utils::MessageQueue::tryPop() -> std::shared_ptr<Message>
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    if (queue.empty() || shutdownFlag.load())
+    {
+        return nullptr;
+    }
+    auto message = queue.front();
+    queue.pop();
     return message;
 }
 
@@ -433,20 +485,75 @@ auto Error::getType() const -> Type
     return type;
 }
 
-bool Utils::hasInput()
+//--------------------------------WorkerThread------------------------------//
+Utils::WorkerThread::~WorkerThread()
 {
-#ifdef _WIN32
-    return _kbhit() != 0;
-#else
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(STDIN_FILENO, &readfds);
+    shutdown();
+}
 
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
+void Utils::WorkerThread::pause()
+{
+    retFlag = true;
+}
 
-    // 检查stdin是否可读，0表示立即返回
-    return select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) > 0;
-#endif
+void Utils::WorkerThread::start()
+{
+    if (is_running)
+    {
+        return;
+    }
+    shutdownFlag = false;
+    retFlag = false;
+    thread = std::thread(&WorkerThread::workFuncWrapper, this);
+}
+
+void Utils::WorkerThread::wakeUp()
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    if (is_waiting)
+        wakeUpFlag = true;
+    cv.notify_all();
+}
+
+void Utils::WorkerThread::shutdown()
+{
+    shutdownFlag = true;
+    pause();
+    wakeUp();
+    if (thread.joinable())
+    {
+        thread.join();
+    }
+}
+
+void Utils::WorkerThread::workFuncWrapper()
+{
+    setThreadName(threadName);
+    is_running = true;
+    while (!shutdownFlag)
+    {
+        retFlag = false;
+        try
+        {
+            workFunction(retFlag);
+        }
+        catch (const std::exception &e)
+        {
+            if (errorHandler)
+            {
+                errorHandler(e);
+            }
+            else
+            {
+                logger.warning("Worker thread error: " + std::string(e.what()) +
+                               ", no error handler, may cause unexpected behavior.");
+            }
+        }
+        std::unique_lock<std::mutex> lock(mutex);
+        is_waiting = true;
+        cv.wait(lock, [this] { return shutdownFlag.load() || wakeUpFlag.load(); });
+        wakeUpFlag = false;
+        is_waiting = false;
+    }
+    is_running = false;
 }

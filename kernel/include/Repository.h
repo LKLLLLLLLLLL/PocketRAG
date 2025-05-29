@@ -71,9 +71,10 @@ private:
     std::vector<std::shared_ptr<VectorTable>> vectorTables;
     std::vector<std::shared_ptr<Embedding>> embeddings;
     std::shared_ptr<RerankerModel> rerankerModel = nullptr;
+    Utils::PriorityMutex repoMutex; // mutex for vector tables, embeddings, reranker model
 
     std::shared_ptr<Utils::WorkerThread> backgroundThread; // background thread for processing documents
-    mutable Utils::PriorityMutex mutex;
+    Utils::PriorityMutex& sqliteMutex;
 
     std::atomic<bool> integrity = true; // if false, call reConstruct() to fix the database
 
@@ -96,12 +97,12 @@ private:
 
     // update embeddings in both sqlite and class members
     // no mutex lock.
-    void updateEmbeddings(const EmbeddingConfigList &configs = {});
+    void updateEmbeddings(const EmbeddingConfigList &configs = {}, bool needLock = true);
 
     // scan the repo path to find changed documents, no mutex lock.
     void checkDoc(std::queue<DocPipe>& docqueue);
     // actually execute updating task, need callback function to report progress, no mutex lock.
-    void refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &lock, std::atomic<bool>& retFlag);
+    void refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &lock, Utils::LockGuard &repoLock, std::atomic<bool> &retFlag);
     // remove invalid embedding_config and their chunks, no mutex lock.
     void removeInvalidEmbedding();
 
@@ -115,10 +116,10 @@ private:
 
     // to fix internal error, drop all tables and reconstruct
     // this method can only be called in background thread
-    void reConstruct();
+    void reConstruct(bool needLock = false);
 
-  public:
-    Repository(std::string repoName, std::filesystem::path repoPath, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr, std::function<void(std::string)> doneReporter = nullptr);
+public:
+    Repository(std::string repoName, std::filesystem::path repoPath, Utils::PriorityMutex& mutex, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr, std::function<void(std::string)> doneReporter = nullptr);
     ~Repository();
 
     Repository(const Repository&) = delete; // disable copy constructor
@@ -145,9 +146,4 @@ private:
     }
 
     void stopBackgroundProcess();
-
-    Utils::PriorityMutex* getMutex() const
-    {
-        return &mutex;
-    }
 };

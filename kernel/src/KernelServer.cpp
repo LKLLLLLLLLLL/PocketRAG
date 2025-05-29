@@ -463,7 +463,7 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
     auto sessionThreadIt = sessionThreads.find(sessionId);
     sessions[sessionId] = session;
     // sessionThreads[sessionId] = std::thread(&Session::run, session);
-    sessionThreads[sessionId] = std::make_shared<Utils::WorkerThread>([session](std::atomic<bool>& stopFlag)
+    sessionThreads[sessionId] = std::make_shared<Utils::WorkerThread>("Session" + std::to_string(sessionId) + " main", [session](std::atomic<bool>& stopFlag)
     {
         session->run(stopFlag);
     },[this, sessionId](const std::exception& e)
@@ -519,7 +519,7 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
 void KernelServer::startMessageSender()
 {
     // messageSenderThread = std::thread(&KernelServer::messageSender, this);
-    messageSenderThread = std::make_shared<Utils::WorkerThread>([this](std::atomic<bool>& stopFlag)
+    messageSenderThread = std::make_shared<Utils::WorkerThread>("messageSender", [this](std::atomic<bool>& stopFlag)
     {
         messageSender(stopFlag);
     },[this](const std::exception& e)
@@ -588,7 +588,7 @@ void KernelServer::messageSender(std::atomic<bool>& stopFlag)
 void KernelServer::startMessageReceiver()
 {
     // messageSenderThread = std::thread(&KernelServer::messageSender, this);
-    messageReceiverThread= std::make_shared<Utils::WorkerThread>(
+    messageReceiverThread= std::make_shared<Utils::WorkerThread>("messageReceiver",
         [this](std::atomic<bool> &stopFlag) { messageReceiver(stopFlag); },
         [this](const std::exception &e) {
             std::lock_guard<std::mutex> lock(errorMutex);

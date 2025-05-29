@@ -26,7 +26,7 @@ private:
     std::filesystem::path repoPath;
 
     std::shared_ptr<SqliteConnection> sqlite;
-    Utils::PriorityMutex* sqliteMutex = nullptr;
+    mutable Utils::PriorityMutex mutex; // mutex for sqlite operations
 
     std::thread conversationThread; // thread for LLMConv
 

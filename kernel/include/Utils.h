@@ -170,10 +170,8 @@ namespace Utils
     public:
         struct Message
         {
-            // enum class Type{send, receive} type; // send to frontend or receive from frontend
             int64_t sessionId; // -1 - KernelServer, others - Session ID
             nlohmann::json data;
-            // CallbackManager::Callback callback = nullptr;
         };
     private:
         std::queue<std::shared_ptr<Message>> queue;
@@ -187,17 +185,7 @@ namespace Utils
         // block until a message is available
         std::shared_ptr<Message> pop();
 
-        std::shared_ptr<Message> tryPop()
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            if (queue.empty() || shutdownFlag.load())
-            {
-                return nullptr;
-            }
-            auto message = queue.front();
-            queue.pop();
-            return message;
-        }
+        std::shared_ptr<Message> tryPop();
 
         bool empty();
 
@@ -227,96 +215,160 @@ namespace Utils
     };
 
     /*
-    A mutex class which supports priority
+    A mutex class which supports priority and read/write locks.
     */
     class PriorityMutex
     {
     private:
         mutable std::mutex mutex; // mutex to protect priority mutex itself
         std::condition_variable cv;
-        bool locked = false;
-        bool waitingWrite = false; // if there is a thread waiting for write lock
-        std::thread::id ownerThreadId;
-        int priorityCount = 0;
-    public:
-        void lock(bool priority = false, bool write = false)
+
+        std::atomic<bool> locked = false;
+        std::atomic<bool> writing = false; // if locked, this member indicates if it is a write lock
+        int readerCount = 0; // number of readers holding the lock
+        std::atomic<bool> allowWrite = true; // if false, no write lock can be acquired
+        std::thread::id yieldingThreadId; // thread id of the thread that is yielding the lock
+
+        int priorityReadCount = 0;
+        int priorityWriteCount = 0;
+
+        friend class LockGuard;
+    // public:
+        void lock(bool priority, bool write)
         {
             std::unique_lock<std::mutex> lock(mutex);
             if(priority)
             {
-                priorityCount++;
-            }
-            if(write && priority)
-            {
-                waitingWrite = true;
-            }
-            cv.wait(lock, [this, priority]{
-                if(priority)
+                if(write)
                 {
-                    return !locked;
+                    priorityWriteCount++;
                 }
                 else
                 {
-                    return !locked && priorityCount == 0;
+                    priorityReadCount++;
+                }
+            }
+            cv.wait(lock, [this, priority, write]{
+                bool isYielding = std::this_thread::get_id() == yieldingThreadId;
+                if(isYielding)
+                {
+                    return priorityReadCount == 0;
+                }
+                if(!write) // read only
+                {
+                    if(!locked)
+                    {
+                        return true;
+                    }
+                    if(!writing)
+                    {
+                        if(priority)
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            return priorityWriteCount == 0; // if no priority write waiters, allow read lock
+                        }
+                    }
+                    return false;
+                }
+                else
+                {
+                    if(!allowWrite)
+                    {
+                        return false;
+                    }
+                    if(priority)
+                    {
+                        return !locked;
+                    }
+                    else
+                    {
+                        return !locked && priorityReadCount == 0 && priorityWriteCount == 0;
+                    }
                 }
             });
             locked = true;
-            waitingWrite = false;
-            ownerThreadId = std::this_thread::get_id();
-
-            if(priority)
+            writing = write;
+            if(!write)
             {
-                priorityCount--;
+                readerCount++;
+            }
+            if (priority)
+            {
+                if (write)
+                {
+                    priorityWriteCount--;
+                }
+                else
+                {
+                    priorityReadCount--;
+                }
             }
         }
 
-        void unlock()
+        void unlock(bool write)
         {
             std::unique_lock<std::mutex> lock(mutex);
-            if(std::this_thread::get_id() != ownerThreadId)
+            if(write)
             {
-                throw Error{"Unlocking a mutex not owned by this thread", Error::Type::Internal};
+                locked = false;
+                writing = false;
             }
-            locked = false;
+            else
+            {
+                readerCount--;
+                if(readerCount == 0)
+                {
+                    locked = false;
+                }
+            }
             cv.notify_all();
         }
 
-        // try to release the mutex, if there is no waiters, return
-        // if there are waiters, unlock the mutex and wait them finished and give back the mutex
-        void yield()
+        // called by the writer thread with low priority
+        // this function will try to release lock for a while, allowing priority readers to acquire the lock
+        // if priority writers are waiting, please call hasWriteWaiters() to check if there are any priority writers waiting instead of using this function
+        void yield(bool priority, bool write)
         {
+            if(!(!priority && write))
+            {
+                return;
+            }
             {
                 std::unique_lock<std::mutex> lock(mutex);
-                if(std::this_thread::get_id() != ownerThreadId)
-                {
-                    throw Error{"Unlocking a mutex not owned by this thread", Error::Type::Internal};
-                }
-                if(priorityCount == 0)
+                if (!writing || priorityReadCount)
                 {
                     return;
                 }
+                allowWrite = false;
                 locked = false;
+                writing = false;
+                yieldingThreadId = std::this_thread::get_id();
                 cv.notify_all();
             }
-            lock();
+            lock(priority, write);
+            allowWrite = true;
         }
 
-        bool hasPriorityWaiters() const
+        // called by low priority reader/writer thread
+        // check if there are any priority writers waiting
+        // if return true, it means you have to exit the lock and wait for priority writers to finish
+        bool hasPriorityWaiters(bool priority, bool write) const
         {
             std::unique_lock<std::mutex> lock(mutex);
-            return priorityCount > 0;
+            if(priority)
+            {
+                return false;
+            }
+            return priorityWriteCount > 0 || priorityReadCount > 0;
         }
 
         bool isLocked() const
         {
             std::unique_lock<std::mutex> lock(mutex);
             return locked;
-        }
-
-        bool isWaitingWrite() const
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            return waitingWrite;
         }
     };
 
@@ -325,31 +377,30 @@ namespace Utils
     private:
         PriorityMutex &mutex;
         bool priority = false;
+        bool write = false;
     public:
-        LockGuard(PriorityMutex &mutex, bool priority = false, bool write = false) : mutex(mutex), priority(priority)
+        LockGuard(PriorityMutex &mutex, bool priority, bool write) : mutex(mutex), priority(priority), write(write)
         {
             mutex.lock(priority, write);
         }
         ~LockGuard()
         {
-            mutex.unlock();
+            mutex.unlock(write);
         }
         LockGuard(const LockGuard &) = delete;
         LockGuard &operator=(const LockGuard &) = delete;
 
+        // called by low priority writer thread to yield the lock for high priority readers
         void yield()
         {
-            mutex.yield();
+            mutex.yield(priority, write);
         }
 
-        bool hasPriorityWaiters() const
+        // called by low priority reader/writer thread to check if there are any priority writers waiting
+        // if return true, it means you have to exit the lock and wait for priority writers to finish
+        bool needRelease()
         {
-            return mutex.hasPriorityWaiters();
-        }
-
-        bool hasWriteWaiters() const
-        {
-            return mutex.isWaitingWrite();
+            return mutex.hasPriorityWaiters(priority, write);
         }
     };
 
@@ -366,85 +417,26 @@ namespace Utils
         std::atomic<bool> shutdownFlag = false;
         std::atomic<bool> retFlag = false; // flag to notice workfunction to return
         std::atomic<bool> is_running = false; // flag if std::thread object is not return
+        std::atomic<bool> is_waiting = false; // flag if thread is waiting for wakeup
+
+        const std::string threadName;
 
         std::function<void(std::atomic<bool>&)> workFunction;
         std::function<void(const std::exception&)> errorHandler;
 
         // wrapper to make work function exception safe and support pause and wakeup
-        void workFuncWrapper()
-        {
-            is_running = true;
-            while(!shutdownFlag)
-            {
-                retFlag = false;
-                try
-                {
-                    workFunction(retFlag);
-                }
-                catch (const std::exception &e)
-                {
-                    if (errorHandler)
-                    {
-                        errorHandler(e);
-                    }
-                    else
-                    {
-                        logger.warning("Worker thread error: " + std::string(e.what()) +
-                                     ", no error handler, may cause unexpected behavior.");
-                    }
-                }
-                std::unique_lock<std::mutex> lock(mutex);
-                cv.wait(lock, [this] { 
-                    return shutdownFlag.load() || wakeUpFlag.load(); 
-                });
-                wakeUpFlag = false;
-            }
-            is_running = false;
-        }
+        void workFuncWrapper();
     public:
-        WorkerThread(std::function<void(std::atomic<bool>&)> workFunction, std::function<void(const std::exception& e)> errorHandler = nullptr) : workFunction(workFunction), errorHandler(errorHandler){}
+        WorkerThread(const std::string& threadName, std::function<void(std::atomic<bool>&)> workFunction, std::function<void(const std::exception& e)> errorHandler = nullptr) : workFunction(workFunction), errorHandler(errorHandler), threadName(threadName){}
 
-        ~WorkerThread()
-        {
-            shutdown();
-        }
-        
-        void start()
-        {
-            if(is_running)
-            {
-                wakeUp();
-                return;
-            }
-            shutdownFlag = false;
-            retFlag = false;
-            thread = std::thread(&WorkerThread::workFuncWrapper, this);
-        }
+        ~WorkerThread();
 
+        void start();
         // This method will stop workfunction but will not destroy the thread
-        void pause()
-        {
-            retFlag = true;
-        }
-
-        void wakeUp()
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            wakeUpFlag = true;
-            cv.notify_all();
-        }
-
+        void pause();
+        void wakeUp();
         // this method will stop workfunction and destroy the thread
-        void shutdown()
-        {
-            shutdownFlag = true;
-            pause();
-            wakeUp();
-            if (thread.joinable())
-            {
-                thread.join();
-            }
-        }
+        void shutdown();
 
         bool isRunning() const
         {
@@ -454,4 +446,6 @@ namespace Utils
 
     // a non-blocking check for input
     bool hasInput();
+
+    void setThreadName(const std::string &name);
 }
