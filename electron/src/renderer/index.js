@@ -191,6 +191,7 @@ switch(windowType){
     break
   case 'repoList':
     RepoListWindowInit()
+    // window.openSettingsWindow()
     break
   case 'settings':
     

@@ -1,0 +1,12 @@
+.biaoqian{
+    background-color: black;
+    color: white;
+    height: 30px;
+    width: 100%;
+    display: flex;
+}
+.conversation-container{
+    background-color: #666666;
+    flex: 1;
+    display: flex
+}
