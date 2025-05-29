@@ -26,7 +26,7 @@ private:
     static std::unordered_map<std::filesystem::path, std::weak_ptr<Ort::Session>> instancesSessions;
     static std::unordered_map<Ort::Session *, std::shared_ptr<std::mutex>> sessionMutexes; // mutex for each session, to make sure only one thread can run the session at a time
 
-
+    static std::atomic<int> instanceCount;
     std::filesystem::path modelDirPath; // the path of the model directory
 protected:
     static std::shared_ptr<Ort::Env> env; // manage ONNX environment, only initialized once
@@ -47,6 +47,8 @@ protected:
 public:
     // initialize the ONNX environment for all ONNX models
     static void initialize();
+
+    static void release();
     // destructor
     ~ONNXModel();
 

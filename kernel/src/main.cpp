@@ -99,6 +99,7 @@ int main()
         // KernelServer::openServer(dataPath).run(); // for debug
     }
     logger.info("KernelServer stopped.");
+    ONNXModel::release();
     return 0;
 }
 

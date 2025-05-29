@@ -1,4 +1,4 @@
-#include "ONNXmodel.h"
+#include "ONNXModel.h"
 
 #include <iostream>
 #include <string>
@@ -62,22 +62,24 @@ std::unordered_map<std::filesystem::path, std::weak_ptr<Ort::Session>> ONNXModel
 
 std::unordered_map<Ort::Session *, std::shared_ptr<std::mutex>> ONNXModel::sessionMutexes;
 
-namespace
-{
-    struct ONNXInitializer
-    {
-    private:
-        ONNXInitializer()
-        {
-            ONNXModel::initialize();
-        }
-    public:
-        static void initialize()
-        {
-            static ONNXInitializer instance;
-        }
-    };
-}
+std::atomic<int> ONNXModel::instanceCount = 0;
+
+// namespace
+// {
+//     struct ONNXInitializer
+//     {
+//     private:
+//         ONNXInitializer()
+//         {
+//             ONNXModel::initialize();
+//         }
+//     public:
+//         static void initialize()
+//         {
+//             static ONNXInitializer instance;
+//         }
+//     };
+// }
 
 void ONNXModel::initialize()
 {
@@ -86,10 +88,24 @@ void ONNXModel::initialize()
     memoryInfo.reset(new Ort::MemoryInfo(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault))); // default memory info in cpu
 }
 
+void ONNXModel::release()
+{
+    std::lock_guard<std::mutex> lock(ONNXModel::mutex); // lock the mutex
+    ONNXModel::instancesSessions.clear(); // clear all sessions
+    ONNXModel::sessionMutexes.clear(); // clear all session mutexes
+    ONNXModel::env.reset(); // release env
+    ONNXModel::allocator.reset(); // release allocator
+    ONNXModel::memoryInfo.reset(); // release memory info
+}
+
 ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf): 
     modelDirPath(targetModelDirPath)
 {
-    ONNXInitializer::initialize();
+    if(instanceCount == 0)
+    {
+        initialize();
+    }
+    instanceCount++;
     {
         std::lock_guard<std::mutex> lock(mutex); // lock the mutex
 
@@ -209,6 +225,11 @@ ONNXModel::~ONNXModel()
         }
         session.reset(); // release session
         sessionMutex.reset(); // release mutex
+    }
+    instanceCount--;
+    if(instanceCount == 0)
+    {
+        release();
     }
 }
 
