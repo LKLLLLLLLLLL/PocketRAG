@@ -26,7 +26,7 @@ private:
     static std::unordered_map<std::filesystem::path, std::weak_ptr<Ort::Session>> instancesSessions;
     static std::unordered_map<Ort::Session *, std::shared_ptr<std::mutex>> sessionMutexes; // mutex for each session, to make sure only one thread can run the session at a time
 
-
+    static std::atomic<int> instanceCount;
     std::filesystem::path modelDirPath; // the path of the model directory
 protected:
     static std::shared_ptr<Ort::Env> env; // manage ONNX environment, only initialized once
@@ -47,8 +47,11 @@ protected:
 public:
     // initialize the ONNX environment for all ONNX models
     static void initialize();
+
+    // release the ONNX environment when all ONNX Model instances are destroyed
+    static void release();
     // destructor
-    virtual ~ONNXModel();
+    ~ONNXModel();
 
 };
 
@@ -79,6 +82,7 @@ public:
     // will find `model.onnx` & `model.onnx_data` & `sentencepiece.bpe.model` in the modelDirPath,
     // modelDirPath should end with `/`
     EmbeddingModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+    ~EmbeddingModel() = default;
 
     // get embedding dimension
     inline int getDimension() const { return embeddingDimension; }

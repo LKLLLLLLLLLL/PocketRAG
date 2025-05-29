@@ -1,4 +1,4 @@
-#include "ONNXmodel.h"
+#include "ONNXModel.h"
 
 #include <iostream>
 #include <string>
@@ -54,30 +54,32 @@ void printTensorData(const Ort::Value &tensor, const std::string &name, int maxS
 // ------------------------ ONNXModel ------------------------ //
 std::shared_ptr<Ort::Env> ONNXModel::env;
 
-std::mutex ONNXModel::mutex;
-std::unordered_map<std::filesystem::path, std::weak_ptr<Ort::Session>> ONNXModel::instancesSessions;
-
 std::shared_ptr<Ort::AllocatorWithDefaultOptions> ONNXModel::allocator;
 std::shared_ptr<Ort::MemoryInfo> ONNXModel::memoryInfo;
 
+std::mutex ONNXModel::mutex;
+std::unordered_map<std::filesystem::path, std::weak_ptr<Ort::Session>> ONNXModel::instancesSessions;
+
 std::unordered_map<Ort::Session *, std::shared_ptr<std::mutex>> ONNXModel::sessionMutexes;
 
-namespace
-{
-    struct ONNXInitializer
-    {
-    private:
-        ONNXInitializer()
-        {
-            ONNXModel::initialize();
-        }
-    public:
-        static void initialize()
-        {
-            static ONNXInitializer instance;
-        }
-    };
-}
+std::atomic<int> ONNXModel::instanceCount = 0;
+
+// namespace
+// {
+//     struct ONNXInitializer
+//     {
+//     private:
+//         ONNXInitializer()
+//         {
+//             ONNXModel::initialize();
+//         }
+//     public:
+//         static void initialize()
+//         {
+//             static ONNXInitializer instance;
+//         }
+//     };
+// }
 
 void ONNXModel::initialize()
 {
@@ -86,10 +88,24 @@ void ONNXModel::initialize()
     memoryInfo.reset(new Ort::MemoryInfo(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault))); // default memory info in cpu
 }
 
+void ONNXModel::release()
+{
+    std::lock_guard<std::mutex> lock(ONNXModel::mutex); // lock the mutex
+    ONNXModel::instancesSessions.clear(); // clear all sessions
+    ONNXModel::sessionMutexes.clear(); // clear all session mutexes
+    ONNXModel::env.reset(); // release env
+    ONNXModel::allocator.reset(); // release allocator
+    ONNXModel::memoryInfo.reset(); // release memory info
+}
+
 ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf): 
     modelDirPath(targetModelDirPath)
 {
-    ONNXInitializer::initialize();
+    if(instanceCount == 0)
+    {
+        initialize();
+    }
+    instanceCount++;
     {
         std::lock_guard<std::mutex> lock(mutex); // lock the mutex
 
@@ -110,12 +126,21 @@ ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfS
             // configure device and perf setting
             Ort::SessionOptions sessionOptions;
             sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-            if (dev == device::cuda)
-            {
-                OrtCUDAProviderOptions cudaOptions;
-                sessionOptions.AppendExecutionProvider_CUDA(cudaOptions);
-            }
-            else if (dev == device::cpu)
+// #ifdef __APPLE__
+//             std::unordered_map<std::string, std::string> provider_options;
+//             provider_options["ModelFormat"] = "MLProgram";
+//             provider_options["MLComputeUnits"] = "CPUAndGPU"; // use both CPU and GPU
+//             provider_options["RequireStaticInputShapes"] = "1";
+//             provider_options["EnableOnSubgraphs"] = "0";
+//             sessionOptions.AppendExecutionProvider("CoreML", provider_options);
+// #elif defined(_WIN32)
+//             if (dev == device::cuda)
+//             {
+//                 OrtCUDAProviderOptions cudaOptions;
+//                 sessionOptions.AppendExecutionProvider_CUDA(cudaOptions);
+//             }
+// #endif
+            if (dev == device::cpu)
             {
                 if (perf == perfSetting::low) // limit max thread
                 {
@@ -124,7 +149,7 @@ ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfS
                 }
                 // sessionOptions use all thread in default
             }
-
+            
             // open session
             auto modelPath = targetModelDirPath / "model.onnx";
             if (!std::filesystem::exists(modelPath))
@@ -200,6 +225,11 @@ ONNXModel::~ONNXModel()
         }
         session.reset(); // release session
         sessionMutex.reset(); // release mutex
+    }
+    instanceCount--;
+    if(instanceCount == 0)
+    {
+        release();
     }
 }
 

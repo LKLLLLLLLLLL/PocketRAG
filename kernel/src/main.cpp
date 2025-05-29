@@ -88,6 +88,8 @@
 std::filesystem::path dataPath = std::filesystem::path (".") / "userData";
 Logger logger(dataPath / "logs", false, Logger::Level::DEBUG);
 
+void crash_handler();
+
 void server_terminate_handler();
 
 int main()
@@ -95,13 +97,22 @@ int main()
     std::set_terminate(server_terminate_handler);
     Utils::setup_utf8_console();
     {
-        KernelServer::openServer(dataPath).run();
+        auto server = KernelServer(dataPath);
+        try
+        {
+            server.run();
+        }
+        catch(...)
+        {
+            crash_handler();
+            return EXIT_FAILURE;
+        }
     }
     logger.info("KernelServer stopped.");
     return 0;
 }
 
-void server_terminate_handler()
+void crash_handler()
 {
     try
     {
@@ -142,6 +153,10 @@ void server_terminate_handler()
     {
         std::cerr << "KernelServer crashed, Failed to log exception. " << std::endl;
     }
+}
 
+void server_terminate_handler()
+{
+    crash_handler();
     std::exit(EXIT_FAILURE);
 }

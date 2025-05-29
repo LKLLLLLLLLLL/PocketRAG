@@ -9,6 +9,8 @@
 #include <fstream>
 #include <thread>
 #include <source_location>
+#include <sys/select.h>
+#include <unistd.h>
 namespace xxhash
 {
     #include <xxhash.h>
@@ -24,7 +26,7 @@ A global logger.
 */
 class Logger
 {
-  public:
+public:
     enum class Level
     {
         DEBUG,     // Debug information
@@ -35,14 +37,14 @@ class Logger
     };
     static const std::string levelToString(Level level);
 
-  private:
+private:
     Level logLevel = Level::INFO;
     std::mutex mutex;
     std::filesystem::path logFilePath;
     std::ofstream logFile;
     bool toConsole = true;
 
-  public:
+public:
     Logger(const std::filesystem::path &logFileDir, bool toConsole, Level logLevel = Level::INFO);
 
     ~Logger() = default;
@@ -62,7 +64,7 @@ A universal error class for the project.
 */
 class Error : public std::exception
 {
-  public:
+public:
     enum class Type
     {
         Network,
@@ -74,11 +76,11 @@ class Error : public std::exception
     };
     static std::string typeToString(Type type);
 
-  private:
+private:
     std::string message;
     Type type;
 
-  public:
+public:
     Error(const std::string &message, Type type = Type::Unknown,
           const std::source_location location = std::source_location::current());
 
@@ -178,6 +180,18 @@ namespace Utils
         // block until a message is available
         std::shared_ptr<Message> pop();
 
+        std::shared_ptr<Message> tryPop()
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            if (queue.empty() || shutdownFlag.load())
+            {
+                return nullptr;
+            }
+            auto message = queue.front();
+            queue.pop();
+            return message;
+        }
+
         bool empty();
 
         // wake all waiting threads and pop() will exit with nullptr
@@ -211,18 +225,23 @@ namespace Utils
     class PriorityMutex
     {
     private:
-        mutable std::mutex mutex; // mutex to protect priority mutex ifself
+        mutable std::mutex mutex; // mutex to protect priority mutex itself
         std::condition_variable cv;
         bool locked = false;
+        bool waitingWrite = false; // if there is a thread waiting for write lock
         std::thread::id ownerThreadId;
         int priorityCount = 0;
     public:
-        void lock(bool priority = false)
+        void lock(bool priority = false, bool write = false)
         {
             std::unique_lock<std::mutex> lock(mutex);
             if(priority)
             {
                 priorityCount++;
+            }
+            if(write && priority)
+            {
+                waitingWrite = true;
             }
             cv.wait(lock, [this, priority]{
                 if(priority)
@@ -235,6 +254,7 @@ namespace Utils
                 }
             });
             locked = true;
+            waitingWrite = false;
             ownerThreadId = std::this_thread::get_id();
 
             if(priority)
@@ -285,6 +305,12 @@ namespace Utils
             std::unique_lock<std::mutex> lock(mutex);
             return locked;
         }
+
+        bool isWaitingWrite() const
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            return waitingWrite;
+        }
     };
 
     class LockGuard
@@ -293,9 +319,9 @@ namespace Utils
         PriorityMutex &mutex;
         bool priority = false;
     public:
-        LockGuard(PriorityMutex &mutex, bool priority = false) : mutex(mutex), priority(priority)
+        LockGuard(PriorityMutex &mutex, bool priority = false, bool write = false) : mutex(mutex), priority(priority)
         {
-            mutex.lock(priority);
+            mutex.lock(priority, write);
         }
         ~LockGuard()
         {
@@ -312,6 +338,11 @@ namespace Utils
         bool hasPriorityWaiters() const
         {
             return mutex.hasPriorityWaiters();
+        }
+
+        bool hasWriteWaiters() const
+        {
+            return mutex.isWaitingWrite();
         }
     };
 
@@ -345,6 +376,10 @@ namespace Utils
                 }
                 catch (const std::exception &e)
                 {
+                    // if(shutdownFlag.load())
+                    // {
+                    //     break;
+                    // }
                     if (errorHandler)
                     {
                         errorHandler(e);
@@ -402,6 +437,7 @@ namespace Utils
             shutdownFlag = true;
             wakeUpFlag = true;
             cv.notify_all();
+            pause();
             if (thread.joinable())
             {
                 thread.join();
@@ -413,4 +449,18 @@ namespace Utils
             return is_running.load();
         }
     };
+
+    inline bool hasInput(int timeoutSec = 0, int timeoutUSec = 0)
+    {
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(STDIN_FILENO, &readfds);
+
+        struct timeval timeout;
+        timeout.tv_sec = timeoutSec;
+        timeout.tv_usec = timeoutUSec;
+
+        // 检查stdin是否可读，0表示立即返回
+        return select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) > 0;
+    }
 }

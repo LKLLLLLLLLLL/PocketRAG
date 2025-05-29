@@ -145,4 +145,9 @@ private:
     }
 
     void stopBackgroundProcess();
+
+    Utils::PriorityMutex* getMutex() const
+    {
+        return &mutex;
+    }
 };
