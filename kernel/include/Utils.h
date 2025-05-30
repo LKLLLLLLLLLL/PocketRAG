@@ -268,29 +268,17 @@ namespace Utils
         bool priority = false;
         bool write = false;
     public:
-        LockGuard(PriorityMutex &mutex, bool priority, bool write) : mutex(mutex), priority(priority), write(write)
-        {
-            mutex.lock(priority, write);
-        }
-        ~LockGuard()
-        {
-            mutex.unlock(write);
-        }
+        LockGuard(PriorityMutex &mutex, bool priority, bool write);
+        ~LockGuard();
         LockGuard(const LockGuard &) = delete;
         LockGuard &operator=(const LockGuard &) = delete;
 
         // called by low priority writer thread to yield the lock for high priority readers
-        void yield()
-        {
-            mutex.yield(priority, write);
-        }
+        void yield();
 
         // called by low priority reader/writer thread to check if there are any priority writers waiting
         // if return true, it means you have to exit the lock and wait for priority writers to finish
-        bool needRelease()
-        {
-            return mutex.hasPriorityWaiters(priority, write);
-        }
+        bool needRelease();
     };
 
     // A safe wrapper for thread, gurantee will not throw exception
@@ -331,53 +319,15 @@ namespace Utils
         void wakeUp();
         // this method will stop workfunction and destroy the thread
         void shutdown();
-        void notify()
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            noticeFlag = true;
-            notice.notify_all(); 
-        }
+        void notify();
+        void wait();
+        void wait_for(std::chrono::milliseconds duration);
 
-        void wait()
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            cv.wait(lock, [this](){
-                return noticeFlag.load();
-            });
-            noticeFlag = false;
-        }
+        bool isRunning() const;
+        std::condition_variable& getNotice();
+        bool hasNotice() const;
 
-        void wait_for(std::chrono::milliseconds duration)
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            cv.wait_for(lock, duration, [this](){
-                return noticeFlag.load();
-            });
-            if(noticeFlag.load())
-            {
-                noticeFlag = false;
-            }
-        }
-
-        bool isRunning() const
-        {
-            return is_running.load();
-        }
-
-        std::condition_variable& getNotice()
-        {
-            return notice;
-        }
-
-        bool hasNotice() const
-        {
-            return noticeFlag.load();
-        }
-
-        static Utils::WorkerThread* getCurrentThread()
-        {
-            return currentThread;
-        }
+        static Utils::WorkerThread* getCurrentThread();
     };
 
     // a non-blocking check for input

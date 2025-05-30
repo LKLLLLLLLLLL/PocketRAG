@@ -369,6 +369,8 @@ void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &sql
         {
             return;
         }
+        sqliteLock.yield();
+        repoLock.yield();
         if (sqliteLock.needRelease() || repoLock.needRelease())
         {
             return;
@@ -433,8 +435,6 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
 {
     Utils::LockGuard lock(sqliteMutex, true, false); // lock for reading embedding models and vector tables
     Utils::LockGuard repoLock(repoMutex, true, false); // lock for vector tables and embeddings
-
-    // suspendBackgroundProcess(); // for better performance // for debug
 
     int vectorLimit = limit * 2;
     int fts5Limit = limit * 2 * embeddings.size();
@@ -613,8 +613,6 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         result.highlightedContent = TextSearchTable::reHighlight(result.highlightedContent, keyWords);
         result.highlightedMetadata = TextSearchTable::reHighlight(result.highlightedMetadata, keyWords);
     }
-
-    startBackgroundProcess();
 
     return uniqueResults;
 }

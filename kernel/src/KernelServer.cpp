@@ -169,13 +169,10 @@ void KernelServer::handleMessage(nlohmann::json& json)
             return;
         }
         auto type = json["message"]["type"].get<std::string>();
-        if(type == "stopAll")
+        if(stopAllFlag)
         {
-            json["status"]["code"] = "SUCCESS";
-            json["status"]["message"] = "";
-            sendBack(json);
-            stopAllFlag = true;
             stopMessageSender();
+            stopMessageReceiver();
             return;
         }
         else if(type == "getRepos") // get repos list
@@ -626,15 +623,7 @@ void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
     std::string input = {}; // max input size: 2048Byte
     while (true)
     {
-        while(input.empty() && !stopFlag.load())
-        {
-            if (Utils::hasInput())
-            {
-                std::getline(std::cin, input);
-                break;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        }
+        std::getline(std::cin, input);
         if(stopFlag.load())
         {
             break;
@@ -652,6 +641,16 @@ void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
             messageType = inputJson["message"]["type"].get<std::string>();
             if (!toMain)
                 transmitMessage(inputJson);
+            else if(messageType == "stopAll") // handle stopAll message in receiver thread
+            {
+                inputJson["status"]["code"] = "SUCCESS";
+                inputJson["status"]["message"] = "";
+                sendBack(inputJson);
+                stopAllFlag = true;
+                mainThreadCondition.notify_all();
+                input.clear();
+                return; // stop message receiver thread
+            }
             else
                 receiveMessageQueue->push(std::make_shared<Utils::MessageQueue::Message>(-1, std::move(inputJson)));
         }
