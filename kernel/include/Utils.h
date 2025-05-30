@@ -317,7 +317,9 @@ namespace Utils
         // This method will stop workfunction but will not destroy the thread
         void pause();
         void wakeUp();
-        // this method will stop workfunction and destroy the thread
+        // this method will make work thread return but will not join the thread
+        void stop();
+        // this method will make work thread return and destroy the thread
         void shutdown();
         void notify();
         void wait();

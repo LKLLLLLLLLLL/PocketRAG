@@ -698,6 +698,14 @@ void Utils::WorkerThread::wakeUp()
     cv.notify_all();
 }
 
+void Utils::WorkerThread::stop()
+{
+    shutdownFlag = true;
+    notify();
+    pause();
+    wakeUp();
+}
+
 void Utils::WorkerThread::shutdown()
 {
     shutdownFlag = true;

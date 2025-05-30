@@ -268,7 +268,7 @@ void Repository::startBackgroundProcess()
                 throw e;
             }
             errorCallback(std::current_exception());
-            backgroundThread->pause();
+            backgroundThread->stop();
             return;
         }
         logger.warning("[Repository.backgroundProcess] Crashed with: " + std::string(e.what()) +

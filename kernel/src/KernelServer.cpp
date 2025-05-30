@@ -491,6 +491,7 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
                             Error::Type::Internal};
             }
             windowIdToSessionId.erase(windowIdIt->second);
+            int64_t windowId = windowIdIt->second;
             sessionIdToWindowId.erase(sessionId);
             auto threadIt = sessionThreads.find(sessionId);
             if (threadIt == sessionThreads.end())
@@ -499,7 +500,7 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
                             Error::Type::Internal};
             }
             auto thisThread = std::move(threadIt->second);
-            thisThread->pause();
+            thisThread->stop();
             crashedThreads.push(std::move(thisThread));
             {
                 std::lock_guard<std::mutex> lock(errorMutex);
@@ -510,6 +511,14 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
                 mainThreadCondition.notify_all();
             }
             logger.warning("[KernelServer] Session thread crashed: " + std::string(e.what()) + ", sessionId: " + std::to_string(sessionId));
+
+            // send crash message to frontend
+            nlohmann::json errorJson;
+            errorJson["toMain"] = false;
+            errorJson["message"]["type"] = "sessionCrashed";
+            errorJson["message"]["error"] = std::string(e.what());
+            errorJson["sessionId"] = windowId;
+            send(errorJson, nullptr);
         }
     });
     sessionThreads[sessionId]->start();
@@ -532,7 +541,8 @@ void KernelServer::startMessageSender()
             error = std::make_exception_ptr(e);
         }
         logger.warning("[KernelServer] Message sender thread crashed: " + std::string(e.what()));
-        messageSenderThread->pause();
+        messageSenderThread->stop();
+        mainThreadCondition.notify_all();
     });
     messageSenderThread->start();
 }
@@ -578,6 +588,12 @@ void KernelServer::messageSender(std::atomic<bool> &stopFlag, Utils::WorkerThrea
             {
                 message->data["sessionId"] = it->second;
             }
+            else if(message->data.contains("sessionId"))
+            {
+                // if sessionId is not found, it means the message is from kernel server
+                // and should be sent to window
+                // no need to change sessionId
+            }
             else
             {
                 message->data["sessionId"] = -1; // message from kernel server
@@ -604,7 +620,8 @@ void KernelServer::startMessageReceiver()
                 error = std::make_exception_ptr(e);
             }
             logger.warning("[KernelServer] Message receiver thread crashed: " + std::string(e.what()));
-            messageReceiverThread->pause();
+            messageReceiverThread->stop();
+            mainThreadCondition.notify_all();
         });
     messageReceiverThread->start();
 }

@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <iostream>
 
-// std::filesystem::path dataPath = std::filesystem::path (".") / "userData";
-std::filesystem::path dataPath = std::filesystem::path(std::getenv("POCKETRAG_USERDATA_PATH"));
+std::filesystem::path dataPath = std::filesystem::path (".") / "userData";
+// std::filesystem::path dataPath = std::filesystem::path(std::getenv("POCKETRAG_USERDATA_PATH"));
 Logger logger(dataPath / "logs", false, Logger::Level::DEBUG, 20);
 
 void crash_handler();
@@ -64,7 +64,7 @@ void crash_handler()
         errorJson["toMain"] = true;
         errorJson["callbackId"] = 0;
         errorJson["isReply"] = false;
-        errorJson["message"]["type"] = "kernelServerCrash";
+        errorJson["message"]["type"] = "kernelServerCrashed";
         errorJson["message"]["error"] = error_message;
         std::cout << errorJson.dump() << std::endl << std::flush;
     }
