@@ -7,6 +7,9 @@
 # jetbrains directory
 .idea/
 
+# igore tests directory
+tests/
+
 # OS specific files
 .DS_Store
 Thumbs.db

@@ -6,7 +6,7 @@ const urlParams = new URLSearchParams(window.location.search)
 const windowType = urlParams.get('windowType') // obtain the window type
 window.callbacks = new Map()
 window.dateNow = await window.electronAPI.dateNow()
-window.timeLimit = 30000
+window.timeLimit = 60000
 
 window.callbackRegister = (callback) => {
   const callbackId = Date.now() - window.dateNow

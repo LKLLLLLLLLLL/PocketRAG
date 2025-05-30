@@ -5,7 +5,8 @@ const EventEmitter = require('events')
 const fs = require('node:fs')
 //import electron and node modules
 
-const stateFile = path.join(app.getPath('userData'), 'windowState.json')
+const userDataPath = /*app.getPath('userData')*/ path.join(__dirname, '..', '..', '..', 'tests')
+const stateFile = path.join(userDataPath, 'windowState.json')
 const platform = process.platform
 const dateNow = Date.now()
 const windows = new Map()
@@ -24,7 +25,10 @@ if (platform === 'win32') {
 }
 let restartTime = 0
 let kernel = spawn(kernelPath, [], {
-  cwd: path.dirname(kernelPath) // set work directory to the same as the kernel path
+  cwd: path.dirname(kernelPath), // set work directory to the same as the kernel path
+  env: {
+    POCKETRAG_USERDATA_PATH: userDataPath
+  }
 })
 let isKernelRunning = true
 let isKernelManualKill = false
@@ -39,14 +43,14 @@ let readyPromise = new Promise((resolve, reject) => {
 kernel.on('error', (err) => {
   console.error('Failed to start kernel:', err)
   isKernelRunning = false
-  restartKernel()
+  restartKernel(true)
 })
 kernel.on('exit', (code, signal) => {
   console.log(`Kernel exited with code ${code} and signal ${signal}`)
   isKernelRunning = false
   if(!isKernelManualKill){
     if(code !== 0){
-      restartKernel()
+      restartKernel(false)
     }
     else {
       app.quit()
@@ -60,10 +64,10 @@ kernel.stderr.on('data', (err) => {
 })
 
 
-function restartKernel (){
+function restartKernel (isKernelError){
   console.log('restarting kernel...')
   restartTime++
-  if(BrowserWindow.getAllWindows().length === 0){
+  if(BrowserWindow.getAllWindows().length === 0 && !isKernelError){
     app.quit()
     return
   }
@@ -82,7 +86,10 @@ function restartKernel (){
     kernel.kill()
   }
   kernel = spawn(kernelPath, [], {
-    cwd: path.dirname(kernelPath)
+    cwd: path.dirname(kernelPath),
+    env: {
+      POCKETRAG_USERDATA_PATH: userDataPath
+    }
   })
   isKernelRunning = true
   readyPromise = new Promise((resolve, reject) => {
@@ -100,14 +107,14 @@ function restartKernel (){
   kernel.on('error', (err) => {
     console.error('Failed to start kernel:', err)
     isKernelRunning = false
-    restartKernel()    
+    restartKernel(true)    
   })
   kernel.on('exit', (code, signal) => {
     console.log(`Kernel exited with code ${code} and signal ${signal}`)
     isKernelRunning = false    
     if(!isKernelManualKill){
       if(code !== 0){
-        restartKernel()
+        restartKernel(false)
       }
       else {
         app.quit()
@@ -259,7 +266,8 @@ async function stdoutListener (data) {
             case 'kernelServerCrashed':
               if(!result.isReply){
                 console.error(result.message.error)
-                restartKernel()
+                isKernelRunning = false
+                restartKernel(false)
               }
               else {
                 console.error('isReply may be wrong, expected: false, but the result is: ', result)
@@ -775,6 +783,31 @@ function showMessageBoxSync(event, content) {
   dialog.showMessageBoxSync(window, content)
 }
 
+function generateTree(dir) {
+    const items = fs.readdirSync(dir, { withFileTypes: true })
+    return items.map((item) => {
+        const fullPath = path.join(dir, item.name)
+        if (item.isDirectory()) {
+          return {
+            title: item.name,
+            key: fullPath,
+            children: generateTree(fullPath)
+          }
+        } else if (item.isFile() && item.name.endsWith('.md')) {
+          return {
+            title: item.name,
+            key: fullPath,
+            isLeaf: true//后续根据这个判断是不是文件
+          }
+        }
+      }).filter(Boolean)
+}
+
+function getRepoFileTree(event, repoPath) {
+  const window = BrowserWindow.fromWebContents(event.sender)
+
+}
+
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
@@ -796,6 +829,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('minimizeWindow', minimizeWindow)
   ipcMain.handle('showMessageBoxSync', showMessageBoxSync)
   ipcMain.on('getApiUsage', getApiUsage)
+  ipcMain.on('getRepoFileTree', getRepoFileTree)
   //add the event listeners before the window is created
 
   createFirstWindow()
