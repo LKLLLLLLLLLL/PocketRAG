@@ -168,38 +168,6 @@ std::string Utils::getTimeStr()
     return std::string(buffer);
 }
 
-bool Utils::hasInput()
-{
-#ifdef _WIN32
-    DWORD fileType = GetFileType(GetStdHandle(STD_INPUT_HANDLE));
-    if (fileType == FILE_TYPE_CHAR)
-    {
-        return _kbhit() != 0;
-    }
-    else
-    {
-        HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-        DWORD bytesAvailable = 0;
-
-        if (PeekNamedPipe(hStdin, NULL, 0, NULL, &bytesAvailable, NULL))
-        {
-            return bytesAvailable > 0;
-        }
-        return false;
-    }
-#else
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(STDIN_FILENO, &readfds);
-
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-
-    return select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) > 0;
-#endif
-}
-
 void Utils::setThreadName(const std::string &name)
 {
 #if defined(__APPLE__)
@@ -560,7 +528,7 @@ void Utils::PriorityMutex::lock(bool priority, bool write)
         bool isYielding = std::this_thread::get_id() == yieldingThreadId;
         if (isYielding)
         {
-            return priorityReadCount == 0;
+            return priorityReadCount == 0 && readerCount == 0;
         }
         if (!write) // read only
         {
@@ -637,13 +605,13 @@ void Utils::PriorityMutex::unlock(bool write)
 
 void Utils::PriorityMutex::yield(bool priority, bool write)
 {
-    if (!(!priority && write))
+    if (!(priority == false && write == true))
     {
         return;
     }
     {
         std::unique_lock<std::mutex> lock(mutex);
-        if (!writing || priorityReadCount)
+        if (!writing || priorityReadCount == 0)
         {
             return;
         }
@@ -653,8 +621,10 @@ void Utils::PriorityMutex::yield(bool priority, bool write)
         yieldingThreadId = std::this_thread::get_id();
         cv.notify_all();
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10)); // avoid other threads cannot acquire the lock immediately
     lock(priority, write);
     allowWrite = true;
+    yieldingThreadId = std::thread::id();
 }
 
 bool Utils::PriorityMutex::hasPriorityWaiters(bool priority, bool write) const
@@ -664,13 +634,35 @@ bool Utils::PriorityMutex::hasPriorityWaiters(bool priority, bool write) const
     {
         return false;
     }
-    return priorityWriteCount > 0 || priorityReadCount > 0;
+    return priorityWriteCount > 0;
 }
 
 bool Utils::PriorityMutex::isLocked() const
 {
     std::unique_lock<std::mutex> lock(mutex);
     return locked;
+}
+
+//--------------------------------LockGuard------------------------------//
+Utils::LockGuard::LockGuard(PriorityMutex &mutex, bool priority, bool write)
+    : mutex(mutex), priority(priority), write(write)
+{
+    mutex.lock(priority, write);
+}
+
+Utils::LockGuard::~LockGuard()
+{
+    mutex.unlock(write);
+}
+
+void Utils::LockGuard::yield()
+{
+    mutex.yield(priority, write);
+}
+
+bool Utils::LockGuard::needRelease()
+{
+    return mutex.hasPriorityWaiters(priority, write);
 }
 
 //--------------------------------WorkerThread------------------------------//
@@ -706,6 +698,14 @@ void Utils::WorkerThread::wakeUp()
     cv.notify_all();
 }
 
+void Utils::WorkerThread::stop()
+{
+    shutdownFlag = true;
+    notify();
+    pause();
+    wakeUp();
+}
+
 void Utils::WorkerThread::shutdown()
 {
     shutdownFlag = true;
@@ -716,6 +716,50 @@ void Utils::WorkerThread::shutdown()
     {
         thread.join();
     }
+}
+
+void Utils::WorkerThread::notify()
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    noticeFlag = true;
+    notice.notify_all();
+}
+
+void Utils::WorkerThread::wait()
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    cv.wait(lock, [this]() { return noticeFlag.load(); });
+    noticeFlag = false;
+}
+
+void Utils::WorkerThread::wait_for(std::chrono::milliseconds duration)
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    cv.wait_for(lock, duration, [this]() { return noticeFlag.load(); });
+    if (noticeFlag.load())
+    {
+        noticeFlag = false;
+    }
+}
+
+bool Utils::WorkerThread::isRunning() const
+{
+    return is_running.load();
+}
+
+std::condition_variable &Utils::WorkerThread::getNotice()
+{
+    return notice;
+}
+
+bool Utils::WorkerThread::hasNotice() const
+{
+    return noticeFlag.load();
+}
+
+Utils::WorkerThread *Utils::WorkerThread::getCurrentThread()
+{
+    return currentThread;
 }
 
 void Utils::WorkerThread::workFuncWrapper()

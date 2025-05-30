@@ -129,8 +129,8 @@ ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfS
 // #ifdef __APPLE__
 //             std::unordered_map<std::string, std::string> provider_options;
 //             provider_options["ModelFormat"] = "MLProgram";
-//             provider_options["MLComputeUnits"] = "CPUAndGPU"; // use both CPU and GPU
-//             provider_options["RequireStaticInputShapes"] = "1";
+//             provider_options["MLComputeUnits"] = "All";
+//             // provider_options["RequireStaticInputShapes"] = "1";
 //             provider_options["EnableOnSubgraphs"] = "0";
 //             sessionOptions.AppendExecutionProvider("CoreML", provider_options);
 // #elif defined(_WIN32)
@@ -142,12 +142,17 @@ ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfS
 // #endif
             if (dev == device::cpu)
             {
+                int maxThreads = std::thread::hardware_concurrency();
                 if (perf == perfSetting::low) // limit max thread
                 {
                     sessionOptions.SetIntraOpNumThreads(2);
                     sessionOptions.SetInterOpNumThreads(2);
                 }
-                // sessionOptions use all thread in default
+                else 
+                {
+                    sessionOptions.SetIntraOpNumThreads(maxThreads);
+                    sessionOptions.SetInterOpNumThreads(maxThreads);
+                }
             }
             
             // open session

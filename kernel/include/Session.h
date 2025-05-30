@@ -42,7 +42,7 @@ private:
 
     KernelServer& kernelServer;
     std::shared_ptr<Utils::CallbackManager> callbackManager = std::make_shared<Utils::CallbackManager>();
-    void sendBack(nlohmann::json& json);
+    void sendBack(nlohmann::json& json, std::shared_ptr<Utils::Timer> msgTimer = nullptr);
     void send(nlohmann::json& json, Utils::CallbackManager::Callback callback);
     void execCallback(nlohmann::json &json, int64_t callbackId);
 

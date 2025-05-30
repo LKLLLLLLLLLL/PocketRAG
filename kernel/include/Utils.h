@@ -166,43 +166,6 @@ namespace Utils
         void callCallback(int64_t callbackId, nlohmann::json &message);
     };
 
-    // a thread-safe message queue
-    class MessageQueue
-    {
-    public:
-        struct Message
-        {
-            int64_t sessionId; // -1 - KernelServer, others - Session ID
-            nlohmann::json data;
-        };
-    private:
-        std::queue<std::shared_ptr<Message>> queue;
-        mutable std::mutex mutex;
-        std::condition_variable conditionVariable;
-        std::atomic<bool> shutdownFlag = false;
-
-        std::condition_variable* outerConditionVariable = nullptr;
-
-    public:
-        void push(const std::shared_ptr<Message> &message);
-
-        // block until a message is available
-        std::shared_ptr<Message> pop();
-
-        std::shared_ptr<Message> tryPop();
-
-        std::shared_ptr<Message> popFor(std::chrono::milliseconds duration);
-
-        // this method will block until a message or argument cv is notified
-        // if condition is true, it will return nullptr
-        std::shared_ptr<Message> popWithCv(std::condition_variable *cv, std::function<bool()> condition);
-
-        bool empty();
-
-        // wake all waiting threads and pop() will exit with nullptr
-        void shutdown();
-    };
-
     /*
     A timer class can be used to log time cost of some code.
     Will log the time cost when the object is destructed.
@@ -224,6 +187,45 @@ namespace Utils
         ~Timer();
     };
 
+    // a thread-safe message queue
+    class MessageQueue
+    {
+      public:
+        struct Message
+        {
+            int64_t sessionId; // -1 - KernelServer, others - Session ID
+            nlohmann::json data;
+            std::shared_ptr<Timer> timer = nullptr; // for performance measurement
+        };
+
+      private:
+        std::queue<std::shared_ptr<Message>> queue;
+        mutable std::mutex mutex;
+        std::condition_variable conditionVariable;
+        std::atomic<bool> shutdownFlag = false;
+
+        std::condition_variable *outerConditionVariable = nullptr;
+
+      public:
+        void push(const std::shared_ptr<Message> &message);
+
+        // block until a message is available
+        std::shared_ptr<Message> pop();
+
+        std::shared_ptr<Message> tryPop();
+
+        std::shared_ptr<Message> popFor(std::chrono::milliseconds duration);
+
+        // this method will block until a message or argument cv is notified
+        // if condition is true, it will return nullptr
+        std::shared_ptr<Message> popWithCv(std::condition_variable *cv, std::function<bool()> condition);
+
+        bool empty();
+
+        // wake all waiting threads and pop() will exit with nullptr
+        void shutdown();
+    };
+
     /*
     A mutex class which supports priority and read/write locks.
     */
@@ -237,7 +239,7 @@ namespace Utils
         std::atomic<bool> writing = false; // if locked, this member indicates if it is a write lock
         int readerCount = 0; // number of readers holding the lock
         std::atomic<bool> allowWrite = true; // if false, no write lock can be acquired
-        std::thread::id yieldingThreadId; // thread id of the thread that is yielding the lock
+        std::thread::id yieldingThreadId = std::thread::id(); // thread id of the thread that is yielding the lock
 
         int priorityReadCount = 0;
         int priorityWriteCount = 0;
@@ -268,29 +270,17 @@ namespace Utils
         bool priority = false;
         bool write = false;
     public:
-        LockGuard(PriorityMutex &mutex, bool priority, bool write) : mutex(mutex), priority(priority), write(write)
-        {
-            mutex.lock(priority, write);
-        }
-        ~LockGuard()
-        {
-            mutex.unlock(write);
-        }
+        LockGuard(PriorityMutex &mutex, bool priority, bool write);
+        ~LockGuard();
         LockGuard(const LockGuard &) = delete;
         LockGuard &operator=(const LockGuard &) = delete;
 
         // called by low priority writer thread to yield the lock for high priority readers
-        void yield()
-        {
-            mutex.yield(priority, write);
-        }
+        void yield();
 
         // called by low priority reader/writer thread to check if there are any priority writers waiting
         // if return true, it means you have to exit the lock and wait for priority writers to finish
-        bool needRelease()
-        {
-            return mutex.hasPriorityWaiters(priority, write);
-        }
+        bool needRelease();
     };
 
     // A safe wrapper for thread, gurantee will not throw exception
@@ -329,55 +319,19 @@ namespace Utils
         // This method will stop workfunction but will not destroy the thread
         void pause();
         void wakeUp();
-        // this method will stop workfunction and destroy the thread
+        // this method will make work thread return but will not join the thread
+        void stop();
+        // this method will make work thread return and destroy the thread
         void shutdown();
-        void notify()
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            noticeFlag = true;
-            notice.notify_all(); 
-        }
+        void notify();
+        void wait();
+        void wait_for(std::chrono::milliseconds duration);
 
-        void wait()
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            cv.wait(lock, [this](){
-                return noticeFlag.load();
-            });
-            noticeFlag = false;
-        }
+        bool isRunning() const;
+        std::condition_variable& getNotice();
+        bool hasNotice() const;
 
-        void wait_for(std::chrono::milliseconds duration)
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            cv.wait_for(lock, duration, [this](){
-                return noticeFlag.load();
-            });
-            if(noticeFlag.load())
-            {
-                noticeFlag = false;
-            }
-        }
-
-        bool isRunning() const
-        {
-            return is_running.load();
-        }
-
-        std::condition_variable& getNotice()
-        {
-            return notice;
-        }
-
-        bool hasNotice() const
-        {
-            return noticeFlag.load();
-        }
-
-        static Utils::WorkerThread* getCurrentThread()
-        {
-            return currentThread;
-        }
+        static Utils::WorkerThread* getCurrentThread();
     };
 
     // a non-blocking check for input
