@@ -270,8 +270,8 @@ void Repository::startBackgroundProcess()
         logger.warning("[Repository.backgroundProcess] Crashed with: " + std::string(e.what()) +
                        ", restart count: " + std::to_string(restartCount) + ", restarting...");
     }; 
-    backgroundThread = std::make_shared<Utils::WorkerThread>(repoName + "backGround", [this](std::atomic<bool>& retFlag){
-        backgroundProcess(retFlag);
+    backgroundThread = std::make_shared<Utils::WorkerThread>(repoName + "backGround", [this](std::atomic<bool>& retFlag, Utils::WorkerThread& _){
+        backgroundProcess(retFlag); // no need to use condition_variable here, just run in a loop
     }, 
     errorHandler);
     backgroundThread->start();

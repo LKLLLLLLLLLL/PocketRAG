@@ -108,7 +108,6 @@ int main()
             return EXIT_FAILURE;
         }
     }
-    throw Error{"test error", Error::Type::Internal};
     logger.info("KernelServer stopped.");
     return 0;
 }

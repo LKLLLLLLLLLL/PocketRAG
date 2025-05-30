@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include <condition_variable>
 #include <exception>
 #include <filesystem>
 #include <string>
@@ -11,6 +12,7 @@
 #include <source_location>
 #ifdef _WIN32
     #include <conio.h>
+    #include <windows.h>
 #else
     #include <sys/select.h>
     #include <unistd.h>
@@ -179,6 +181,8 @@ namespace Utils
         std::condition_variable conditionVariable;
         std::atomic<bool> shutdownFlag = false;
 
+        std::condition_variable* outerConditionVariable = nullptr;
+
     public:
         void push(const std::shared_ptr<Message> &message);
 
@@ -186,6 +190,12 @@ namespace Utils
         std::shared_ptr<Message> pop();
 
         std::shared_ptr<Message> tryPop();
+
+        std::shared_ptr<Message> popFor(std::chrono::milliseconds duration);
+
+        // this method will block until a message or argument cv is notified
+        // if condition is true, it will return nullptr
+        std::shared_ptr<Message> popWithCv(std::condition_variable *cv, std::function<bool()> condition);
 
         bool empty();
 
@@ -233,143 +243,22 @@ namespace Utils
         int priorityWriteCount = 0;
 
         friend class LockGuard;
-    // public:
-        void lock(bool priority, bool write)
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            if(priority)
-            {
-                if(write)
-                {
-                    priorityWriteCount++;
-                }
-                else
-                {
-                    priorityReadCount++;
-                }
-            }
-            cv.wait(lock, [this, priority, write]{
-                bool isYielding = std::this_thread::get_id() == yieldingThreadId;
-                if(isYielding)
-                {
-                    return priorityReadCount == 0;
-                }
-                if(!write) // read only
-                {
-                    if(!locked)
-                    {
-                        return true;
-                    }
-                    if(!writing)
-                    {
-                        if(priority)
-                        {
-                            return true;
-                        }
-                        else
-                        {
-                            return priorityWriteCount == 0; // if no priority write waiters, allow read lock
-                        }
-                    }
-                    return false;
-                }
-                else
-                {
-                    if(!allowWrite)
-                    {
-                        return false;
-                    }
-                    if(priority)
-                    {
-                        return !locked;
-                    }
-                    else
-                    {
-                        return !locked && priorityReadCount == 0 && priorityWriteCount == 0;
-                    }
-                }
-            });
-            locked = true;
-            writing = write;
-            if(!write)
-            {
-                readerCount++;
-            }
-            if (priority)
-            {
-                if (write)
-                {
-                    priorityWriteCount--;
-                }
-                else
-                {
-                    priorityReadCount--;
-                }
-            }
-        }
 
-        void unlock(bool write)
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            if(write)
-            {
-                locked = false;
-                writing = false;
-            }
-            else
-            {
-                readerCount--;
-                if(readerCount == 0)
-                {
-                    locked = false;
-                }
-            }
-            cv.notify_all();
-        }
+        void lock(bool priority, bool write);
+
+        void unlock(bool write);
 
         // called by the writer thread with low priority
         // this function will try to release lock for a while, allowing priority readers to acquire the lock
         // if priority writers are waiting, please call hasWriteWaiters() to check if there are any priority writers waiting instead of using this function
-        void yield(bool priority, bool write)
-        {
-            if(!(!priority && write))
-            {
-                return;
-            }
-            {
-                std::unique_lock<std::mutex> lock(mutex);
-                if (!writing || priorityReadCount)
-                {
-                    return;
-                }
-                allowWrite = false;
-                locked = false;
-                writing = false;
-                yieldingThreadId = std::this_thread::get_id();
-                cv.notify_all();
-            }
-            lock(priority, write);
-            allowWrite = true;
-        }
+        void yield(bool priority, bool write);
 
         // called by low priority reader/writer thread
         // check if there are any priority writers waiting
         // if return true, it means you have to exit the lock and wait for priority writers to finish
-        bool hasPriorityWaiters(bool priority, bool write) const
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            if(priority)
-            {
-                return false;
-            }
-            return priorityWriteCount > 0 || priorityReadCount > 0;
-        }
+        bool hasPriorityWaiters(bool priority, bool write) const;
 
-        bool isLocked() const
-        {
-            std::unique_lock<std::mutex> lock(mutex);
-            return locked;
-        }
+        bool isLocked() const;
     };
 
     class LockGuard
@@ -421,13 +310,18 @@ namespace Utils
 
         const std::string threadName;
 
-        std::function<void(std::atomic<bool>&)> workFunction;
+        std::function<void(std::atomic<bool> &, WorkerThread&)> workFunction;
         std::function<void(const std::exception&)> errorHandler;
+
+        std::condition_variable notice; // condition variable used internal work function
+        std::atomic<bool> noticeFlag = false;
+
+        static thread_local WorkerThread* currentThread;
 
         // wrapper to make work function exception safe and support pause and wakeup
         void workFuncWrapper();
     public:
-        WorkerThread(const std::string& threadName, std::function<void(std::atomic<bool>&)> workFunction, std::function<void(const std::exception& e)> errorHandler = nullptr) : workFunction(workFunction), errorHandler(errorHandler), threadName(threadName){}
+        WorkerThread(const std::string& threadName, std::function<void(std::atomic<bool>&, WorkerThread&)> workFunction, std::function<void(const std::exception& e)> errorHandler = nullptr) : workFunction(workFunction), errorHandler(errorHandler), threadName(threadName){}
 
         ~WorkerThread();
 
@@ -437,10 +331,52 @@ namespace Utils
         void wakeUp();
         // this method will stop workfunction and destroy the thread
         void shutdown();
+        void notify()
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            noticeFlag = true;
+            notice.notify_all(); 
+        }
+
+        void wait()
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            cv.wait(lock, [this](){
+                return noticeFlag.load();
+            });
+            noticeFlag = false;
+        }
+
+        void wait_for(std::chrono::milliseconds duration)
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            cv.wait_for(lock, duration, [this](){
+                return noticeFlag.load();
+            });
+            if(noticeFlag.load())
+            {
+                noticeFlag = false;
+            }
+        }
 
         bool isRunning() const
         {
             return is_running.load();
+        }
+
+        std::condition_variable& getNotice()
+        {
+            return notice;
+        }
+
+        bool hasNotice() const
+        {
+            return noticeFlag.load();
+        }
+
+        static Utils::WorkerThread* getCurrentThread()
+        {
+            return currentThread;
         }
     };
 

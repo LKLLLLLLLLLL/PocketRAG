@@ -171,7 +171,22 @@ std::string Utils::getTimeStr()
 bool Utils::hasInput()
 {
 #ifdef _WIN32
-    return _kbhit() != 0;
+    DWORD fileType = GetFileType(GetStdHandle(STD_INPUT_HANDLE));
+    if (fileType == FILE_TYPE_CHAR)
+    {
+        return _kbhit() != 0;
+    }
+    else
+    {
+        HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+        DWORD bytesAvailable = 0;
+
+        if (PeekNamedPipe(hStdin, NULL, 0, NULL, &bytesAvailable, NULL))
+        {
+            return bytesAvailable > 0;
+        }
+        return false;
+    }
 #else
     fd_set readfds;
     FD_ZERO(&readfds);
@@ -181,7 +196,6 @@ bool Utils::hasInput()
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
 
-    // 检查stdin是否可读，0表示立即返回
     return select(STDIN_FILENO + 1, &readfds, NULL, NULL, &timeout) > 0;
 #endif
 }
@@ -195,8 +209,6 @@ void Utils::setThreadName(const std::string &name)
     pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
 
 #elif defined(_WIN32)
-#include <windows.h>
-
     const int bufferSize = MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, NULL, 0);
     if (bufferSize == 0)
         return;
@@ -247,6 +259,10 @@ void Utils::MessageQueue::push(const std::shared_ptr<Message> &message)
     std::lock_guard<std::mutex> lock(mutex);
     queue.push(message);
     conditionVariable.notify_one();
+    if(outerConditionVariable)
+    {
+        outerConditionVariable->notify_all();
+    }
 }
 
 auto Utils::MessageQueue::pop() -> std::shared_ptr<Message>
@@ -276,6 +292,47 @@ auto Utils::MessageQueue::tryPop() -> std::shared_ptr<Message>
     }
     auto message = queue.front();
     queue.pop();
+    return message;
+}
+
+auto Utils::MessageQueue::popFor(std::chrono::milliseconds duration) -> std::shared_ptr<Message>
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    conditionVariable.wait_for(lock, duration, [this]() { return !queue.empty() || shutdownFlag; });
+
+    if (shutdownFlag)
+    {
+        return nullptr;
+    }
+
+    auto message = queue.front();
+    queue.pop();
+
+    return message;
+}
+
+auto Utils::MessageQueue::popWithCv(std::condition_variable *cv, std::function<bool()> condition) -> std::shared_ptr<Message>
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    outerConditionVariable = cv;
+    outerConditionVariable->wait(lock, [this, condition]() {
+        return !queue.empty() || shutdownFlag || (condition && condition());
+    });
+    outerConditionVariable = nullptr;
+
+    if (shutdownFlag)
+    {
+        return nullptr;
+    }
+
+    if(queue.empty())
+    {
+        return nullptr;
+    }
+
+    auto message = queue.front();
+    queue.pop();
+
     return message;
 }
 
@@ -349,7 +406,6 @@ const std::string Logger::levelToString(Level level)
 
 void Logger::cleanOldLogFiles(std::filesystem::path logFileDir)
 {
-    // 获取所有日志文件
     std::vector<std::filesystem::path> logFiles = {};
 
     try
@@ -485,7 +541,141 @@ auto Error::getType() const -> Type
     return type;
 }
 
+//--------------------------------PriorityMutex------------------------------//
+void Utils::PriorityMutex::lock(bool priority, bool write)
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    if (priority)
+    {
+        if (write)
+        {
+            priorityWriteCount++;
+        }
+        else
+        {
+            priorityReadCount++;
+        }
+    }
+    cv.wait(lock, [this, priority, write] {
+        bool isYielding = std::this_thread::get_id() == yieldingThreadId;
+        if (isYielding)
+        {
+            return priorityReadCount == 0;
+        }
+        if (!write) // read only
+        {
+            if (!locked)
+            {
+                return true;
+            }
+            if (!writing)
+            {
+                if (priority)
+                {
+                    return true;
+                }
+                else
+                {
+                    return priorityWriteCount == 0; // if no priority write waiters, allow read lock
+                }
+            }
+            return false;
+        }
+        else
+        {
+            if (!allowWrite)
+            {
+                return false;
+            }
+            if (priority)
+            {
+                return !locked;
+            }
+            else
+            {
+                return !locked && priorityReadCount == 0 && priorityWriteCount == 0;
+            }
+        }
+    });
+    locked = true;
+    writing = write;
+    if (!write)
+    {
+        readerCount++;
+    }
+    if (priority)
+    {
+        if (write)
+        {
+            priorityWriteCount--;
+        }
+        else
+        {
+            priorityReadCount--;
+        }
+    }
+}
+
+void Utils::PriorityMutex::unlock(bool write)
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    if (write)
+    {
+        locked = false;
+        writing = false;
+    }
+    else
+    {
+        readerCount--;
+        if (readerCount == 0)
+        {
+            locked = false;
+        }
+    }
+    cv.notify_all();
+}
+
+void Utils::PriorityMutex::yield(bool priority, bool write)
+{
+    if (!(!priority && write))
+    {
+        return;
+    }
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        if (!writing || priorityReadCount)
+        {
+            return;
+        }
+        allowWrite = false;
+        locked = false;
+        writing = false;
+        yieldingThreadId = std::this_thread::get_id();
+        cv.notify_all();
+    }
+    lock(priority, write);
+    allowWrite = true;
+}
+
+bool Utils::PriorityMutex::hasPriorityWaiters(bool priority, bool write) const
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    if (priority)
+    {
+        return false;
+    }
+    return priorityWriteCount > 0 || priorityReadCount > 0;
+}
+
+bool Utils::PriorityMutex::isLocked() const
+{
+    std::unique_lock<std::mutex> lock(mutex);
+    return locked;
+}
+
 //--------------------------------WorkerThread------------------------------//
+thread_local Utils::WorkerThread *Utils::WorkerThread::currentThread = nullptr;
+
 Utils::WorkerThread::~WorkerThread()
 {
     shutdown();
@@ -494,6 +684,7 @@ Utils::WorkerThread::~WorkerThread()
 void Utils::WorkerThread::pause()
 {
     retFlag = true;
+    notify();
 }
 
 void Utils::WorkerThread::start()
@@ -518,6 +709,7 @@ void Utils::WorkerThread::wakeUp()
 void Utils::WorkerThread::shutdown()
 {
     shutdownFlag = true;
+    notify();
     pause();
     wakeUp();
     if (thread.joinable())
@@ -529,13 +721,14 @@ void Utils::WorkerThread::shutdown()
 void Utils::WorkerThread::workFuncWrapper()
 {
     setThreadName(threadName);
+    currentThread = this;
     is_running = true;
     while (!shutdownFlag)
     {
         retFlag = false;
         try
         {
-            workFunction(retFlag);
+            workFunction(retFlag, *this);
         }
         catch (const std::exception &e)
         {

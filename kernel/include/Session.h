@@ -3,7 +3,6 @@
 #include <exception>
 #include <memory>
 #include <string>
-#include <thread>
 
 #include "Repository.h"
 #include "LLMConv.h"
@@ -27,8 +26,6 @@ private:
 
     std::shared_ptr<SqliteConnection> sqlite;
     mutable Utils::PriorityMutex mutex; // mutex for sqlite operations
-
-    std::thread conversationThread; // thread for LLMConv
 
     std::shared_ptr<Repository> repository = nullptr; // repository instance
 
@@ -61,7 +58,7 @@ public:
     ~Session();
 
     // this method can only be called in one thread
-    void run(std::atomic<bool>& stopFlag);
+    void run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent);
 
     // this function can be called by another thread, it will shuddown all threads under this session
     void stop();

@@ -91,7 +91,7 @@ void Session::execCallback(nlohmann::json &json, int64_t callbackId)
     callbackManager->callCallback(callbackId, json);
 }
 
-void Session::run(std::atomic<bool> &stopFlag)
+void Session::run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent)
 {
     Utils::Timer timer("Session " + std::to_string(sessionId) + " started");
     // open repo
@@ -106,6 +106,7 @@ void Session::run(std::atomic<bool> &stopFlag)
             repoThreadError = e;
         }
         sessionMessageQueue->shutdown();
+        Utils::WorkerThread::getCurrentThread()->notify();
     });
     // initialize sqlite
     auto dbPath = repoPath / ".PocketRAG" / "db";
@@ -125,7 +126,12 @@ void Session::run(std::atomic<bool> &stopFlag)
     std::shared_ptr<Utils::MessageQueue::Message> message = nullptr;
     while (true)
     {
-        message = sessionMessageQueue->tryPop();
+        message = sessionMessageQueue->popWithCv(&parent.getNotice(), 
+            [&stopFlag, &parent]()
+            {
+                return parent.hasNotice() || stopFlag.load();
+            }
+        );
         if(stopFlag.load())
         {
             break;
@@ -144,7 +150,6 @@ void Session::run(std::atomic<bool> &stopFlag)
             handleMessage(*message);
             message = nullptr;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") quitted.");
 }
@@ -390,7 +395,10 @@ void Session::stop()
     {
         repository->stopBackgroundProcess();
     }
-    sessionMessageQueue->shutdown();
+    if(sessionMessageQueue)
+    {
+        sessionMessageQueue->shutdown();
+    }
 }
 
 void Session::config()
@@ -548,8 +556,8 @@ void Session::AugmentedConversation::openConversation(std::shared_ptr<LLMConv> c
     }
     conversationThread = std::make_shared<Utils::WorkerThread>(
         "Conversaion",
-        [this](std::atomic<bool> &stopFlag) {
-            conversationProcess(stopFlag);
+        [this](std::atomic<bool> &stopFlag, Utils::WorkerThread & _) {
+            conversationProcess(stopFlag); // no need to use condition_variable here
         },
         nullptr
     );

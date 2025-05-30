@@ -1,4 +1,5 @@
 #pragma once
+#include <condition_variable>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -60,13 +61,15 @@ private:
     std::mutex errorMutex;
     std::exception_ptr error = nullptr; // error from other threads
 
+    std::condition_variable mainThreadCondition;
+
     std::atomic<bool> stopAllFlag = false; // stop all session threads
 
     // this thread will transmit all messages to the frontend
     std::shared_ptr<Utils::WorkerThread> messageSenderThread;
     void startMessageSender();
     void stopMessageSender();
-    void messageSender(std::atomic<bool> &stopFlag);
+    void messageSender(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent);
 
     // this thread will receive messages from frontend
     std::shared_ptr<Utils::WorkerThread> messageReceiverThread;

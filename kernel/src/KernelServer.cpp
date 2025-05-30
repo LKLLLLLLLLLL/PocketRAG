@@ -105,6 +105,16 @@ void KernelServer::run()
     logger.info("[KernelServer] KernelServer ready, begin main loop.");
     while(true)
     {
+        auto message = receiveMessageQueue->popWithCv(&mainThreadCondition, 
+            [this]()
+            {
+                return stopAllFlag || error || !crashedThreads.empty();
+            }
+        );
+        if (stopAllFlag)
+        {
+            break;
+        }
         {
             std::lock_guard<std::mutex> lock(errorMutex);
             if (error)
@@ -122,14 +132,8 @@ void KernelServer::run()
                 thread->shutdown();
             }
         }
-        auto message = receiveMessageQueue->tryPop();
         if(message)
             handleMessage(message->data);
-        if(stopAllFlag)
-        {
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -463,9 +467,9 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
     auto sessionThreadIt = sessionThreads.find(sessionId);
     sessions[sessionId] = session;
     // sessionThreads[sessionId] = std::thread(&Session::run, session);
-    sessionThreads[sessionId] = std::make_shared<Utils::WorkerThread>("Session" + std::to_string(sessionId) + " main", [session](std::atomic<bool>& stopFlag)
+    sessionThreads[sessionId] = std::make_shared<Utils::WorkerThread>("Session" + std::to_string(sessionId) + " main", [session](std::atomic<bool>& stopFlag, Utils::WorkerThread& parent)
     {
-        session->run(stopFlag);
+        session->run(stopFlag, parent);
     },[this, sessionId](const std::exception& e)
     {
         // handle crash
@@ -506,6 +510,7 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
                 {
                     error = std::make_exception_ptr(e);
                 }
+                mainThreadCondition.notify_all();
             }
             logger.warning("[KernelServer] Session thread crashed: " + std::string(e.what()) + ", sessionId: " + std::to_string(sessionId));
         }
@@ -519,9 +524,9 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
 void KernelServer::startMessageSender()
 {
     // messageSenderThread = std::thread(&KernelServer::messageSender, this);
-    messageSenderThread = std::make_shared<Utils::WorkerThread>("messageSender", [this](std::atomic<bool>& stopFlag)
+    messageSenderThread = std::make_shared<Utils::WorkerThread>("messageSender", [this](std::atomic<bool>& stopFlag, Utils::WorkerThread& parent)
     {
-        messageSender(stopFlag);
+        messageSender(stopFlag, parent);
     },[this](const std::exception& e)
     {
         std::lock_guard<std::mutex> lock(errorMutex);
@@ -544,25 +549,28 @@ void KernelServer::stopMessageSender()
     }
 }
 
-void KernelServer::messageSender(std::atomic<bool>& stopFlag)
+void KernelServer::messageSender(std::atomic<bool> &stopFlag, Utils::WorkerThread & parent)
 {
     logger.info("[KernelServer.messageSender] thread started.");
     std::shared_ptr<Utils::MessageQueue::Message> message = nullptr;
     while(true)
     {
-        while(message == nullptr && !stopFlag.load())
-        {
-            message = kernelMessageQueue->tryPop();
-            if (message == nullptr)
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100)); // avoid busy waiting
-            }
-        }
+        // while(message == nullptr && !stopFlag.load())
+        // {
+        //     message = kernelMessageQueue->tryPop();
+        //     if (message == nullptr)
+        //     {
+        //         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // avoid busy waiting
+        //     }
+        // }
+        message = kernelMessageQueue->popWithCv(&parent.getNotice(), [&stopFlag, &parent]() {
+            return parent.hasNotice();
+        });
         if(stopFlag.load())
         {
             break;
         }
-        if(message->data.empty())
+        if(!message || message->data.empty())
         {
             continue;
         }
@@ -580,7 +588,6 @@ void KernelServer::messageSender(std::atomic<bool>& stopFlag)
             std::cout << message->data.dump() << std::endl << std::flush;
             logger.debug("[KernelServer.messageSender] Send message: " + message->data.dump());
         }
-        message = kernelMessageQueue->pop();
     }
     logger.info("[KernelServer.messageSender] thread stopped.");
 }
@@ -589,7 +596,10 @@ void KernelServer::startMessageReceiver()
 {
     // messageSenderThread = std::thread(&KernelServer::messageSender, this);
     messageReceiverThread= std::make_shared<Utils::WorkerThread>("messageReceiver",
-        [this](std::atomic<bool> &stopFlag) { messageReceiver(stopFlag); },
+        [this](std::atomic<bool> &stopFlag, Utils::WorkerThread& _)  
+        { 
+            messageReceiver(stopFlag);  // polling std::cin, condition_variable is not used here
+        },
         [this](const std::exception &e) {
             std::lock_guard<std::mutex> lock(errorMutex);
             if (!error)
@@ -623,7 +633,7 @@ void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
                 std::getline(std::cin, input);
                 break;
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
         if(stopFlag.load())
         {
