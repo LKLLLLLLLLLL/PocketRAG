@@ -218,14 +218,18 @@ void Chunker::recursiveChunk(const Chunk &chunk, int split_table_index, const st
     {
         // no more split table, just split directly
         auto length = getLength(chunk.content);
-        auto splitNumber = static_cast<int>(length / max_length);
+        auto splitNumber = std::max(1, static_cast<int>(length / max_length));
         auto chunkBytes = static_cast<int>(chunk.content.length() / splitNumber);
         auto lastBeginLine = chunk.beginLine;
-        int lastEnd = 0;
+        size_t lastEnd = 0;
         for(auto i = 0; i < splitNumber; i++)
         {
             auto start = lastEnd;
-            auto end = chunkBytes * (i + 1);
+            size_t end = chunkBytes * (i + 1);
+            if(i == splitNumber - 1) // last chunk, take the rest
+            {
+                end = chunk.content.length();
+            }
             // avoid split in the middle of a utf-8 character
             while (end < chunk.content.length() && (chunk.content[end] & 0xC0) == 0x80)
             {
@@ -321,16 +325,20 @@ void Chunker::recursiveChunk(const Chunk &chunk, int split_table_index, const st
 
             sub_chunk.content += next_pos->content;
             // generate publie metadata
-            auto seperatorPos = 0;
-            for (auto index = 0; index < i->metadata.size(); index++)
+            size_t seperatorPos = 0;
+            for (size_t index = 0; index < i->metadata.size(); index++)
             {
                 if (i->metadata[index] != next_pos->metadata[index])
                 {
-                    i->metadata = i->metadata.substr(0, seperatorPos);
+                    seperatorPos = std::max(0lu, index - 1); // remove last character if different
                     break;
                 }
-                seperatorPos = index - 1;
             }
+            while (seperatorPos > 0 && (i->metadata[seperatorPos] & 0xC0) == 0x80)
+            {
+                seperatorPos--;
+            }
+            i->metadata = i->metadata.substr(0, seperatorPos);
             next_pos++;
         }
 
