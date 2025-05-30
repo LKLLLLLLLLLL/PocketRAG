@@ -1,8 +1,9 @@
 .topbar-container{
     display: flex;
-    flex-direction: row;
     height: 30px;
     min-width: 300px;
     width: 100%;
     background-color: #363636;
+    color: #fff;
+    -webkit-app-region: drag;
 }

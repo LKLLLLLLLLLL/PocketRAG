@@ -1,12 +1,138 @@
-.biaoqian{
-    background-color: black;
+.conversation-container{
+    background-color: #666666;
+    flex: 1;
+    display: flex
+}
+.topbar-tools{
+    background-color: #888888;
     color: white;
     height: 30px;
     width: 100%;
     display: flex;
 }
-.conversation-container{
-    background-color: #666666;
+.biaoqian{
+    background-color: black;
+    color: white;
+    height: 30px;
+    width: 60%;
+    display: flex;
+    margin-left: 0;
+}
+.maindemo{
     flex: 1;
-    display: flex
+    display: flex;
+    -webkit-app-region: no-drag;
+    min-height: 0;
+    justify-content: center;
+    align-items: center;
+    overflow: auto;
+}
+.maindemo-content {
+    width: 700px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+}
+.conversation-panelgroup{
+    flex: 1;
+    overflow: hidden;
+}
+.conversation-panel_1{
+    display: flex;
+}
+.conversation-panel_2{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: auto;
+}
+.question-input{
+    background-color: #444444;
+    flex: 1;
+    display: flex;
+}
+.mainwindow-panel_2{
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+.result-ul-container{
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    color: red;
+}
+.searchresult-container{
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+}
+.searchinput-container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.searchinput{
+    width: 700px;
+    height: 30px;
+}
+.explanation-container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.explanation{
+    width: 700px;
+    height: 30px;
+}
+.result0-item-container{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    box-sizing: border-box;
+    border-radius: 4px;
+    box-sizing: border-box;
+    padding: 5px;
+}
+.chunkcontent-container{
+    width: 100%;
+    flex: 1;
+    display: flex;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-sizing: border-box;
+}
+.filepath-container{
+    width: 100%;
+    flex: 1;
+    display: flex;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-sizing: border-box;
+}
+/* .chunkcontent-container mark {
+    background-color: #ffe066;  柔和的黄色高亮
+    color: blue;            可选：高亮文字颜色 
+    font-weight: bold;       可选：加粗 
+    border-radius: 2px;      可选：圆角 
+    padding: 0 2px;           可选：内边距 
+} */
+.chunkcontent-container mark {
+    background: #ffe066;
+    color: blue;
+    font-weight: bold;
+    border-radius: 2px;
+    padding: 0 2px;
+    /* 去掉 display:block 或 width/height 等会撑大的属性 */
+    display: inline;
 }

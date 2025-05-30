@@ -1,5 +1,6 @@
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import React, { useState } from "react";
+import { Input } from "antd";
 import Doclist from "../../templates/Doclist/Doclist";
 import LeftBar from "./LeftBar/LeftBar";
 import "./MainWindowContents.css";
@@ -54,44 +55,51 @@ export default function MainWindowContents() {
                 className = {`result0-item ${selectedResultIndex === index ? 'selected' : ''}`}
                 onClick = {()=>setSelectedResultIndex(index)}>
                     <div className = 'result0-item-container'>
-                        <div className = 'chunkcontent-container'>
+                        <div className='chunkcontent-container'>
                             分块内容:
-                            {item.content}
+                            <span dangerouslySetInnerHTML={{ __html: item.highlightedContent }} />
                         </div>
-                        <div className = 'metadata-container'>
+                        {/* <div className = 'metadata-container'>
                             元数据:
                             {item.metadata}
-                        </div>
-                        <div className = 'position-container'>
+                        </div> */}
+                        {/* <div className = 'position-container'>
                             分块起始行和终止行:
                             {item.beginLine}
                             {item.endLine}
-                        </div>
+                        </div> */}
                         <div className = 'filepath-container'>
                             分块所在文件路径:
                             {item.filePath}
                         </div>
-                        <div className = 'score-container'>
+                        {/* <div className = 'score-container'>
                             分块得分:
                             {item.score}
-                        </div>
+                        </div> */}
                     </div>
             </li>
         )
     })
 
     return (
-        <div style = {{flex: 1, display: 'flex'}}>
-            <LeftBar handleConversation = {handleConversation}
-                    handleSearch = {handleSearch}>
+        <div style = {{flex: 1, display: 'flex',overflow: 'hidden'}}>
+            <LeftBar    handleConversation = {handleConversation}
+                        handleSearch = {handleSearch}>
             </LeftBar>
-            <div style ={{flex: 1, display: 'flex'}}>
-                <PanelGroup direction="horizontal">
-                    <Panel minSize={20} maxSize={70} defaultSize={30}>
+            <div style = {{flex: 1, display: 'flex'}}>
+                <PanelGroup direction="horizontal" autoSaveId="main-window-horizontal">
+                    <Panel  minSize={20} 
+                            maxSize={70} 
+                            defaultSize={30}
+                            className = 'mainwindow-panel_1'>
+                        <div className = 'topbar-tools'>工具栏</div>
                         <Doclist></Doclist>
                     </Panel>
                     <PanelResizeHandle></PanelResizeHandle>
-                    <Panel minSize={30} maxSize={80} defaultSize={70} style = {{display: 'flex', flexDirection: 'column'}}>
+                    <Panel  minSize={30} 
+                            maxSize={80} 
+                            defaultSize={70} 
+                            className = 'mainwindow-panel_2'>
                         <div className = 'biaoqian'>标签栏</div>
                         <MainDemo   content = {content} 
                                     inputValue = {inputValue}
@@ -101,7 +109,7 @@ export default function MainWindowContents() {
                                     isTimeout = {isTimeout}
                                     onChange = {handleOnChange}
                                     onKeyDown = {handleKeyPress}
-                                    style = {{flex: 1, display: 'flex'}}>
+                                    className = 'maindemo'>
                         </MainDemo>
                     </Panel>
                 </PanelGroup>
@@ -109,61 +117,72 @@ export default function MainWindowContents() {
         </div>
     )
 }
-const MainDemo = ({content,inputValue,resultItem,onChange,onKeyDown,isLoading,showResult,isTimeout}) => {
+const MainDemo = ({content,inputValue,resultItem,onChange,onKeyDown,isLoading,showResult,isTimeout,className}) => {
     switch (content) {
         case 'conversation':
             return (
-                <div style = {{display: 'flex',flex: 1}}>
-                    <PanelGroup direction="vertical" style = {{flex: 1}}>
-                        <Panel minSize = {30} maxSize = {80} defaultSize = {70} style = {{display: 'flex'}}>
-                            <div className = 'conversation-container'>
-                                <div>
-                                    conversation
+                <div className = {className}>
+                    <div className = 'maindemo-content'>
+                        <PanelGroup direction="vertical" 
+                                    className = 'conversatino-panelgroup'>
+                            <Panel minSize = {30} maxSize = {80} defaultSize = {70} className = 'conversation-panel_1'>
+                                <div className = 'conversation-container'>
+                                    <div>
+                                        conversation
+                                    </div>
                                 </div>
-                            </div>
-                        </Panel>
-                        <PanelResizeHandle></PanelResizeHandle>
-                        <Panel minSize = {20} maxSize = {70} defaultSize = {30} style = {{display: 'flex'}}>
-                            <div className = 'question-input' style = {{backgroundColor: '#444444',flex: 1, display: 'flex'}}>
-                                问题输入
-                            </div>
-                        </Panel>
-                    </PanelGroup>
+                            </Panel>
+                            <PanelResizeHandle></PanelResizeHandle>
+                            <Panel minSize = {20} maxSize = {70} defaultSize = {30} className = 'conversation-panel_2'>
+                                <div className = 'question-input'>
+                                    问题输入
+                                </div>
+                            </Panel>
+                        </PanelGroup>
+                    </div>
                 </div>
             );
         case 'search':
             return (
-                <div style = {{flex: 1, display: 'flex',flexDirection: 'column'}}>
-                    <div className = 'searchinput-container'>
-                        <input  type = 'text' 
-                                placeholder= '请输入内容，按回车以继续'
-                                className = 'searchinput'
-                                value = {inputValue}
-                                onChange = {onChange}
-                                onKeyDown = {onKeyDown}>
-                        </input>
-                    </div>
-                    <div className = 'searchresult-container'>
-                        <div className = 'explanation'>
-                            <div className="explanation">
-                                {isTimeout ? <div>请求超时</div>: 
-                                ((!isLoading && showResult) ? <div>结果如下</div>:
-                                ((isLoading && !showResult) ? <div>加载中</div>:<div>请进行搜索</div>))}
+                <div style = {{flexDirection: 'column'}} className = {className}>
+                    <div className = 'maindemo-content'>
+                        <div className = 'searchinput-container'>
+                            <Input.Search   type = 'text' 
+                                            placeholder= '请输入内容，按回车以继续'
+                                            className = 'searchinput'
+                                            value = {inputValue}
+                                            onChange = {onChange}
+                                            onKeyDown = {onKeyDown}
+                                            variant="filled">
+                            </Input.Search>
+                        </div>
+                        <div className = 'searchresult-container'>
+                            <div className = 'explanation-container'>
+                                <div className="explanation">
+                                    {isTimeout ? <div>请求超时</div>
+                                    : isLoading ? <div>加载中</div>
+                                    : showResult ? <div>结果如下</div>
+                                    : <div>请进行搜索</div>}
+                                </div>
+                            </div>
+                            <div className = 'result-ul-container'>
+                                {!isLoading && showResult && 
+                                    <ul className = 'result-ul'>
+                                        {resultItem.length > 0 ? resultItem : <li>未找到结果</li>}
+                                    </ul>
+                                }
                             </div>
                         </div>
-                        {!isLoading && showResult && 
-                            <ul>
-                                {resultItem.length > 0 ? resultItem : <li>未找到结果</li>}
-                            </ul>
-                        }
                     </div>
                 </div>
             );
         default:
             return (
-                <div>
-                    <h2>Welcome</h2>
-                    <p>Select a feature from the left bar.</p>
+                <div className = {className}>
+                    <div className = 'maindemo-content'>
+                        <h2>Welcome</h2>
+                        <p>Select a feature from the left bar.</p>
+                    </div>
                 </div>
             );
     }

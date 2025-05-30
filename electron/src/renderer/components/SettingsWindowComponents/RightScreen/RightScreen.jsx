@@ -29,6 +29,49 @@ export default function RightScreen({content}){
             return(
                 <RightScreenContainer>
                     <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
+                    <div>什么也没有</div>
                     {console.log('Nobody has been awaken.')}
                 </RightScreenContainer>
             )
@@ -37,10 +80,12 @@ export default function RightScreen({content}){
 function RightScreenContainer({children}){
     return(
         <div className = 'rightscreen-container'>
-            <div style = {{display: 'flex', marginLeft: 'auto'}}>
+            {/* <div style = {{display: 'flex', marginLeft: 'auto'}}>
                 <WindowControl></WindowControl>
+            </div> */}
+            <div className = 'rightscreen-main'>
+                {children}
             </div>
-            {children}
         </div>
     )
 }

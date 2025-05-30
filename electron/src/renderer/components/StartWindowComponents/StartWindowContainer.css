@@ -1,7 +1,7 @@
 .startwindow-container{
-    width: 100%;
-    height: 100%;
-    min-height: 100vh;
+    flex: 1 1 0%;
+    min-height: 0;
+    -webkit-app-region: drag;
 }
 .sw-left{
     background-color: #424242;
@@ -14,6 +14,7 @@
     flex-direction: column;
 }
 .repolist-container{
+    margin-top: 30px;
     width: 100%;
     height: 100%;
     display: flex;
@@ -37,6 +38,7 @@
     border: white 1px solid;
     box-sizing: border-box;
     background-color: #666666;
+    -webkit-app-region: no-drag;
 }
 .repo-item:hover{
     background-color: #ddd !important;

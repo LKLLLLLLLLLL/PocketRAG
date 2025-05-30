@@ -6,6 +6,7 @@
     /* border-left: 4px solid #ddd;
     border-right: 4px solid #ddd; */
     background-color: #bababa;
+    -webkit-app-region: no-drag;
 }
 .doclist_top-container{
     width: 100%;
@@ -13,7 +14,7 @@
     background-color: #424242;
 }
 .doclist_main-container{
-    flex-grow: 1;
+    flex: 1;
     background-color: #363636;
 }
 .doclist_tools-container{

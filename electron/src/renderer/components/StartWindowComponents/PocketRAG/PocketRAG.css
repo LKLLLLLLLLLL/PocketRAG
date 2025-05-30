@@ -1,9 +1,11 @@
 .pocketrag-container{
+    margin-top: 30px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 40%;
+    -webkit-app-region: no-drag;
 }
 .icon-container{
     height: 80%;

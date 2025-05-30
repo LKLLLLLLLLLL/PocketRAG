@@ -89,9 +89,9 @@ export default function StartWindowContainer(){
             </Panel>
             <PanelResizeHandle className="sw-resize"></PanelResizeHandle>
             <Panel defaultSize = {67} className = 'sw-right'>
-                <div style = {{display :'flex',marginLeft: 'auto'}}>
+                {/* <div style = {{display :'flex',marginLeft: 'auto'}}>
                     <WindowControl_WithoutMax></WindowControl_WithoutMax>
-                </div>
+                </div> */}
                 <PocketRAG></PocketRAG>
                 <Option setDemo = {setDemo} 
                         others = {others} 

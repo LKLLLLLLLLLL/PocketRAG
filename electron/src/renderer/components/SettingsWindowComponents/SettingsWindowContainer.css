@@ -1,6 +1,17 @@
 .settingswindow-container{
-    height: 100vh;
+    flex: 1 1 0%;
     display: flex;
     background-color: #424242;
     color: white;
+    overflow: hidden;
+    min-height: 0;
+    -webkit-app-region: drag;
+}
+
+.settingswindow-main {
+    flex: 1 1 0%;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
 }

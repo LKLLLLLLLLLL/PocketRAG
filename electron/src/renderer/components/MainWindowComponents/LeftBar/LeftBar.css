@@ -7,12 +7,14 @@
 .leftbar{
     display: flex;
     flex-direction: column;
+    margin-top: 30px;
 }
 .lb-button{
     color: white;
     background-color: rgb(60,160,130);
     display: flex;
     padding: 0;
+    -webkit-app-region: no-drag;
 }
 .lb-button-icon {
   font-size: 35px;

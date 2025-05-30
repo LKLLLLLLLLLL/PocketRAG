@@ -1,6 +1,5 @@
 import React from 'react';
-import './Topbar.css';
-import { children } from 'react';
+import './TopBar.css';
 const TopBar =({children})=> {
     return(
         <div className = 'topbar-container'>

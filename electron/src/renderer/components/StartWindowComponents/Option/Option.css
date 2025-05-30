@@ -3,6 +3,7 @@
     display: flex;
     flex-direction: column;
     background-color: grey;
+    -webkit-app-region: no-drag;
 }
 .new-container{
     height: 30%;
@@ -16,11 +17,13 @@
     margin-left: auto;
     background-color: rgb(60, 160, 130);
     color: white;
+    -webkit-app-region: no-drag;
 }
 .other-button{
     margin-left: auto;
     background-color: rgb(60, 160, 130);
-    color: white
+    color: white;
+    -webkit-app-region: no-drag;
 }
 .new-description{
     flex-grow: 1;
