@@ -26,11 +26,15 @@ Repository::Repository(std::string repoName, std::filesystem::path repoPath, Uti
     startBackgroundProcess();
 }
 
-void Repository::initializeSqlite()
+void Repository::initializeSqlite(bool needLock)
 {
     dbPath = repoPath / ".PocketRAG" / "db";
     sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);
-    Utils::LockGuard lock(sqliteMutex, true, true);
+    std::shared_ptr<Utils::LockGuard> sqliteLockPtr;
+    if(needLock)
+    {
+        sqliteLockPtr = std::make_shared<Utils::LockGuard>(sqliteMutex, true, true);
+    }
 
     // create documents table
     sqlite->execute(
@@ -430,7 +434,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
     Utils::LockGuard lock(sqliteMutex, true, false); // lock for reading embedding models and vector tables
     Utils::LockGuard repoLock(repoMutex, true, false); // lock for vector tables and embeddings
 
-    suspendBackgroundProcess(); // for better performance
+    // suspendBackgroundProcess(); // for better performance // for debug
 
     int vectorLimit = limit * 2;
     int fts5Limit = limit * 2 * embeddings.size();
@@ -667,7 +671,7 @@ void Repository::reConstruct(bool needLock)
     trans.commit();
     integrity = true;
 
-    initializeSqlite();
+    initializeSqlite(needLock);
     // open text search table
     textTable = std::make_shared<TextSearchTable>(*sqlite, "text_search");
     updateEmbeddings({}, needLock);

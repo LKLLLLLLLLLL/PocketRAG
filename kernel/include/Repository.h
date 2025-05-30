@@ -93,7 +93,7 @@ private:
 
     // creat basic sqlite tables, should only be called in constructor
     // no mutex lock.
-    void initializeSqlite();
+    void initializeSqlite(bool needLock = true);
 
     // update embeddings in both sqlite and class members
     // no mutex lock.

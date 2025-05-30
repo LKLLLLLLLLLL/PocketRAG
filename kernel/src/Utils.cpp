@@ -655,6 +655,7 @@ void Utils::PriorityMutex::yield(bool priority, bool write)
     }
     lock(priority, write);
     allowWrite = true;
+    yieldingThreadId = std::thread::id();
 }
 
 bool Utils::PriorityMutex::hasPriorityWaiters(bool priority, bool write) const

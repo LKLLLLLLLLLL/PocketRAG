@@ -237,7 +237,7 @@ namespace Utils
         std::atomic<bool> writing = false; // if locked, this member indicates if it is a write lock
         int readerCount = 0; // number of readers holding the lock
         std::atomic<bool> allowWrite = true; // if false, no write lock can be acquired
-        std::thread::id yieldingThreadId; // thread id of the thread that is yielding the lock
+        std::thread::id yieldingThreadId = std::thread::id(); // thread id of the thread that is yielding the lock
 
         int priorityReadCount = 0;
         int priorityWriteCount = 0;
