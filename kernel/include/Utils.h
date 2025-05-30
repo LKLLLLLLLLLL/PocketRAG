@@ -166,43 +166,6 @@ namespace Utils
         void callCallback(int64_t callbackId, nlohmann::json &message);
     };
 
-    // a thread-safe message queue
-    class MessageQueue
-    {
-    public:
-        struct Message
-        {
-            int64_t sessionId; // -1 - KernelServer, others - Session ID
-            nlohmann::json data;
-        };
-    private:
-        std::queue<std::shared_ptr<Message>> queue;
-        mutable std::mutex mutex;
-        std::condition_variable conditionVariable;
-        std::atomic<bool> shutdownFlag = false;
-
-        std::condition_variable* outerConditionVariable = nullptr;
-
-    public:
-        void push(const std::shared_ptr<Message> &message);
-
-        // block until a message is available
-        std::shared_ptr<Message> pop();
-
-        std::shared_ptr<Message> tryPop();
-
-        std::shared_ptr<Message> popFor(std::chrono::milliseconds duration);
-
-        // this method will block until a message or argument cv is notified
-        // if condition is true, it will return nullptr
-        std::shared_ptr<Message> popWithCv(std::condition_variable *cv, std::function<bool()> condition);
-
-        bool empty();
-
-        // wake all waiting threads and pop() will exit with nullptr
-        void shutdown();
-    };
-
     /*
     A timer class can be used to log time cost of some code.
     Will log the time cost when the object is destructed.
@@ -222,6 +185,45 @@ namespace Utils
         void stop(std::source_location endLocation = std::source_location::current());
 
         ~Timer();
+    };
+
+    // a thread-safe message queue
+    class MessageQueue
+    {
+      public:
+        struct Message
+        {
+            int64_t sessionId; // -1 - KernelServer, others - Session ID
+            nlohmann::json data;
+            std::shared_ptr<Timer> timer = nullptr; // for performance measurement
+        };
+
+      private:
+        std::queue<std::shared_ptr<Message>> queue;
+        mutable std::mutex mutex;
+        std::condition_variable conditionVariable;
+        std::atomic<bool> shutdownFlag = false;
+
+        std::condition_variable *outerConditionVariable = nullptr;
+
+      public:
+        void push(const std::shared_ptr<Message> &message);
+
+        // block until a message is available
+        std::shared_ptr<Message> pop();
+
+        std::shared_ptr<Message> tryPop();
+
+        std::shared_ptr<Message> popFor(std::chrono::milliseconds duration);
+
+        // this method will block until a message or argument cv is notified
+        // if condition is true, it will return nullptr
+        std::shared_ptr<Message> popWithCv(std::condition_variable *cv, std::function<bool()> condition);
+
+        bool empty();
+
+        // wake all waiting threads and pop() will exit with nullptr
+        void shutdown();
     };
 
     /*

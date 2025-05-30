@@ -70,10 +70,10 @@ Session::~Session()
     stop();
 }
 
-void Session::sendBack(nlohmann::json& json)
+void Session::sendBack(nlohmann::json &json, std::shared_ptr<Utils::Timer> msgTimer)
 {
     json["isReply"] = true;
-    auto message = std::make_shared<Utils::MessageQueue::Message>(sessionId, std::move(json));
+    auto message = std::make_shared<Utils::MessageQueue::Message>(sessionId, std::move(json), msgTimer);
     kernelServer.sendMessage(message);
 }
 
@@ -154,7 +154,7 @@ void Session::run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent)
     logger.info("[Session] Session " + std::to_string(sessionId) + "(repoName:" + repoName + ") quitted.");
 }
 
-void Session::handleMessage(Utils::MessageQueue::Message& message)
+void Session::handleMessage(Utils::MessageQueue::Message &message)
 {
     auto& json = message.data;
     auto js = json.dump(); // for debug
@@ -324,7 +324,7 @@ void Session::handleMessage(Utils::MessageQueue::Message& message)
         json["status"]["code"] = "UNKNOWN_ERROR";
         json["status"]["message"] = "Unknown error: " + std::string(e.what());
     }
-    sendBack(json);
+    sendBack(json, message.timer);
 }
 
 void Session::initializeSqlite()

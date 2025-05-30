@@ -7,6 +7,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <source_location>
 #include <string>
 
 //--------------------------KernelServer--------------------------//
@@ -133,12 +134,13 @@ void KernelServer::run()
             }
         }
         if(message)
-            handleMessage(message->data);
+            handleMessage(message->data, message->timer);
     }
 }
 
-void KernelServer::transmitMessage(nlohmann::json& json)
+void KernelServer::transmitMessage(std::shared_ptr<Utils::MessageQueue::Message> message)
 {
+    auto& json = message->data;
     int64_t windowId = json["sessionId"].get<int64_t>();
     std::lock_guard<std::mutex> lock(sessionMutex); 
     auto it = windowIdToSessionId.find(windowId);
@@ -154,11 +156,10 @@ void KernelServer::transmitMessage(nlohmann::json& json)
         sendBack(json);
         return;
     }
-    auto message = std::make_shared<Utils::MessageQueue::Message>(sessionId, std::move(json));
     sessions[sessionId] -> sendMessage(message);
 }
 
-void KernelServer::handleMessage(nlohmann::json& json)
+void KernelServer::handleMessage(nlohmann::json &json, std::shared_ptr<Utils::Timer> msgTimer)
 {
     try
     {
@@ -209,7 +210,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
                         throw e;
                     json["status"]["code"] = "SESSION_EXISTS";
                     json["status"]["message"] = "Session already exists, with sessionId: " + std::to_string(windowId);
-                    sendBack(json);
+                    sendBack(json, msgTimer);
                     return;
                 }
                 json["status"]["code"] = "SUCCESS";
@@ -237,21 +238,21 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Invalid path: " + repoPath + ", parser error: " + std::string(e.what());
-                sendBack(json);
+                sendBack(json, msgTimer);
                 return;
             }
             if(!repoPathobj.is_absolute())
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Path is not absolute: " + repoPath;
-                sendBack(json);
+                sendBack(json, msgTimer);
                 return;
             }
             if(!std::filesystem::exists(repoPathobj))
             {
                 json["status"]["code"] = "INVALID_PATH";
                 json["status"]["message"] = "Path does not exist: " + repoPath;
-                sendBack(json);
+                sendBack(json, msgTimer);
                 return;
             }
             // check if repo name equals to repo name in path
@@ -260,7 +261,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
             {
                 json["status"]["code"] = "REPO_NAME_NOT_MATCH";
                 json["status"]["message"] = "Repo name in path: " + repoNameInPath + " not match with repo name: " + repoName;
-                sendBack(json); 
+                sendBack(json, msgTimer);
                 return;
             }
             // find if repo name exists
@@ -425,7 +426,7 @@ void KernelServer::handleMessage(nlohmann::json& json)
         json["status"]["code"] = "UNKNOWN_ERROR";
         json["status"]["message"] = "Unknown error: " + std::string(e.what());
     }
-    sendBack(json);
+    sendBack(json, msgTimer);
 }
 
 void KernelServer::execCallback(nlohmann::json &json, int64_t callbackId)
@@ -442,10 +443,10 @@ void KernelServer::send(nlohmann::json& json, Utils::CallbackManager::Callback c
     sendMessage(message);
 }
 
-void KernelServer::sendBack(nlohmann::json& json)
+void KernelServer::sendBack(nlohmann::json &json, std::shared_ptr<Utils::Timer> msgTimer)
 {
     json["isReply"] = true;
-    auto message = std::make_shared<Utils::MessageQueue::Message>(0, std::move(json));
+    auto message = std::make_shared<Utils::MessageQueue::Message>(0, std::move(json), msgTimer);
     kernelMessageQueue->push(message);
 }
 
@@ -599,6 +600,10 @@ void KernelServer::messageSender(std::atomic<bool> &stopFlag, Utils::WorkerThrea
                 message->data["sessionId"] = -1; // message from kernel server
             }
             std::cout << message->data.dump() << std::endl << std::flush;
+            if(message->timer)
+            {
+                message->timer->stop();
+            }
             logger.debug("[KernelServer.messageSender] Send message: " + message->data.dump());
         }
     }
@@ -645,19 +650,32 @@ void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
         {
             break;
         }
+        if(input.empty())
+        {
+            continue;
+        }
         logger.debug("[KernelServer.messageReceiver] Received message: " + input);
         nlohmann::json inputJson;
         int64_t windowId;
         bool toMain;
         std::string messageType;
+        bool isReply;
         try
         {
             inputJson = nlohmann::json::parse(input);
             windowId = inputJson["sessionId"].get<int64_t>();
             toMain = inputJson["toMain"].get<bool>();
             messageType = inputJson["message"]["type"].get<std::string>();
+            isReply = inputJson["isReply"].get<bool>();
             if (!toMain)
-                transmitMessage(inputJson);
+            {
+                std::shared_ptr<Utils::Timer> msgTimer = nullptr;
+                if (!isReply) 
+                {
+                    msgTimer = std::make_shared<Utils::Timer>("MessageTimer - " + messageType, std::source_location::current());
+                }
+                transmitMessage(std::make_shared<Utils::MessageQueue::Message>(0, std::move(inputJson), msgTimer));
+            }
             else if(messageType == "stopAll") // handle stopAll message in receiver thread
             {
                 inputJson["status"]["code"] = "SUCCESS";
@@ -669,7 +687,14 @@ void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
                 return; // stop message receiver thread
             }
             else
-                receiveMessageQueue->push(std::make_shared<Utils::MessageQueue::Message>(-1, std::move(inputJson)));
+            {
+                std::shared_ptr<Utils::Timer> timer = nullptr;
+                if(!isReply)
+                {
+                    timer = std::make_shared<Utils::Timer>("MessageTimer - " + messageType, std::source_location::current());
+                }
+                receiveMessageQueue->push(std::make_shared<Utils::MessageQueue::Message>(-1, std::move(inputJson), timer));
+            }
         }
         catch (std::exception &e)
         {
