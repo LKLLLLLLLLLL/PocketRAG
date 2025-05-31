@@ -467,7 +467,7 @@ You are a search query optimizer. Generate the most effective search keywords fo
             for (auto &word : searchWords)
             {
                 historyManager.push(Type::search, word);
-                auto results = session.repository->search(word, Repository::searchAccuracy::high, std::max(static_cast<size_t>(1ULL), 10 / searchWords.size()));
+                auto results = session.repository->search(word, Repository::searchAccuracy::high, std::max(static_cast<size_t>(1), 10 / searchWords.size()));
                 for (auto &result : results)
                 {
                     if(chunkIds.find(result.chunkId) != chunkIds.end())
