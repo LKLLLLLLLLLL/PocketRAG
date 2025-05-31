@@ -9,10 +9,10 @@ import RepoFileTree from "./RepoFileTree";
 const { TextArea } = Input;
 
 export default function MainWindowContents() {
-    //overall state arrangement
+    //overall state management
     const [content, setContent] = useState('');// recognize the content of the main window, either 'conversation' or 'search'
     
-    //search state arrangement
+    //search state management
     const [inputValue, setInputValue] = useState('');// record the input value
     const [showResult, setShowResult] = useState(false);// whether to show the search result
     const [isLoading, setIsLoading] = useState(false);// whether the search is loading
@@ -21,14 +21,15 @@ export default function MainWindowContents() {
     const [selectedResultIndex, setSelectedResultIndex] = useState(null);// record the selected result index
     const [lastClickTime, setLastClickTime] = useState(0);//record the last click time
 
-    // conversation state arrangement
-    const [history, setHistory] = useState([]); // 历史会话
+    // conversation state management
+    const [history, setHistory] = useState([]); //history
     const [inputQuestionValue, setInputQuestionValue] = useState('');
-    const [streaming, setStreaming] = useState([]); // 当前流式消息
+    const [streaming, setStreaming] = useState([]); //current stream
     const [convLoading, setConvLoading] = useState(false);
-    const streamingRef = useRef([]); // 用于流式合并
+    const [stopped, setStopped] = useState(false); // judge whether stop or not
+    const streamingRef = useRef([]); //
 
-    // 搜索相关
+    // search related
     const handleOnChange = (event) => {
         setInputValue(event.target.value);
     };
@@ -51,16 +52,15 @@ export default function MainWindowContents() {
         }
     };
 
-    // conversation相关
-    // 1. 发送消息（事件监听方式）
+    // conversation related
     const handleSendConversation = () => {
-        if (convLoading) return; // 只有done后才能继续提问
+        if (convLoading) return;
         if (!inputQuestionValue.trim()) return;
         setConvLoading(true);
+        setStopped(false); 
         setStreaming([]);
         streamingRef.current = [];
 
-        // 立即插入一条“待回复”历史
         setHistory(his => [
             ...his,
             {
@@ -68,11 +68,10 @@ export default function MainWindowContents() {
                 retrieval: [],
                 answer: '',
                 time: Date.now(),
-                pending: true // 标记为待回复
+                pending: true
             }
         ]);
 
-        // 事件监听
         const handleSearch = (e) => {
             streamingRef.current.push({ type: 'search', content: e.detail });
             setStreaming([...streamingRef.current]);
@@ -92,7 +91,6 @@ export default function MainWindowContents() {
         const handleDone = () => {
             const newHistory = parseStreamingToHistory(inputQuestionValue, streamingRef.current);
             setHistory(his => {
-                // 找到最后一个 pending 的，替换为新内容
                 const idx = his.findIndex(item => item.pending);
                 if (idx !== -1) {
                     const updated = [...his];
@@ -105,7 +103,6 @@ export default function MainWindowContents() {
             streamingRef.current = [];
             setConvLoading(false);
 
-            // 移除监听
             window.removeEventListener('conversationSearch', handleSearch);
             window.removeEventListener('conversationAnnotation', handleAnnotation);
             window.removeEventListener('conversationResult', handleResult);
@@ -113,7 +110,6 @@ export default function MainWindowContents() {
             window.removeEventListener('conversationDone', handleDone);
         };
 
-        // 注册事件监听
         window.addEventListener('conversationSearch', handleSearch);
         window.addEventListener('conversationAnnotation', handleAnnotation);
         window.addEventListener('conversationResult', handleResult);
@@ -126,7 +122,14 @@ export default function MainWindowContents() {
         setInputQuestionValue('');
     };
 
-    // 2. 回车发送
+    //stop conversation
+    const handleStop = () => {
+        setStopped(true);
+        setConvLoading(false);
+        if (window.stopConversation) window.stopConversation();
+    };
+
+    //press enter to retrieve
     const handleConvKeyDown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -134,7 +137,6 @@ export default function MainWindowContents() {
         }
     };
 
-    // 3. 解析流式内容为历史结构
     function parseStreamingToHistory(query, streaming) {
         let retrieval = [];
         let answer = '';
@@ -160,7 +162,7 @@ export default function MainWindowContents() {
         };
     }
 
-    // 搜索结果渲染
+    //render the search result 
     const resultItem0 = searchResult.map((item, index) => (
         <li key={index}
             className={`result0-item ${selectedResultIndex === index ? 'selected' : ''}`}
@@ -178,7 +180,7 @@ export default function MainWindowContents() {
         </li>
     ));
 
-    // 对话输入区事件
+    //conversation input
     const onChange_Conv = (e) => setInputQuestionValue(e.target.value);
     const onPressEnter_Conv = handleConvKeyDown;
     const onClick_Conv = handleSendConversation;
@@ -207,6 +209,8 @@ export default function MainWindowContents() {
                         className='mainwindow-panel_2'>
                         <div className='biaoqian'>标签栏</div>
                         <MainDemo
+                            className='maindemo'
+                            // search related
                             content={content}
                             inputValue={inputValue}
                             isLoading={isLoading}
@@ -215,8 +219,7 @@ export default function MainWindowContents() {
                             isTimeout={isTimeout}
                             onChange={handleOnChange}
                             onKeyDown={handleKeyPress}
-                            className='maindemo'
-                            // 对话相关
+                            // conversation related
                             history={history}
                             streaming={streaming}
                             inputQuestionValue={inputQuestionValue}
@@ -227,6 +230,8 @@ export default function MainWindowContents() {
                             onChange_Conv={onChange_Conv}
                             onPressEnter_Conv={onPressEnter_Conv}
                             onClick_Conv={onClick_Conv}
+                            stopped={stopped}
+                            onStop={handleStop}
                         />
                     </Panel>
                 </PanelGroup>
@@ -235,11 +240,10 @@ export default function MainWindowContents() {
     );
 }
 
-// MainDemo 组件
 const MainDemo = ({
     content, inputValue, resultItem, onChange, onKeyDown, isLoading, showResult, isTimeout, className,
     history, streaming, inputQuestionValue, setInputQuestionValue, onSendConversation, onConvKeyDown, convLoading,
-    onChange_Conv, onPressEnter_Conv, onClick_Conv
+    onChange_Conv, onPressEnter_Conv, onClick_Conv, stopped, onStop
 }) => {
     switch (content) {
         case 'conversation':
@@ -249,21 +253,16 @@ const MainDemo = ({
                         <PanelGroup direction="vertical" className='conversation-panelgroup'>
                             <Panel minSize={30} maxSize={80} defaultSize={70} className='conversation-panel_1'>
                                 <div className='conversation-container' style={{height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', marginTop: 24}}>
-                                    {/* 历史会话 */}
                                     <div className="chat-history" style={{flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
                                         {history.map((item, idx) => (
                                             <div key={idx} className="chat-history-item" style={{display: 'flex', flexDirection: 'column'}}>
-                                                {/* 问题（右侧） */}
                                                 <div className="chat-row chat-row-question">
                                                     <div className="chat-bubble chat-bubble-question">{item.query}</div>
                                                 </div>
-                                                {/* 检索目的、关键词、分块内容（全部在一起，逐条追加） */}
                                                 {item.pending && idx === history.length - 1
                                                     ? (
-                                                        // 渲染流式检索内容
                                                         <>
                                                             {streaming.reduce((acc, msg, i) => {
-                                                                // 分组：每遇到 annotation 新开一组
                                                                 if (msg.type === 'annotation') {
                                                                     acc.push({ annotation: msg.content, search: [], result: [] });
                                                                 } else if (msg.type === 'search') {
@@ -294,14 +293,20 @@ const MainDemo = ({
                                                                     </div>
                                                                 </React.Fragment>
                                                             ))}
-                                                            {/* 正在思考气泡，始终在检索内容下方 */}
-                                                            <div className="chat-row chat-row-answer">
-                                                                <div className="chat-bubble chat-bubble-answer chat-loading">正在思考...</div>
-                                                            </div>
+                                                            {stopped ? (
+                                                                <div className="chat-row chat-row-answer">
+                                                                    <div className="chat-bubble chat-bubble-answer chat-loading" style={{ color: '#ff4d4f' }}>
+                                                                        检索已停止
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="chat-row chat-row-answer">
+                                                                    <div className="chat-bubble chat-bubble-answer chat-loading">正在检索...</div>
+                                                                </div>
+                                                            )}
                                                         </>
                                                     )
                                                     : (
-                                                        // 渲染已完成的检索内容
                                                         item.retrieval?.map((retr, i) => (
                                                             <React.Fragment key={i}>
                                                                 <div className="chat-row">
@@ -324,7 +329,6 @@ const MainDemo = ({
                                                         ))
                                                     )
                                                 }
-                                                {/* 回答（左侧），只有检索内容全部有了才显示 */}
                                                 {!item.pending &&
                                                     <div className="chat-row chat-row-answer">
                                                         <div className="chat-bubble chat-bubble-answer">
@@ -332,11 +336,8 @@ const MainDemo = ({
                                                         </div>
                                                     </div>
                                                 }
-                                                {/* 流式回答：只有所有检索分块都到位才显示 */}
                                                 {item.pending && idx === history.length - 1 &&
                                                     (() => {
-                                                        // 判断流式检索是否全部完成（annotation/search/result都已到位）
-                                                        // 这里假设 handleDone 之前不会有 answer 类型消息
                                                         const hasAllRetrieval = streaming.filter(msg => msg.type === 'annotation').length > 0 &&
                                                             streaming.filter(msg => msg.type === 'result').length > 0;
                                                         if (
@@ -360,7 +361,6 @@ const MainDemo = ({
                                 </div>
                             </Panel>
                             <PanelResizeHandle />
-                            {/* 下方Panel：输入区 */}
                             <Panel minSize={20} maxSize={70} defaultSize={30} className='conversation-panel_2'>
                                 <div className='question-input'>
                                     <div className='input-area'>
@@ -375,12 +375,20 @@ const MainDemo = ({
                                             style={{fontSize: 16, padding: '12px', minHeight: 48, maxHeight: 120}}
                                         />
                                     </div>
-                                    <div className='button-area'>
+                                    <div className='button-area' style={{display: 'flex', flexDirection: 'row', alignItems: 'flex-end'}}>
                                         <Button onClick={onClick_Conv} 
-                                                disabled={convLoading || !inputQuestionValue.trim()}
-                                                className='send-button'
-                                                style={{height: 48, fontSize: 16, marginLeft: 12}}>
+                                            disabled={convLoading || !inputQuestionValue.trim()}
+                                            className='send-button'
+                                            style={{height: 48, fontSize: 16, marginLeft: 12}}>
                                             发送
+                                        </Button>
+                                        <Button
+                                            onClick={onStop}
+                                            disabled={!convLoading}
+                                            className='stop-button'
+                                            style={{ height: 48, fontSize: 16, marginLeft: 12, background: '#ff4d4f', color: '#fff' }}
+                                        >
+                                            停止
                                         </Button>
                                     </div>
                                 </div>

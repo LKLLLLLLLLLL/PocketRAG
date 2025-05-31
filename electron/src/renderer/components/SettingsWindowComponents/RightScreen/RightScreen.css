@@ -27,3 +27,39 @@
     width: 100%;
     -webkit-app-region: no-drag; /* 允许按钮可点击 */
 }
+
+
+/* 可追加到 RightScreen.css */
+.settings-form {
+    background: #f5f5f5;
+    padding: 24px 32px;
+    border-radius: 8px;
+    max-width: 480px;
+    margin: 0 auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.settings-form h3 {
+    color: #222;
+    margin-bottom: 18px;
+}
+.settings-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px;
+}
+.settings-row label {
+    width: 110px;
+    color: #333;
+    font-weight: 500;
+    margin-right: 8px;
+    text-align: right;
+}
+.settings-row input,
+.settings-row .ant-input,
+.settings-row .ant-input-password {
+    background: #fff;
+    color: #222;
+}
+.settings-row .ant-select {
+    margin-left: 0;
+}
