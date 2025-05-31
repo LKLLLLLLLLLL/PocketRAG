@@ -683,6 +683,7 @@ void Utils::WorkerThread::start()
 {
     if (is_running)
     {
+        wakeUp();
         return;
     }
     shutdownFlag = false;

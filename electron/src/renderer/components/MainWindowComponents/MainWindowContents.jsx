@@ -4,6 +4,7 @@ import { Input, Button } from "antd";
 import Doclist from "../../templates/Doclist/Doclist";
 import LeftBar from "./LeftBar/LeftBar";
 import "./MainWindowContents.css";
+import RepoFileTree from "./RepoFileTree";
 
 const { TextArea } = Input;
 
@@ -198,7 +199,7 @@ export default function MainWindowContents() {
                         defaultSize={30}
                         className='mainwindow-panel_1'>
                         <div className='topbar-tools'>工具栏</div>
-                        <Doclist></Doclist>
+                        <Doclist><RepoFileTree/></Doclist>
                     </Panel>
                     <PanelResizeHandle></PanelResizeHandle>
                     <Panel 
