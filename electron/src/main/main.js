@@ -25,7 +25,7 @@ if (platform === 'win32') {
 }
 let restartTime = 0
 let kernel
-let isKernelRunning = true
+let isKernelRunning
 let isKernelManualKill = false
 let hasShownErrorDialog = false
 let readyPromise = new Promise((resolve, reject) => {
@@ -39,11 +39,11 @@ let readyPromise = new Promise((resolve, reject) => {
 
 function restartKernel (isKernelError){
   restartTime++
-  console.log('restarting kernel...', 'restartTime: ', restartTime)
   if(BrowserWindow.getAllWindows().length === 0 && !isKernelError){
     app.quit()
     return
   }
+  console.log('restarting kernel...', 'restartTime: ', restartTime)
   if(restartTime > 3){
     if(!hasShownErrorDialog) {
       hasShownErrorDialog = true
@@ -777,7 +777,7 @@ function showMessageBoxSync(event, content) {
 }
 
 function generateTree(dir) {
-    const items = fs.readdirSync(dir, { withFileTypes: true })
+    const items = fs.readdirSync(dir, { withFileTypes: true }).filter(item => !item.name.startsWith('.'))
     return items.map((item) => {
         const fullPath = path.join(dir, item.name)
         if (item.isDirectory()) {
@@ -808,6 +808,13 @@ function getRepoFileTree(event, repoPath) {
   return fileTreeData
 }
 
+/*function updateFile(event, action, filePath, title, treeData, selectNode) {
+  switch(action) {
+    case 'create':
+
+  }
+}*/
+
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
@@ -829,6 +836,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('showMessageBoxSync', showMessageBoxSync)
   ipcMain.on('getApiUsage', getApiUsage)
   ipcMain.handle('getRepoFileTree', getRepoFileTree)
+  // ipcMain.on('updateFile', updateFile)
   //add the event listeners before the window is created
 
   kernel = spawn(kernelPath, [], {
@@ -837,6 +845,7 @@ app.whenReady().then(async () => {
       POCKETRAG_USERDATA_PATH: userDataPath
     }
   })
+  isKernelRunning = true
   kernel.on('error', (err) => {
     console.error('Failed to start kernel:', err)
     isKernelRunning = false
@@ -873,7 +882,8 @@ app.whenReady().then(async () => {
 
 
 app.on('will-quit', (event) => {
-  if (kernel.pid && isKernelRunning) {
+  console.log('isKernelRunning: ', isKernelRunning)
+  if (isKernelRunning) {
     const callbackId = Date.now() - dateNow
     const stopAll = {
       sessionId : -1,
