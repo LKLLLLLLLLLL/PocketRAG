@@ -1,7 +1,8 @@
 .rightscreen-container{
     height: 100%;
     display: flex;
-    flex-grow: 1;
+    flex: 1 1 0%;
+    flex-direction: column;
     background-color: #aeaeae;
     color: white;
     overflow: hidden;
@@ -17,6 +18,11 @@
     min-height: 0;
     /* border: 2px solid red; */
     box-sizing: border-box;
-    margin-top: 30px;
     -webkit-app-region: no-drag;
+}
+.closebar-container{
+    display: flex;
+    justify-content: flex-end;
+    height: 30px;
+    width: 100%;
 }
