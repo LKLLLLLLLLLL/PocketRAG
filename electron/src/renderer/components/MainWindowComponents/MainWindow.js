@@ -74,6 +74,10 @@ export function MainWindowInit() {
     })
 
     window.openRepoListWindow = async () => {
+      const hasOpened = await window.electronAPI.repoListCheck()
+      if(hasOpened === true){
+        return
+      }
       await window.electronAPI.createNewWindow('repoList')
     }
 

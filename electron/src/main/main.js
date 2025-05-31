@@ -321,6 +321,18 @@ function getRepos (event, callbackId) {
 }
 
 
+async function openRepoCheck(event, repoName) {
+  for(const [id, window] of windows.entries()) {
+    const opendedRepoName = await window.webContents.executeJavaScript('window.repoName')
+    if(opendedRepoName === repoName) {
+      window.focus()
+      return true
+    }
+  }
+  return false
+}
+
+
 function openRepo (event, sessionId, repoName){
   const callbackId = callbackRegister(async (repoName, repoPath) => {
     BrowserWindow.fromWebContents(event.sender).close()
@@ -547,6 +559,18 @@ async function saveWindowState(window, windowType) {
   }
   fs.writeFileSync(stateFile, JSON.stringify(state))
   console.log('Window state saved:', state)  
+}
+
+
+async function checkRepoList() {
+  for(const win of windows.values()) {
+    const windowType = await win.webContents.executeJavaScript('window.windowType')
+    if(windowType === 'repoList') {
+      win.focus()
+      return true
+    }
+  }
+  return false
 }
 
 
@@ -836,6 +860,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('showMessageBoxSync', showMessageBoxSync)
   ipcMain.on('getApiUsage', getApiUsage)
   ipcMain.handle('getRepoFileTree', getRepoFileTree)
+  ipcMain.handle('openRepoCheck', openRepoCheck)
+  ipcMain.handle('repoListCheck', checkRepoList)
   // ipcMain.on('updateFile', updateFile)
   //add the event listeners before the window is created
 

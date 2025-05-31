@@ -29,6 +29,11 @@ export function RepoListWindowInit() {
 
     window.openRepo = async (repoName) => {
       await window.electronAPI.kernelReadyPromise()
+      const hasopened = await window.electronAPI.openRepoCheck(repoName)
+      if(hasopened === true) {
+        await window.electronAPI.close()
+        return
+      }
       const sessionId = await window.electronAPI.createNewWindow('main')
       window.electronAPI.openRepo(sessionId, repoName)
     }

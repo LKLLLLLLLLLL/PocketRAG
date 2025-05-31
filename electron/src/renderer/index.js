@@ -3,7 +3,7 @@ import { MainWindowInit } from './components/MainWindowComponents/MainWindow.js'
 import { RepoListWindowInit } from './components/StartWindowComponents/RepoListWindow.js'
 
 const urlParams = new URLSearchParams(window.location.search)
-const windowType = urlParams.get('windowType') // obtain the window type
+window.windowType = urlParams.get('windowType') // obtain the window type
 window.callbacks = new Map()
 window.dateNow = Date.now()
 window.timeLimit = 60000
@@ -179,7 +179,7 @@ window.openSettingsWindow = async () => {
 }
 
 
-switch(windowType){
+switch(window.windowType){
   case 'main':
     MainWindowInit()
     // setTimeout(() => {
@@ -210,7 +210,7 @@ import '@ant-design/v5-patch-for-react-19'
 
 // select different components based on different window types
 const getWindowRenderFunc = () => {
-  switch (windowType) {
+  switch (window.windowType) {
       case 'main':
         return MainWindow()
       case 'repoList':

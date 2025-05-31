@@ -46,7 +46,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   getRepoFileTree : (repoPath) => ipcRenderer.invoke('getRepoFileTree', repoPath),
 
-  updateFile : (action, path, title, treeData, selectNode) => ipcRenderer.send('updateFile', action, path, title, treeData, selectNode)
+  updateFile : (action, path, title, treeData, selectNode) => ipcRenderer.send('updateFile', action, path, title, treeData, selectNode),
+
+  openRepoCheck : (repoName) => ipcRenderer.invoke('openRepoCheck', repoName),
+
+  repoListCheck : () => ipcRenderer.invoke('repoListCheck')
 
 })
 //expose apis to the renderer process 
