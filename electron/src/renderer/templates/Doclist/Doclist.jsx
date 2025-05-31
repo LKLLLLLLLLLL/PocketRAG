@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './Doclist.css';
-export default function Doclist(){
+export default function Doclist({children}){
     return(
         <div className = 'Doclist-container'>
             <div className = 'doclist_top-container'>
@@ -16,6 +16,7 @@ export default function Doclist(){
                 <div>
                     文件列表
                 </div>
+                {children}
             </div>
             <div className = 'doclist_tools-container'>
                 <div>

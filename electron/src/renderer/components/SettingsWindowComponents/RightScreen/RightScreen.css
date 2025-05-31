@@ -25,4 +25,5 @@
     justify-content: flex-end;
     height: 30px;
     width: 100%;
+    -webkit-app-region: no-drag; /* 允许按钮可点击 */
 }
