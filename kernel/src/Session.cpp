@@ -463,15 +463,19 @@ You are a search query optimizer. Generate the most effective search keywords fo
             if (stopFlag)
                 return;
             std::string toolContent = "```retieved_information\n";
+            std::unordered_set<int64_t> chunkIds{}; // to avoid duplicate chunks
             for (auto &word : searchWords)
             {
                 historyManager.push(Type::search, word);
                 auto results = session.repository->search(word, Repository::searchAccuracy::high, std::max(static_cast<size_t>(1ULL), 10 / searchWords.size()));
                 for (auto &result : results)
                 {
+                    if(chunkIds.find(result.chunkId) != chunkIds.end())
+                        continue;
                     toolContent += "[content]\n" + result.content + "\n";
                     toolContent += "[metadata]\n" + result.metadata + "\n";
                     historyManager.push(Type::result, result);
+                    chunkIds.insert(result.chunkId);
                 }
                 if (stopFlag)
                     return;

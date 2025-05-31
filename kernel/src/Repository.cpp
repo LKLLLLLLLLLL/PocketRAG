@@ -404,6 +404,11 @@ void Repository::removeInvalidEmbedding()
             }
             chunkStmt.reset();
 
+            // set documents which corresponding to these chunks as invalid
+            auto updateDocStmt = sqlite->getStatement("UPDATE documents SET last_checked = NULL, content_hash = NULL WHERE id IN (SELECT doc_id FROM chunks WHERE embedding_id = ?);");
+            updateDocStmt.bind(1, embeddingId);
+            updateDocStmt.step();
+
             // delete invalid chunks
             for (auto chunkId : chunkIds)
             {
