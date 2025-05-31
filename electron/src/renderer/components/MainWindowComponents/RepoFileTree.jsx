@@ -30,6 +30,8 @@ function RepoFileTree() {
     window.repoInitializePromise.then(() => {
       if (!isMounted) return
       fetchTreeData()
+      window.electronAPI.onRepoFileChanged(fetchTreeData)
+      window.electronAPI.watchRepoDir(window.repoPath)
     })
     return () => { isMounted = false }
   }, [])

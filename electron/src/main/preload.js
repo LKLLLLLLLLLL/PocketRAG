@@ -50,7 +50,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   openRepoCheck : (repoName) => ipcRenderer.invoke('openRepoCheck', repoName),
 
-  repoListCheck : () => ipcRenderer.invoke('repoListCheck')
+  repoListCheck : () => ipcRenderer.invoke('repoListCheck'),
+
+  watchRepoDir : (repoPath) => ipcRenderer.send('watchRepoDir', repoPath),
+
+  onRepoFileChanged : (callback) => ipcRenderer.on('repoFileChanged', callback)
 
 })
 //expose apis to the renderer process 

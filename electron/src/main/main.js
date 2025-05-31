@@ -696,6 +696,10 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
 
   window.on('close', async () => {
     saveWindowState(window, windowType)
+    const repoPath = await window.webContents.executeJavaScript('window.repoPath')
+    if(repoPath) {
+      unwatchRepoDir(repoPath)
+    }
     const windowCallbacks = await window.webContents.executeJavaScript('window.callbacks')
     console.log('windowCallbacks\' final size: ', windowCallbacks.size)
   })
@@ -838,6 +842,35 @@ function getRepoFileTree(event, repoPath) {
 
   }
 }*/
+const repoWatchers = new Map()
+function watchRepoDir(event, repoPath) {
+  if(repoWatchers.has(repoPath)) {
+    repoWatchers.get(repoPath).close()
+  }
+  try {
+    const watcher = fs.watch(repoPath, { recursive: true}, async (eventType, filename) => {
+      console.log('文件变化:', eventType, filename)
+      for(const win of windows.values()) {
+        const currentRepoPath = await win.webContents.executeJavaScript('window.repoPath')
+        if(currentRepoPath === repoPath){
+          win.webContents.send('repoFileChanged', {eventType, filename, repoPath})
+        }
+      }
+    })
+    repoWatchers.set(repoPath, watcher)
+    console.log('已监听:', repoPath)
+  }catch(err) {
+    console.log('监听失败', err)
+  }
+}
+
+function unwatchRepoDir(repoPath) {
+  if(repoWatchers.has(repoPath)) {
+    repoWatchers.get(repoPath).close()
+    repoWatchers.delete(repoPath)
+    console.log('已停止监听:', repoPath)
+  }
+}
 
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
@@ -862,6 +895,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('getRepoFileTree', getRepoFileTree)
   ipcMain.handle('openRepoCheck', openRepoCheck)
   ipcMain.handle('repoListCheck', checkRepoList)
+  ipcMain.on('watchRepoDir', watchRepoDir)
   // ipcMain.on('updateFile', updateFile)
   //add the event listeners before the window is created
 
