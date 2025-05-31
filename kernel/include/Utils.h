@@ -103,7 +103,7 @@ public:
 namespace Utils
 {
     // set console to UTF-8 to avoid garbled characters
-    void setup_utf8_console();
+    void setupUtf8();
 
     // calculate the hash using XXHash algorithm
     std::string calculatedocHash(const std::filesystem::path &path);
@@ -338,4 +338,6 @@ namespace Utils
     bool hasInput();
 
     void setThreadName(const std::string &name);
+
+    std::string removeInvalidUtf8(const std::string &str);
 }

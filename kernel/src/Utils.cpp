@@ -74,16 +74,19 @@ std::string Utils::normalizeLineEndings(const std::string &input)
     return result;
 }
 
-void Utils::setup_utf8_console()
+void Utils::setupUtf8()
 {
 #ifdef _WIN32
     // set console to UTF-8
     system("chcp 65001 > null");
 
-    // set locale to UTF-8
+    // set cout to UTF-8
     std::ios_base::sync_with_stdio(false);
     std::locale utf8_locale(std::locale(), new std::codecvt_utf8<wchar_t>());
     std::wcout.imbue(utf8_locale);
+
+    // set the global locale to UTF-8
+    // std::locale::global(std::locale(".UTF-8"));
 #else
     // set locale to UTF-8
     std::locale::global(std::locale("en_US.UTF-8"));
@@ -186,6 +189,78 @@ void Utils::setThreadName(const std::string &name)
 
     HRESULT hr = SetThreadDescription(GetCurrentThread(), wideName.c_str());
 #endif
+}
+
+std::string Utils::removeInvalidUtf8(const std::string &str)
+{
+    std::string result;
+    size_t i = 0;
+
+    while (i < str.size())
+    {
+        unsigned char c = static_cast<unsigned char>(str[i]);
+
+        if (c <= 0x7F)
+        { // ASCII
+            result += c;
+            i++;
+        }
+        else if ((c & 0xE0) == 0xC0)
+        { // 2byte
+            if (i + 1 < str.size() && (static_cast<unsigned char>(str[i + 1]) & 0xC0) == 0x80)
+            {
+                result += str[i];
+                result += str[i + 1];
+                i += 2;
+            }
+            else
+            {
+                result += '?';
+                i++;
+            }
+        }
+        else if ((c & 0xF0) == 0xE0)
+        { // 3byte
+            if (i + 2 < str.size() && (static_cast<unsigned char>(str[i + 1]) & 0xC0) == 0x80 &&
+                (static_cast<unsigned char>(str[i + 2]) & 0xC0) == 0x80)
+            {
+                result += str[i];
+                result += str[i + 1];
+                result += str[i + 2];
+                i += 3;
+            }
+            else
+            {
+                result += '?';
+                i++;
+            }
+        }
+        else if ((c & 0xF8) == 0xF0)
+        { // 4byte
+            if (i + 3 < str.size() && (static_cast<unsigned char>(str[i + 1]) & 0xC0) == 0x80 &&
+                (static_cast<unsigned char>(str[i + 2]) & 0xC0) == 0x80 &&
+                (static_cast<unsigned char>(str[i + 3]) & 0xC0) == 0x80)
+            {
+                result += str[i];
+                result += str[i + 1];
+                result += str[i + 2];
+                result += str[i + 3];
+                i += 4;
+            }
+            else
+            {
+                result += '?';
+                i++;
+            }
+        }
+        else
+        { // other invalid byte
+            result += '?';
+            i++;
+        }
+    }
+
+    return result;
 }
 
 //--------------------------CallbackManager--------------------------//

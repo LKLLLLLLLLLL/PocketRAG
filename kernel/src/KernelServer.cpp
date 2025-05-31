@@ -563,14 +563,6 @@ void KernelServer::messageSender(std::atomic<bool> &stopFlag, Utils::WorkerThrea
     std::shared_ptr<Utils::MessageQueue::Message> message = nullptr;
     while(true)
     {
-        // while(message == nullptr && !stopFlag.load())
-        // {
-        //     message = kernelMessageQueue->tryPop();
-        //     if (message == nullptr)
-        //     {
-        //         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // avoid busy waiting
-        //     }
-        // }
         message = kernelMessageQueue->popWithCv(&parent.getNotice(), [&stopFlag, &parent]() {
             return parent.hasNotice();
         });
@@ -599,12 +591,55 @@ void KernelServer::messageSender(std::atomic<bool> &stopFlag, Utils::WorkerThrea
             {
                 message->data["sessionId"] = -1; // message from kernel server
             }
-            std::cout << message->data.dump() << std::endl << std::flush;
-            if(message->timer)
+        }
+        // try to serialize message to string
+        std::string messageStr{};
+        bool serializeSuccess = false;
+        try
+        {
+            messageStr = message->data.dump();
+            serializeSuccess = true;
+        }
+        catch (const nlohmann::json::exception &e)
+        {
+            // failed, try to get message type
+            std::string messageType{};
+            try
             {
-                message->timer->stop();
+                messageType = message->data["message"]["type"].get<std::string>();
             }
-            logger.debug("[KernelServer.messageSender] Send message: " + message->data.dump());
+            catch (...)
+            {
+                messageType = "unknown";
+            }
+            logger.warning("[KernelServer.messageSender] Failed to serialize message, message type: " + messageType + ", error: " + std::string(e.what()));
+
+            // try to send error message back
+            try
+            {
+                nlohmann::json errorJson;
+                errorJson["sessionId"] = message->data["sessionId"];
+                errorJson["toMain"] = message->data["toMain"];
+                errorJson["isReply"] = message->data["isReply"];
+                errorJson["callbackId"] = message->data["callbackId"];
+                errorJson["message"]["type"] = messageType;
+                errorJson["status"]["code"] = "UNKNOW_ERROR";
+                errorJson["status"]["message"] = "Failed to serialize message: " + std::string(e.what());
+                std::cout << errorJson.dump() << std::endl << std::flush;
+            }
+            catch (const nlohmann::json::exception &e)
+            {
+                logger.warning("[KernelServer.messageSender] Failed to send error message, parser error: " + std::string(e.what()));
+            }
+        }
+        if (serializeSuccess && !messageStr.empty())
+        {
+            std::cout << messageStr << std::endl << std::flush;
+            logger.debug("[KernelServer.messageSender] Send message: " + messageStr);
+        }
+        if (message->timer)
+        {
+            message->timer->stop();
         }
     }
     logger.info("[KernelServer.messageSender] thread stopped.");
