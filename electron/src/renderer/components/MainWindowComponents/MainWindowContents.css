@@ -121,10 +121,29 @@
     font-size: 18px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     transition: background 0.2s;
+    margin-left: 0;
 }
 .send-button:disabled {
     background-color: #a0c8ff;
     color: #eee;
+    cursor: not-allowed;
+}
+.stop-button {
+    background-color: #ff4d4f;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    height: 48px;
+    min-width: 80px;
+    font-weight: bold;
+    font-size: 18px;
+    margin-left: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    transition: background 0.2s;
+}
+.stop-button:disabled {
+    background-color: #ffb3b3 !important;
+    color: #fff !important;
     cursor: not-allowed;
 }
 

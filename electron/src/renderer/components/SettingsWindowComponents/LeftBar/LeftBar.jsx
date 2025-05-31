@@ -7,196 +7,20 @@ export default function LeftBar({setContent}){
         <div className = 'leftbar-container'>
             <div className = 'leftbar-main'>
                 <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
+                        onClick = {()=>setContent('page')}>
+                    页面
                 </Button>
                 <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
+                        onClick = {()=>setContent('localModelManagement')}>
+                    模型
                 </Button>
                 <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
+                        onClick = {()=>setContent('searchSettings')}>
+                    搜索
                 </Button>
                 <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('lidongdong')}>
-                    李冬冬
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('zhangjing')}>
-                    张静
-                </Button>
-                <Button className = 'set-lb-button'
-                        onClick = {()=>setContent('guoweibin')}>
-                    郭卫斌
+                        onClick = {()=>setContent('conversationSettings')}>
+                    对话
                 </Button>
             </div>
         </div>

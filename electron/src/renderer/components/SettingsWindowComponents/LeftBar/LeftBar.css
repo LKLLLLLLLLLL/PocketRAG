@@ -9,6 +9,7 @@
 }
 .set-lb-button{
     -webkit-app-region: no-drag;
+    background-color: aqua;
 }
 .leftbar-main{
     flex: 1 1 0%;
