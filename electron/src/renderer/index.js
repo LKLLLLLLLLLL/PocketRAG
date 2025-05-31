@@ -5,7 +5,7 @@ import { RepoListWindowInit } from './components/StartWindowComponents/RepoListW
 const urlParams = new URLSearchParams(window.location.search)
 const windowType = urlParams.get('windowType') // obtain the window type
 window.callbacks = new Map()
-window.dateNow = await window.electronAPI.dateNow()
+window.dateNow = Date.now()
 window.timeLimit = 60000
 
 window.callbackRegister = (callback) => {
@@ -98,7 +98,8 @@ window.electronAPI.onKernelData((data) => {
             await window.electronAPI.showMessageBoxSync({
               type : 'error',
               title : 'time out',
-              message : `${err} please restart the window`
+              message : `${err} please restart the window`,
+              modal : true
             })
             await window.electronAPI.close()
           })

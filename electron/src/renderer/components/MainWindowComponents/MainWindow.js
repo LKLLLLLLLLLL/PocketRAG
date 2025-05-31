@@ -12,7 +12,8 @@ export function MainWindowInit() {
       await window.electronAPI.showMessageBoxSync({
         type : 'error',
         title : 'time out',
-        message : `${err.message} please restart the window`
+        message : `${err.message} please restart the window`,
+        modal : true
       })
       await window.electronAPI.close()
     })
@@ -46,7 +47,8 @@ export function MainWindowInit() {
       await window.electronAPI.showMessageBoxSync({
         type : 'error',
         title : 'time out',
-        message : `${err} please restart the window`
+        message : `${err} please restart the window`,
+        modal : true
       })
       await window.electronAPI.close()
     })
