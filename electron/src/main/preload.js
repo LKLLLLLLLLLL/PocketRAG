@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   openRepo : (sessionId, repoName) => ipcRenderer.send('openRepo', sessionId, repoName),
 
-  onRepoInitialized : (callback) => ipcRenderer.on('repoInitialized', callback()),
+  onRepoInitialized : (callback) => ipcRenderer.on('repoInitialized', callback),
 
   createRepo : () => ipcRenderer.send('createRepo'),
 
@@ -21,8 +21,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendEmbeddingStatusReply : (reply) => ipcRenderer.send('embeddingStatusReply', reply),
 
   kernelReadyPromise : () => ipcRenderer.invoke('kernelReadyPromise'),
-
-  dateNow : () => ipcRenderer.invoke('dateNow'),
 
   sendSessionCrashed : (error) => ipcRenderer.send('sessionCrashed', error),
 
@@ -44,6 +42,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   showMessageBoxSync : (content) => ipcRenderer.invoke('showMessageBoxSync', content),
 
-  getApiUsage : (callbackId) => ipcRenderer.send('getApiUsage', callbackId) 
+  getApiUsage : (callbackId) => ipcRenderer.send('getApiUsage', callbackId),
+  
+  getRepoFileTree : (repoPath) => ipcRenderer.invoke('getRepoFileTree', repoPath)
+
 })
 //expose apis to the renderer process 

@@ -24,14 +24,10 @@ if (platform === 'win32') {
   kernelPath = path.join(__dirname, '..','..','..','kernel','bin','PocketRAG_kernel')
 }
 let restartTime = 0
-let kernel = spawn(kernelPath, [], {
-  cwd: path.dirname(kernelPath), // set work directory to the same as the kernel path
-  env: {
-    POCKETRAG_USERDATA_PATH: userDataPath
-  }
-})
+let kernel
 let isKernelRunning = true
 let isKernelManualKill = false
+let hasShownErrorDialog = false
 let readyPromise = new Promise((resolve, reject) => {
   const kernelReadyListener = () => {
     eventEmitter.off('kernelReady', kernelReadyListener)
@@ -40,45 +36,25 @@ let readyPromise = new Promise((resolve, reject) => {
   eventEmitter.on('kernelReady', kernelReadyListener)
 })
 
-kernel.on('error', (err) => {
-  console.error('Failed to start kernel:', err)
-  isKernelRunning = false
-  restartKernel(true)
-})
-kernel.on('exit', (code, signal) => {
-  console.log(`Kernel exited with code ${code} and signal ${signal}`)
-  isKernelRunning = false
-  if(!isKernelManualKill){
-    if(code !== 0){
-      restartKernel(false)
-    }
-    else {
-      app.quit()
-    }    
-  }
-  isKernelManualKill = false
-})
-kernel.stdout.on('data', stdoutListener)//kernel stdout listener
-kernel.stderr.on('data', (err) => {
-  console.error(err.toString())
-})
-
 
 function restartKernel (isKernelError){
-  console.log('restarting kernel...')
   restartTime++
+  console.log('restarting kernel...', 'restartTime: ', restartTime)
   if(BrowserWindow.getAllWindows().length === 0 && !isKernelError){
     app.quit()
     return
   }
   if(restartTime > 3){
-    dialog.showMessageBox({
-      type: 'error',
-      title : 'restart failed',
-      message : 'kernel restarted too many times, so the program is about to shut'
-    }).then(() => {
-      app.quit()
-    })
+    if(!hasShownErrorDialog) {
+      hasShownErrorDialog = true
+      dialog.showMessageBox({
+        type: 'error',
+        title : 'restart failed',
+        message : 'kernel restarted too many times, so the program is about to shut'
+      }).then(() => {
+        app.quit()
+      })
+    }
     return
   }
   if(kernel){
@@ -93,6 +69,7 @@ function restartKernel (isKernelError){
   })
   isKernelRunning = true
   readyPromise = new Promise((resolve, reject) => {
+    eventEmitter.removeAllListeners('kernelReady') // remove all previous listeners
     const kernelReadyListener = () => {
       eventEmitter.off('kernelReady', kernelReadyListener)
       resolve()
@@ -122,6 +99,35 @@ function restartKernel (isKernelError){
     }
     isKernelManualKill = false
   })
+
+  restartAllRepos()
+}
+
+
+async function restartAllRepos() {
+  for(const [id, window] of windows.entries()){
+    const repoName = await window.webContents.executeJavaScript('window.repoName')
+    if(repoName){
+      console.log('restarting window with id: ', id, ' and repoName: ', repoName)
+      const callbackId = callbackRegister(() => {})
+      const openRepo = {
+        sessionId : -1,
+        toMain : true,
+
+        callbackId : callbackId,
+        isReply : false,
+
+        message : {
+          type : 'openRepo',
+          repoName : repoName,
+          sessionId : id
+        }
+      }
+      await readyPromise
+      kernel.stdin.write(JSON.stringify(openRepo) + '\n')
+      console.log(JSON.stringify(openRepo) + '\n')
+    }
+  }
 }
 
 
@@ -418,7 +424,8 @@ function sessionCrashedHandler(event, error){
   dialog.showMessageBoxSync(window, {
     type : 'error',
     title : 'session crashed',
-    message : error
+    message : error,
+    modal : true
   })
   window.close()
 }
@@ -655,18 +662,6 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
           preload: path.join(__dirname, 'preload.js')
         }        
       }
-      if(platform === 'win32') {
-        settingsOptions.titleBarOverlay = {
-          color: '#2f3241',
-          symbolColor: '#74b1be',
-          height: 20
-        }
-        settingsOptions.titleBarStyle = 'hidden'        
-      }
-      else {
-        settingsOptions.titleBarStyle = 'hiddenInset'
-        settingsOptions.trafficLightPosition = { x: 10, y: 10 }
-      }
       window = new BrowserWindow(settingsOptions)
       window.on('closed', () => {
         windows.delete(windowId)
@@ -675,8 +670,10 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
 
   }
 
-  window.on('close', () => {
+  window.on('close', async () => {
     saveWindowState(window, windowType)
+    const windowCallbacks = await window.webContents.executeJavaScript('window.callbacks')
+    console.log('windowCallbacks\' final size: ', windowCallbacks.size)
   })
   console.log('create window with windowId: ', windowId, ' and windowType: ', windowType)
 
@@ -750,10 +747,6 @@ async function getReadyPromise() {
   return readyPromise
 }
 
-async function getDateNow() {
-  return dateNow
-}
-
 async function pathJoin(event, ...paths) {
   return path.join(...paths)
 }
@@ -793,19 +786,26 @@ function generateTree(dir) {
             key: fullPath,
             children: generateTree(fullPath)
           }
-        } else if (item.isFile() && item.name.endsWith('.md')) {
+        } else if (item.isFile()) {
           return {
             title: item.name,
             key: fullPath,
-            isLeaf: true//后续根据这个判断是不是文件
+            isLeaf: true
           }
         }
       }).filter(Boolean)
 }
 
 function getRepoFileTree(event, repoPath) {
-  const window = BrowserWindow.fromWebContents(event.sender)
-
+  let fileTreeData = generateTree(repoPath)
+  fileTreeData = [
+    {
+      title: path.basename(repoPath),
+      key: repoPath,
+      children: fileTreeData
+    }
+  ]
+  return fileTreeData
 }
 
 app.whenReady().then(async () => {
@@ -817,7 +817,6 @@ app.whenReady().then(async () => {
   ipcMain.on('sessionPreparedReply', sessionPreparedReply)
   ipcMain.handle('kernelReadyPromise', getReadyPromise)
   ipcMain.on('embeddingStatusReply', embeddingStatusReply)
-  ipcMain.handle('dateNow', getDateNow)
   ipcMain.on('sessionCrashed', sessionCrashedHandler)
   ipcMain.on('beginConversation', beginConversation)
   ipcMain.on('stopConversation', stopConversation)
@@ -829,8 +828,37 @@ app.whenReady().then(async () => {
   ipcMain.handle('minimizeWindow', minimizeWindow)
   ipcMain.handle('showMessageBoxSync', showMessageBoxSync)
   ipcMain.on('getApiUsage', getApiUsage)
-  ipcMain.on('getRepoFileTree', getRepoFileTree)
+  ipcMain.handle('getRepoFileTree', getRepoFileTree)
   //add the event listeners before the window is created
+
+  kernel = spawn(kernelPath, [], {
+    cwd: path.dirname(kernelPath), // set work directory to the same as the kernel path
+    env: {
+      POCKETRAG_USERDATA_PATH: userDataPath
+    }
+  })
+  kernel.on('error', (err) => {
+    console.error('Failed to start kernel:', err)
+    isKernelRunning = false
+    restartKernel(true)
+  })
+  kernel.on('exit', (code, signal) => {
+    console.log(`Kernel exited with code ${code} and signal ${signal}`)
+    isKernelRunning = false
+    if(!isKernelManualKill){
+      if(code !== 0){
+        restartKernel(false)
+      }
+      else {
+        app.quit()
+      }    
+    }
+    isKernelManualKill = false
+  })
+  kernel.stdout.on('data', stdoutListener)//kernel stdout listener
+  kernel.stderr.on('data', (err) => {
+    console.error(err.toString())
+  })
 
   createFirstWindow()
 
