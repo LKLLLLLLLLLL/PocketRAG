@@ -1,5 +1,6 @@
 #include "Chunker.h"
 
+#include <cstddef>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -330,7 +331,7 @@ void Chunker::recursiveChunk(const Chunk &chunk, int split_table_index, const st
             {
                 if (i->metadata[index] != next_pos->metadata[index])
                 {
-                    seperatorPos = std::max(0lu, index - 1); // remove last character if different
+                    seperatorPos = std::max(static_cast<size_t>(0), index - 1); // remove last character if different
                     break;
                 }
             }
