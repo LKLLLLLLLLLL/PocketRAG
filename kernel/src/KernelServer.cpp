@@ -642,7 +642,7 @@ void KernelServer::stopMessageReceiver()
 void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
 {
     logger.info("[KernelServer.messageReceiver] thread started.");
-    std::string input = {}; // max input size: 2048Byte
+    std::string input = "";
     while (true)
     {
         std::getline(std::cin, input);
@@ -682,9 +682,9 @@ void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
                 inputJson["status"]["message"] = "";
                 sendBack(inputJson);
                 stopAllFlag = true;
+                Utils::WorkerThread::getCurrentThread()->stop();
                 mainThreadCondition.notify_all();
                 input.clear();
-                return; // stop message receiver thread
             }
             else
             {
@@ -701,6 +701,10 @@ void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
             inputJson["status"]["code"] = "WRONG_PARAM";
             inputJson["status"]["message"] = "Invalid message format, parser error: " + std::string(e.what());
             sendBack(inputJson);
+        }
+        if (stopFlag)
+        {
+            break;
         }
         input.clear();
     }

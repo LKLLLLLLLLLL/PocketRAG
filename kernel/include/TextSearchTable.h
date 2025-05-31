@@ -50,6 +50,8 @@ private:
 
     mutable std::shared_mutex mutex; // mutex for thread safety
 
+    static const int MIN_KEYWORD_LENGTH = 2; // minimum length of keyword to be highlighted
+
 public:
     TextSearchTable(SqliteConnection &sqlite, const std::string &tableName);
     ~TextSearchTable() = default; // destructor
@@ -93,8 +95,8 @@ namespace jiebaTokenizer
 
     cppjieba::Jieba *get_jieba_ptr();
 
-    void cut(const std::string &text, std::vector<std::string> &words);
+    void cut(const std::string &text, std::vector<std::string> &words, bool needLower = true);
 
-    void cutForSearch(const std::string &text, std::vector<std::string> &words);
+    void cutForSearch(const std::string &text, std::vector<std::string> &words, bool needLower = true);
 }
 

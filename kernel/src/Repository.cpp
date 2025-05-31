@@ -511,11 +511,8 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
         {
             result.content = content;
             result.metadata = metadata;
-            if (result.highlightedContent.empty())
-            {
-                result.highlightedContent = content;
-                result.highlightedMetadata = metadata;
-            }
+            result.highlightedContent = content;
+            result.highlightedMetadata = metadata;
             contents.push_back(Utils::chunkTosequence(content, metadata));
         }
         else
@@ -607,7 +604,7 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
 
     // mark keywords again
     std::vector<std::string> keyWords;
-    jiebaTokenizer::cut(query, keyWords);
+    jiebaTokenizer::cut(query, keyWords, false);
     for(auto &result : uniqueResults)
     {
         result.highlightedContent = TextSearchTable::reHighlight(result.highlightedContent, keyWords);
@@ -620,10 +617,10 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
 void Repository::configEmbedding(const EmbeddingConfigList &configs)
 {
     // stop the background thread
-    logger.debug("[Repository::configEmbedding] begin to config embedding");
+    logger.debug("[Repository.configEmbedding] begin to config embedding");
 
     updateEmbeddings(configs); 
-    logger.debug("[Repository::configEmbedding] embedding config done");
+    logger.debug("[Repository.configEmbedding] embedding config done");
 
     // resume the background thread
     startBackgroundProcess();
@@ -631,11 +628,11 @@ void Repository::configEmbedding(const EmbeddingConfigList &configs)
 
 void Repository::configReranker(const std::filesystem::path &modelPath)
 {
-    logger.debug("[Repository::configReranker] begin to config reranker model");
+    logger.debug("[Repository.configReranker] begin to config reranker model");
     Utils::LockGuard lock(repoMutex, true, true);
     if(!modelPath.empty())
         rerankerModel = std::make_shared<RerankerModel>(modelPath, ONNXModel::device::cpu);
-    logger.debug("[Repository::configReranker] reranker model config done");
+    logger.debug("[Repository.configReranker] reranker model config done");
     startBackgroundProcess();
 }
 

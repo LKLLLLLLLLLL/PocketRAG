@@ -1,5 +1,6 @@
 #include "TextSearchTable.h"
 #include "Utils.h"
+#include <string>
 
 // helper function to register the jieba tokenizer to SQLite database
 namespace jiebaTokenizer
@@ -84,35 +85,39 @@ namespace jiebaTokenizer
     {
         if(jieba != nullptr) 
             return jieba;
-        Utils::Timer timer("[Jieba] jieba initialization");
         {
             std::lock_guard<std::mutex> lock(jiebaMutex);
+            Utils::Timer timer("[Jieba] jieba initialization");
             if (jieba == nullptr) // initialize jieba object
             {
                 jieba = new cppjieba::Jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH, STOP_WORD_PATH); // PATH has been defined in the cmakefile
             }
+            timer.stop();
         }
-        timer.stop();
         return jieba;
     }
 
 };
 
-void jiebaTokenizer::cut(const std::string &text, std::vector<std::string> &words)
+void jiebaTokenizer::cut(const std::string &text, std::vector<std::string> &words, bool needLower)
 {
     get_jieba_ptr();
 
     std::lock_guard<std::mutex> lock(jiebaMutex);
-    auto ltext = Utils::toLower(text);
+    auto ltext = text;
+    if(needLower)
+        ltext = Utils::toLower(text);
     jieba->Cut(ltext, words);
 }
 
-void jiebaTokenizer::cutForSearch(const std::string &text, std::vector<std::string> &words)
+void jiebaTokenizer::cutForSearch(const std::string &text, std::vector<std::string> &words, bool needLower)
 {
     get_jieba_ptr();
 
     std::lock_guard<std::mutex> lock(jiebaMutex);
-    auto ltext = Utils::toLower(text);
+    auto ltext = text;
+    if (needLower)
+        ltext = Utils::toLower(text);
     jieba->CutForSearch(ltext, words);
 }
 
@@ -195,7 +200,6 @@ auto TextSearchTable::search(const std::string &query, int limit) -> std::vector
                 safeKeyword += c;
             }
         }
-        safeKeyword = safeKeyword;
         
         if (!safeKeyword.empty()) 
         {
@@ -266,7 +270,70 @@ std::string TextSearchTable::reHighlight(const std::string &text, const std::vec
         return text;
     }
     std::string result = text;
-    for (const auto &keyword : keywords)
+    
+    // filter kewords
+    std::vector<std::string> safeKeywords;
+    for (size_t i = 0; i < keywords.size(); ++i)
+    {
+        std::string safeKeyword;
+        for (char c : keywords[i])
+        {
+            if (std::isalnum(static_cast<unsigned char>(c)) || c > 127u)
+            {
+                safeKeyword += c;
+            }
+        }
+        if (!safeKeyword.empty())
+        {
+            safeKeywords.push_back(safeKeyword);
+        }
+    }
+    if(safeKeywords.empty())
+    {
+        return result;
+    }
+
+    // remove duplicate and contained keywords
+    std::vector<std::string> uniqueKeywords;
+    for (const auto &keyword : safeKeywords)
+    {
+        bool found = false;
+        for (auto it = uniqueKeywords.begin(); it != uniqueKeywords.end();)
+        {
+            bool isSubstr = (it->find(keyword) != std::string::npos);
+            if (isSubstr)
+            {
+                found = true;
+                break;
+            }
+            bool isSuperstr = (keyword.find(*it) != std::string::npos);
+            if (isSuperstr)
+            {
+                it = uniqueKeywords.erase(it);
+                continue;
+            }
+            ++it;
+        }
+        if (!found)
+        {
+            uniqueKeywords.push_back(keyword);
+        }
+    }
+
+    // remove short keywords
+    for(auto it = uniqueKeywords.begin(); it != uniqueKeywords.end();)
+    {
+        if (Utils::utf8Length(*it) < MIN_KEYWORD_LENGTH)
+        {
+            it = uniqueKeywords.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    for (const auto &keyword : uniqueKeywords)
     {
         auto pos = result.find(keyword);
         while (pos != std::string::npos)
