@@ -83,6 +83,8 @@ VectorTable::~VectorTable()
     {
         reconstructFaissIndex(false);
         writeToDisk(false);
+        delete faissIndex;
+        faissIndex = nullptr;
     }
 }
 
@@ -460,6 +462,8 @@ int VectorTable::reconstructFaissIndex(bool alreadyLocked)
     int deletedNum = sqlite.execute(deleteSQL); 
 
     // save new Faiss index
+    delete faissIndex;
+    faissIndex = nullptr;
     faissIndex = newFaissIndex;
 
     deleteCount = 0;    // reset delete count
