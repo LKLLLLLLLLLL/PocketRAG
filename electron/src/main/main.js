@@ -504,6 +504,24 @@ function stopConversation(event, callbackId, conversationId){
 }
 
 
+async function deleteRepoCheck(event, repoName) {
+  for(const win of windows.values()) {
+    const currentRepoName = await win.webContents.executeJavaScript('window.repoName')
+    if(currentRepoName === repoName) {
+      const repoListWindow = BrowserWindow.fromWebContents(event.sender)
+      dialog.showMessageBoxSync(repoListWindow, {
+        type: 'warning',
+        title: 'delete opened repo',
+        message: `The repo "${repoName}" is currently opened, please close it before deleting.`,
+        modal: true
+      })
+      return true
+    }
+  }
+  return false
+}
+
+
 function deleteRepo (event, repoName){
   const callbackId = callbackRegister(() => {})
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
@@ -913,6 +931,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('getConversation', getConversation)
   ipcMain.on('updateFile', updateFile)
   ipcMain.handle('getFile', getFile)
+  ipcMain.handle('deleteRepoCheck', deleteRepoCheck)
   //add the event listeners before the window is created
 
   kernel = spawn(kernelPath, [], {

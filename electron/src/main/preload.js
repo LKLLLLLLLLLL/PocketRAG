@@ -60,5 +60,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getFile : (filePath) => ipcRenderer.invoke('getFile', filePath),
 
+  deleteRepoCheck : (repoName) => ipcRenderer.invoke('deleteRepoCheck', repoName)
+
 })
 //expose apis to the renderer process 

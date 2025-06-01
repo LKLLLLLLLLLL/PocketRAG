@@ -45,6 +45,10 @@ export function RepoListWindowInit() {
 
     window.deleteRepo = async (repoName) => {
       await window.electronAPI.kernelReadyPromise()
+      const repoOpened = await window.electronAPI.deleteRepoCheck(repoName)
+      if(repoOpened === true) {
+        return
+      }
       window.electronAPI.deleteRepo(repoName)
     }
 
