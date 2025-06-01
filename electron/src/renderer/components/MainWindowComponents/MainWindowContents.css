@@ -234,7 +234,6 @@
     width: 100%;
     min-height: 0;
     overflow-y: auto;
-    color: red;
 }
 .searchresult-container {
     display: flex;
@@ -251,6 +250,9 @@
 .searchinput {
     width: 700px;
     height: 30px;
+}
+.searchinput .ant-btn{
+    width: 30px;
 }
 .explanation-container {
     display: flex;
@@ -274,9 +276,13 @@
     width: 100%;
     flex: 1;
     display: flex;
-    border: 1px solid #ccc;
-    border-radius: 3px;
     box-sizing: border-box;
+    border: 1px solid #ccc;
+    background: #222b38;
+    border-radius: 3px;
+    margin: 2px 0;
+    padding: 4px 8px;
+    color: #ffe066;
 }
 .filepath-container {
     width: 100%;
@@ -285,14 +291,140 @@
     border: 1px solid #ccc;
     border-radius: 3px;
     box-sizing: border-box;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: #aaa;
 }
 .chunkcontent-container mark {
-    background: #ffe066;
     color: blue;
     font-weight: bold;
     border-radius: 2px;
     padding: 0 2px;
     display: inline;
+}
+
+/* 搜索结果项整体样式 */
+.result0-item {
+    background: #23272f;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    padding: 18px 18px 12px 18px;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    transition: box-shadow 0.2s, background 0.2s;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.result0-item.selected {
+    background: #2d323c;
+    border: 1.5px solid #09a7a2;
+}
+
+/* 统一每项的内容布局 */
+.result0-item-container {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    padding: 0;
+    overflow: visible;
+}
+
+/* 分块内容部分 */
+.chunkcontent-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #222b38;
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border: none;
+    color: #ffe066;
+}
+
+.chunkcontent-explanation {
+    font-size: 14px;
+    color: #b2d8d8;
+    font-weight: bold;
+    margin-bottom: 2px;
+    margin-top: 2px;
+    letter-spacing: 1px;
+}
+
+.chunkcontent-content {
+    font-size: 15px;
+    color: #fff;
+    word-break: break-all;
+    white-space: pre-wrap;
+    background: none;
+    border-radius: 4px;
+    padding: 0;
+    margin-bottom: 0;
+    margin-top: 0;
+    line-height: 1.7;
+}
+
+/* 高亮关键字 */
+.chunkcontent-content mark {
+    color: #4e8cff;
+    background: none;
+    font-weight: bold;
+    border-radius: 0;
+    padding: 0;
+    display: inline;
+}
+
+/* 文件路径部分 */
+.filepath-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: none;
+    border: none;
+    padding: 0 2px;
+    margin: 0;
+}
+
+.filepath-explanation {
+    font-size: 13px;
+    color: #b2d8d8;
+    font-weight: bold;
+    margin-bottom: 2px;
+    margin-top: 2px;
+    letter-spacing: 1px;
+}
+
+.filepath-content {
+    font-size: 13px;
+    color: #ffe066;
+    background: none;
+    border-radius: 0;
+    padding: 0;
+    word-break: break-all;
+    white-space: pre-wrap;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* 保证整体风格统一 */
+.result0-item-container > * {
+    margin-bottom: 0;
+}
+
+@media (max-width: 800px) {
+    .result0-item, .result0-item-container {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+    .chunkcontent-content, .filepath-content {
+        padding-left: 6px;
+        padding-right: 6px;
+    }
 }
 
 /* ====== 修复内容不显示问题（不包含 .conversation-panel_2） ====== */
