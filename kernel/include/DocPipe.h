@@ -75,7 +75,7 @@ private:
     std::vector<std::shared_ptr<Embedding>> &embeddings; // embedding model, can be multiple models
     std::vector<std::shared_ptr<VectorTable>> &vTable;       // vector table, one table has one embedding model
 
-    static const int maxUncheckedTime = 60 * 60 * 24; // max unchecked time, second, 1 day
+    static const int maxUncheckedTime = 60 * 60 * 8; // max unchecked time, second, 8 hours
 
     // read document from disk, and cache it
     std::string& readDoc();

@@ -308,6 +308,8 @@ void KernelServer::handleMessage(nlohmann::json &json, std::shared_ptr<Utils::Ti
             {
                 auto sessionId = it->second;
                 sessions[sessionId]->stop();
+                sessionThreads[sessionId]->shutdown();
+                sessionThreads.erase(sessionId);
                 sessions.erase(sessionId);
                 windowIdToSessionId.erase(windowId);
                 sessionIdToWindowId.erase(sessionId);
@@ -465,9 +467,20 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
     auto sessionThreadIt = sessionThreads.find(sessionId);
     sessions[sessionId] = session;
     // sessionThreads[sessionId] = std::thread(&Session::run, session);
-    sessionThreads[sessionId] = std::make_shared<Utils::WorkerThread>("Session" + std::to_string(sessionId) + " main", [session](std::atomic<bool>& stopFlag, Utils::WorkerThread& parent)
+    sessionThreads[sessionId] = std::make_shared<Utils::WorkerThread>("Session" + std::to_string(sessionId) + " main", 
+    [this, sessionId](std::atomic<bool>& stopFlag, Utils::WorkerThread& parent)
     {
-        session->run(stopFlag, parent);
+        std::shared_ptr<Session> session;
+        {
+            std::lock_guard<std::mutex> lock(sessionMutex);
+            auto it = sessions.find(sessionId);
+            if (it != sessions.end()) {
+                session = it->second;
+            }
+        }
+        if (session) {
+            session->run(stopFlag, parent);
+        }
     },[this, sessionId](const std::exception& e)
     {
         // handle crash

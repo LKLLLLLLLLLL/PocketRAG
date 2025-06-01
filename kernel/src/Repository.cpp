@@ -246,7 +246,6 @@ void Repository::stopBackgroundProcess()
     if(backgroundThread)
     {
         backgroundThread->shutdown();
-        embeddings.clear();
     }
 }
 

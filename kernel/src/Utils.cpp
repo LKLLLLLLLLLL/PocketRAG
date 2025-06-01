@@ -13,44 +13,39 @@
 
 std::string Utils::calculatedocHash(const std::filesystem::path &path)
 {
-    // open file
     std::ifstream file{path, std::ios::binary};
     if (!file.is_open())
         throw std::runtime_error("Failed to open file: " + path.string());
 
-    std::vector<char> buffer(8192);             // 8KB buffer
-    xxhash::XXH64_state_t *state = xxhash::XXH64_createState(); // create a new state for hash calculation
-    if (!state)
-        throw std::runtime_error("Failed to create hash state.");
+    std::string content = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
 
-    // calculate hash
-    XXH64_reset(state, 0); // reset the state with initial hash value
-    file.read(buffer.data(), buffer.size());
-    while (file.gcount() > 0)
-    {
-        XXH64_update(state, buffer.data(), file.gcount()); // update hash with the read data
-        file.read(buffer.data(), buffer.size());
-    }
-    xxhash::XXH64_hash_t hash = xxhash::XXH64_digest(state); // get the final hash value
-    XXH64_freeState(state);                  // free the state
-    file.close();                            // close the file
-
-    return std::to_string(hash); // convert hash to string and return
+    return calculateHash(content);
 }
 
 std::string Utils::calculateHash(const std::string &content)
 {
-    xxhash::XXH64_state_t *state = xxhash::XXH64_createState(); // create a new state for hash calculation
+    size_t bufferSize = 8192;
+    xxhash::XXH3_state_t *state = xxhash::XXH3_createState();
     if (!state)
+    {
+        xxhash::XXH3_freeState(state);
         throw std::runtime_error( "Failed to create hash state.");
+    }
 
-    // calculate hash
-    xxhash::XXH64_reset(state, 0);                       // reset the state with initial hash value
-    xxhash::XXH64_update(state, content.data(), content.size()); // update hash with the content
-    xxhash::XXH64_hash_t hash = XXH64_digest(state);             // get the final hash value
-    xxhash::XXH64_freeState(state);                              // free the state
+    xxhash::XXH3_128bits_reset(state);
+    size_t offset = 0;
+    while(offset < content.size())
+    {
+        size_t chunkSize = std::min(bufferSize, content.size() - offset);
+        xxhash::XXH3_128bits_update(state, content.data() + offset, chunkSize);
+        offset += chunkSize;
+    }
 
-    return std::to_string(hash); // convert hash to string and return
+    xxhash::XXH128_hash_t hash = xxhash::XXH3_128bits_digest(state);
+    xxhash::XXH3_freeState(state);
+
+    return std::format("{:016x}{:016x}", hash.high64, hash.low64);
 }
 
 std::string Utils::wstring_to_string(const std::wstring &wstr)
@@ -403,11 +398,9 @@ void Utils::Timer::stop(std::source_location endLocation)
 {
     auto endTime = clock_type::now();
     auto duration = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(endTime - startTime).count();
-    logger.info(message + " Timer stopped in " + std::to_string(duration) +
-                " ms "
-                "\nFrom " +
-                beginLocation.file_name() + ":" + std::to_string(beginLocation.line()) + "\nTo   " +
-                endLocation.file_name() + ":" + std::to_string(endLocation.line()) + " .");
+    logger.info("[PERF] " + message + " Timer stopped in " + std::to_string(duration) + " ms "
+                "\nFrom " + beginLocation.file_name() + ":" + std::to_string(beginLocation.line()) + 
+                "\nTo   " + endLocation.file_name() + ":" + std::to_string(endLocation.line()) + " .");
     running = false;
 }
 
@@ -418,10 +411,9 @@ Utils::Timer::~Timer()
         auto endTime = clock_type::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(endTime - startTime).count();
-        logger.info(message + " Timer stopped in " + std::to_string(duration) +
-                    " ms"
-                    "\nFrom " +
-                    beginLocation.file_name() + ":" + std::to_string(beginLocation.line()) + "\nTo   destructor.");
+        logger.info("[PERF] " + message + " Timer stopped in " + std::to_string(duration) + " ms "
+            "\nFrom " + beginLocation.file_name() + ":" + std::to_string(beginLocation.line()) + 
+            "\nTo   destructor.");
         running = false;
         logger.warning("Timer stopped at destructor, result may be inaccurate.");
     }
