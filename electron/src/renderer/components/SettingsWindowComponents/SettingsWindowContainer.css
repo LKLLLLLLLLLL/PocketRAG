@@ -1,8 +1,8 @@
-.settingswindow-container{
+.settingswindow-container {
     flex: 1 1 0%;
     display: flex;
-    background-color: #424242;
-    color: white;
+    background-color: #111111;
+    color: #fff;
     overflow: hidden;
     min-height: 0;
     -webkit-app-region: drag;
@@ -14,4 +14,35 @@
     min-height: 0;
     min-width: 0;
     overflow: hidden;
+}
+
+/* 统一滚动条样式 */
+.settingswindow-main,
+.rightscreen-main,
+.leftbar-main {
+    scrollbar-width: thin;
+    scrollbar-color: #4e8cff #555555;
+}
+.settingswindow-main::-webkit-scrollbar,
+.rightscreen-main::-webkit-scrollbar,
+.leftbar-main::-webkit-scrollbar {
+    width: 8px;
+    background: #555555;
+}
+.settingswindow-main::-webkit-scrollbar-thumb,
+.rightscreen-main::-webkit-scrollbar-thumb,
+.leftbar-main::-webkit-scrollbar-thumb {
+    background: #4e8cff;
+    border-radius: 6px;
+}
+.settingswindow-main::-webkit-scrollbar-thumb:hover,
+.rightscreen-main::-webkit-scrollbar-thumb:hover,
+.leftbar-main::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
+}
+
+/* 按钮基础样式不变 */
+.ant-btn, .ant-btn:focus, .ant-btn:active, .ant-btn:hover {
+    border: none !important;
+    box-shadow: none !important;
 }

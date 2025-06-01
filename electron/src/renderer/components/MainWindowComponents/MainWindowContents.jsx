@@ -2,9 +2,11 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import React, { useState, useRef } from "react";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Input, Button } from "antd";
+import ReactMarkdown from 'react-markdown';
 import Doclist from "../../templates/Doclist/Doclist";
 import LeftBar from "./LeftBar/LeftBar";
-import RepoFileTree from "./RepoFileTree";
+import TextEditor from "./TextEditor";
+import TabsBar from "./TabsBar";
 import "./MainWindowContents.css";
 
 const { TextArea } = Input;
@@ -200,6 +202,7 @@ export default function MainWindowContents() {
             <LeftBar
                 handleConversation={() => setContent('conversation')}
                 handleSearch={() => setContent('search')}>
+                handleEdit={()=> setContent('edit')}
             </LeftBar>
             <div style={{ flex: 1, display: 'flex' }}>
                 <PanelGroup direction="horizontal" autoSaveId="main-window-horizontal">
@@ -209,15 +212,22 @@ export default function MainWindowContents() {
                         defaultSize={30}
                         className='mainwindow-panel_1'>
                         <div className='topbar-tools'>工具栏</div>
-                        <Doclist><RepoFileTree /></Doclist>
+                        <Doclist></Doclist>
                     </Panel>
-                    <PanelResizeHandle></PanelResizeHandle>
+                    <PanelResizeHandle className = 'main-panel-resize-handle'></PanelResizeHandle>
                     <Panel
                         minSize={60}
                         maxSize={90}
                         defaultSize={70}
                         className='mainwindow-panel_2'>
-                        <div className='biaoqian'>标签栏</div>
+                        <div className='biaoqian'>
+                            <div className="tabsbar-container">
+                                <TabsBar
+                                    onTabEdit={() => setContent('edit')}
+                                    onTabChange={() => setContent('edit')}
+                                />
+                            </div>
+                        </div>
                         <MainDemo
                             className='maindemo'
                             // search related
@@ -367,7 +377,7 @@ const MainDemo = ({
                                                 {!item.pending &&
                                                     <div className="chat-row chat-row-answer">
                                                         <div className="chat-bubble chat-bubble-answer">
-                                                            {item.answer}
+                                                            <ReactMarkdown>{item.answer}</ReactMarkdown>
                                                         </div>
                                                     </div>
                                                 }
@@ -376,7 +386,7 @@ const MainDemo = ({
                                     </div>
                                 </div>
                             </Panel>
-                            <PanelResizeHandle />
+                            <PanelResizeHandle className = 'conversation-panel-resize-handle'/>
                             <Panel minSize={20} maxSize={70} defaultSize={30} className='conversation-panel_2'>
                                 {showInfo && Array.isArray(info) && info.length > 0 && typeof info[0] === 'object' && (
                                     <div className="model-info-panel">
@@ -467,6 +477,14 @@ const MainDemo = ({
                                 }
                             </div>
                         </div>
+                    </div>
+                </div>
+            );
+        case 'edit':
+            return (
+                <div className={className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                    <div style={{ flex: 1, minHeight: 0 }}>
+                        <TextEditor />
                     </div>
                 </div>
             );

@@ -1,24 +1,33 @@
-.Doclist-container{
+.Doclist-container {
     display: flex;
     flex-direction: column;
     width: 100%;
     height: 100%;
-    /* border-left: 4px solid #ddd;
-    border-right: 4px solid #ddd; */
     background-color: #bababa;
     -webkit-app-region: no-drag;
 }
-.doclist_top-container{
+
+.doclist_top-container {
     width: 100%;
-    height: 50px;
+    height: 30px;
     background-color: #424242;
+    flex-shrink: 0;
 }
-.doclist_main-container{
-    flex: 1;
+
+.doclist_main-container {
+    flex: 1 1 auto;
     background-color: #363636;
+    overflow: auto;
+    min-height: 0;
 }
-.doclist_tools-container{
+
+.doclist_tools-container {
     background-color: #121212;
     height: 30px;
     width: 100%;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    border-top: 1px solid #232b38;
+    flex-shrink: 0;
 }

@@ -66,7 +66,7 @@ export default function StartWindowContainer(){
                     </div>
                     <div className = 'repo-delete-container'>
                         <Button className = 'repo-delete' 
-                                icon = {<DeleteOutlined />}
+                                icon = {<DeleteOutlined style = {{fontSize:20}}/>}
                                 onClick = {async (e)=>{e.stopPropagation();window.deleteRepo(repo.name);}}>
                         </Button>
                     </div>

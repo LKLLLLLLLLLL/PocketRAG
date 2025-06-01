@@ -2,8 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './LeftBar.css';
 import {Button} from 'antd';
-import {SettingOutlined, SearchOutlined, MessageOutlined, PlusCircleOutlined} from '@ant-design/icons';
-export default function LeftBar({handleConversation,handleSearch}){
+import {SettingOutlined, SearchOutlined, MessageOutlined, PlusCircleOutlined, EditOutlined} from '@ant-design/icons';
+export default function LeftBar({handleConversation,handleSearch,handleEdit}){
     return(
         <div className = 'LeftBar-container'>
             <div className = 'leftbar'>
@@ -19,6 +19,10 @@ export default function LeftBar({handleConversation,handleSearch}){
                     <Button className = 'lb-button new'
                             onClick = {async() => {await window.openRepoListWindow()}}
                             icon = {<PlusCircleOutlined style = {{fontSize: 20}}/>}>
+                    </Button>
+                    <Button className = 'lb-button edit'
+                            onClick = {handleEdit}
+                            icon = {<EditOutlined style = {{fontSize: 20}}/>}>
                     </Button>
                 </div>
                 <div className = 'leftbar-down'>

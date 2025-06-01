@@ -1,29 +1,62 @@
-.leftbar-container{
+.leftbar-container {
     width: 200px;
     height: 100%;
-    background-color: #424242;
-    color: white;
-    /* border-right: 3px solid white; */
+    background-color: #333333;
+    color: #fff;
     display: flex;
     min-height: 0;
+    border-right: 2px solid #555555;
 }
-.set-lb-button{
-    -webkit-app-region: no-drag;
-    background-color: aqua;
-}
-.leftbar-main{
+
+.leftbar-main {
     flex: 1 1 0%;
-    background-color: #424242;
-    color: white;
-    /* border-right: 3px solid white; */
+    background-color: #333333;
+    color: #fff;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
     margin-top: 30px;
     -webkit-app-region: no-drag;
+    gap: 12px;
 }
-/* button{
-    width: 100%;
-    height: 100px;
-} */
+
+.set-lb-button {
+    width: 90%;
+    margin: 0 auto;
+    height: 44px;
+    font-size: 17px;
+    background-color: #555555;
+    color: #fff;
+    border-radius: 8px;
+    border: none;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+    text-align: left;
+    padding-left: 18px;
+    font-weight: 500;
+    outline: none;
+}
+
+/* 选中高亮 */
+.set-lb-button.selected,
+.set-lb-button.active {
+    background-color: #999999 !important;
+    color: #2563eb !important;
+    box-shadow: 0 4px 16px rgba(78,140,255,0.18);
+    border: 2px solid #4e8cff;
+}
+
+/* 鼠标悬停 */
+.set-lb-button:hover {
+    background-color: #777777;
+    color: #4e8cff;
+}
+
+.leftbar-container .ant-btn.ant-btn-icon-only {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+}

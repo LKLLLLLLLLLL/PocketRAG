@@ -1,4 +1,4 @@
-.pocketrag-container{
+.pocketrag-container {
     margin-top: 30px;
     display: flex;
     flex-direction: column;
@@ -6,16 +6,24 @@
     align-items: center;
     height: 40%;
     -webkit-app-region: no-drag;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    /* border-radius: 12px; */
+    background: #777777;
+    padding: 24px 32px;
 }
-.icon-container{
-    height: 80%;
+.icon-container {
+    height: 90%;
     width: 200px;
-    background-color: grey;
+    background-color: #555555;
+    /* border-radius: 8px; */
+    margin-bottom: 16px;
 }
-.version-container{
-    height: 20%;
+.version-container {
+    height: 10%;
     width: 100%;
-    color: white;
-    background-color: grey;
+    color: #fff;
+    background-color: transparent;
     text-align: center;
+    font-size: 18px;
+    margin-top: 8px;
 }

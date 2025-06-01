@@ -1,19 +1,24 @@
-.startwindow-container{
+.startwindow-container {
     flex: 1 1 0%;
     min-height: 0;
+    height: 100vh;
+    background: #111111;
     -webkit-app-region: drag;
 }
-.sw-left{
-    background-color: #424242;
-    color: white;
+
+.sw-left {
+    background-color: #333333;
+    color: #fff;
 }
-.sw-right{
-    background-color: #888888;
-    color: white;
+
+.sw-right {
+    background-color: #555555;
+    color: #fff;
     display: flex;
     flex-direction: column;
 }
-.repolist-container{
+
+.repolist-container {
     margin-top: 30px;
     width: 100%;
     height: 100%;
@@ -22,50 +27,53 @@
     overflow: auto;
     -webkit-app-region: no-drag;
 }
+
 .repolist {
     flex-grow: 1;
     height: 100%;
-    color: black;
+    color: #fff;
     display: flex;
     flex-direction: column;
-    list-style: none;      /* 新增：去除默认点 */
-    margin: 0;             /* 新增：去除默认外边距 */
-    padding: 0;            /* 新增：去除默认内边距 */
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
-.repo-item{
+
+.repo-item {
     width: 100%;
     min-height: 100px;
     display: flex;
-    color: white;
+    color: #fff;
     flex-direction: column;
     padding: 4px;
     box-sizing: border-box;
-    background-color: #666666;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.10); /* 添加阴影 */
+    background-color: #777777;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
     -webkit-app-region: no-drag;
-    margin-bottom: 18px;   /* 新增：每个repo之间有间距 */
+    margin-bottom: 18px;
     transition: box-shadow 0.2s, background 0.2s;
+    /* border-radius: 10px; */
 }
-.repo-item:hover{
-    background-color: #454545 !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.16); /* hover时阴影更明显 */
+.repo-item:hover {
+    background-color: #999999 !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.22);
 }
-.repo-item.selected{
-    background-color: #9b9b9b !important;
-    box-shadow: 0 4px 16px rgba(9,167,162,0.18); /* 选中时带主色调阴影*/
+.repo-item.selected {
+    background-color: #999999 !important;
+    box-shadow: 0 4px 16px rgba(153,153,153,0.25);
 }
-.repo-item-container{
+.repo-item-container {
     width: 100%;
     height: 100%;
     display: flex;
 }
-.repo-item-info{
+.repo-item-info {
     flex: 1 1 0%;
     min-width: 100px;
     height: 100%;
     padding-left: 5px;
 }
-.repo-name{
+.repo-name {
     display: flex;
     font-size: 20px;
     width: 100%;
@@ -73,8 +81,9 @@
     align-items: flex-end;
     justify-content: flex-start;
     padding-bottom: 2px;
+    color: #fff;
 }
-.repo-path{
+.repo-path {
     display: flex;
     font-size: 10px;
     width: 100%;
@@ -82,16 +91,92 @@
     align-items: flex-start;
     justify-content: flex-start;
     padding-top: 4px;
+    color: #e0e0e0;
 }
-.repo-delete-container{
+.repo-delete-container {
     width: 50px;
     flex-shrink: 0;
     display: flex;
     justify-content: center;
     align-items: center;
 }
-.repo-delete{
-    height: 50px;
-    background-color: rgb(45, 128, 103);
-    color: white;
+.repo-delete {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    border-radius: 8px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(255,77,79,0.15);
+    transition: background 0.2s, box-shadow 0.2s;
+    font-size: 20px;
+    padding: 0 !important;
+}
+.repo-delete:hover, .repo-delete:focus {
+    box-shadow: 0 4px 16px rgba(255,77,79,0.25);
+}
+
+.repo-item.selected {
+    background-color: #999999 !important;
+    box-shadow: 0 4px 24px 0 rgba(78,140,255,0.25), 0 2px 8px rgba(153,153,153,0.18);
+    border: 2.5px solid #4e8cff;
+    color: #232b38;
+    position: relative;
+    z-index: 2;
+    transition: background 0.2s, box-shadow 0.2s, border 0.2s, color 0.2s;
+}
+.repo-item.selected .repo-name {
+    color: #2563eb;
+}
+.repo-item.selected .repo-path {
+    color: #232b38;
+}
+
+.sw-resize,
+.panel-resize-handle,
+.PanelResizeHandle,
+[class*="resizeHandle"] {
+    background: #999999;
+    opacity: 0.95 !important;
+    min-width: 3px !important;
+    min-height: 3px !important;
+    border-radius: 2px !important;
+    cursor: col-resize !important;
+    z-index: 20;
+    transition: opacity 0.2s, background 0.2s;
+    box-shadow: 0 0 6px #55555555;
+}
+.sw-resize:hover,
+.panel-resize-handle:hover,
+.PanelResizeHandle:hover,
+[class*="resizeHandle"]:hover {
+    opacity: 1 !important;
+    background: #4e8cff !important;
+    box-shadow: 0 0 12px #4e8cff88;
+}
+
+.repolist-container,
+.sw-right {
+    scrollbar-width: thin;
+    scrollbar-color: #4e8cff #555555;
+}
+
+.repolist-container::-webkit-scrollbar,
+.sw-right::-webkit-scrollbar {
+    width: 8px;
+    background: #555555;
+}
+
+.repolist-container::-webkit-scrollbar-thumb,
+.sw-right::-webkit-scrollbar-thumb {
+    background: #4e8cff;
+    border-radius: 6px;
+    min-height: 40px;
+}
+
+.repolist-container::-webkit-scrollbar-thumb:hover,
+.sw-right::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
 }

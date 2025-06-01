@@ -57,11 +57,11 @@ export default function RightScreen({ content, onClick }) {
                             <Input placeholder="模型名称" style={{ width: 200 }} />
                         </div>
                         <div className="settings-row">
-                            <label>路径：</label>
+                            <label>模型路径：</label>
                             <Input placeholder="模型路径" style={{ width: 200 }} />
                         </div>
                         <div className="settings-row">
-                            <label>类型：</label>
+                            <label>模型类型：</label>
                             <Select placeholder="请选择类型" style={{ width: 200 }}>
                                 <Option value="llm">LLM</Option>
                                 <Option value="embedding">Embedding</Option>
@@ -85,11 +85,11 @@ export default function RightScreen({ content, onClick }) {
                             <Input type="number" min={1} max={100} placeholder="10" style={{ width: 120 }} />
                         </div>
                         <div className="settings-row">
-                            <label>Embedding模型：</label>
+                            <label>嵌入模型：</label>
                             <EmbeddingModelList />
                         </div>
                         <div className="settings-row">
-                            <label>Rerank模型：</label>
+                            <label>重排模型：</label>
                             <Select placeholder="请选择Rerank模型" style={{ width: 200 }}>
                                 <Option value="rerank1">rerank1</Option>
                                 <Option value="rerank2">rerank2</Option>

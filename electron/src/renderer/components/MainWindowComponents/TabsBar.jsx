@@ -1,32 +1,31 @@
 import { useEffect, useState } from 'react'
 import { Tabs } from 'antd'
-import TextEditor from './textEditor'
+import TextEditor from './TextEditor'
 
-function TabsBar() {
+function TabsBar({ onTabChange, onTabEdit }) {
     const [tabs, setTabs] = useState([])
     const [activeKey, setActiveKey] = useState('')
     const [value, setValue] = useState('')
-    const handleSelect = (keys, {node}) => {
+
+    // 选中文件后生成标签页
+    const handleSelect = (keys, { node }) => {
         const key = keys[0]
-        if(!node.isLeaf) {
-            return
-        }
+        if (!node.isLeaf) return
         const newTabs = [...tabs]
         const exist = newTabs.find((tab) => tab.key === key)
-        if(!exist) {
+        if (!exist) {
             newTabs.push({
                 key,
-                title: node.title,
+                label: node.title,
             })
             setTabs(newTabs)
         }
         setActiveKey(key)
+        if (onTabChange) onTabChange(key)
     }
 
     useEffect(() => {
-        if(!activeKey) {
-            return
-        }
+        if (!activeKey) return
         const receiveFile = async () => {
             const res = await window.electronAPI.getFile(activeKey)
             setValue(res)
@@ -39,42 +38,42 @@ function TabsBar() {
             let newActiveKey = activeKey
             let lastIndex = -1
             tabs.forEach((item, i) => {
-                if(item.key === targetKey) {
+                if (item.key === targetKey) {
                     lastIndex = i - 1
                 }
             })
             const newPanes = tabs.filter((item) => item.key !== targetKey)
-            if(newPanes.length && newActiveKey === targetKey) {
-                if(lastIndex >= 0) {
+            if (newPanes.length && newActiveKey === targetKey) {
+                if (lastIndex >= 0) {
                     newActiveKey = newPanes[lastIndex].key
                 }
                 else {
                     newActiveKey = newPanes[0].key
                 }
             }
-            if(newPanes.length === 0) {
+            if (newPanes.length === 0) {
                 newActiveKey = ''
             }
             setTabs(newPanes)
             setActiveKey(newActiveKey)
+            if (onTabEdit) onTabEdit(newActiveKey)
         }
         remove(targetKey)
     }
 
-
     return (
-        <div>
+        <div className="tabsbar-root">
             <Tabs
                 hideAdd
-                type = "editable-card"
-                activeKey = {activeKey}
-                onChange = {(key) => setActiveKey(key)}
-                onEdit = {onEdit}
-                items = {tabs}
-            />
-            <TextEditor
-                activeKey = {activeKey}
-                value = {value}
+                type="editable-card"
+                activeKey={activeKey}
+                onChange={(key) => {
+                    setActiveKey(key)
+                    if (onTabChange) onTabChange(key)
+                }}
+                onEdit={onEdit}
+                items={tabs}
+                style={{ width: '100%' }}
             />
         </div>
     )

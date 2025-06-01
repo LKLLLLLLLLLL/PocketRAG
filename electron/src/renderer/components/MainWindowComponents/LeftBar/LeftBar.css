@@ -1,28 +1,33 @@
-.LeftBar-container{
+.LeftBar-container {
     flex-basis: 50px;
     display: flex;
-    flex-direction: column; 
-    background-color: grey;
+    flex-direction: column;
+    background-color: #111111;
+    height: 100vh;
 }
-.leftbar{
+
+.leftbar {
     width: 100%;
     display: flex;
     height: 100%;
     flex-direction: column;
     margin-top: 30px;
 }
-.leftbar-up{
+
+.leftbar-up {
     gap: 0;
     display: flex;
     flex-direction: column;
 }
-.leftbar-down{
+
+.leftbar-down {
     display: flex;
     margin-top: auto;
 }
-.lb-button{
-    color: white;
-    background-color: grey;
+
+.lb-button {
+    color: #fff;
+    background-color: #333333;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -30,11 +35,71 @@
     -webkit-app-region: no-drag;
     width: 50px;
     height: 50px;
+    border: none;
+    border-bottom: 1px solid #555555;
+    border-radius: 0;
+    font-size: 20px;
+    transition: background 0.18s, color 0.18s;
 }
+
+.lb-button:last-child {
+    border-bottom: none;
+}
+
+/* 鼠标悬停高亮 */
+.lb-button:hover, .lb-button:focus {
+    background-color: #555555;
+    color: #999999;
+}
+
+/* 选中高亮（可根据业务为当前按钮加 .active 类） */
+.lb-button.active, .lb-button.selected {
+    background-color: #999999 !important;
+    color: #2563eb !important;
+    border-left: 4px solid #4e8cff;
+    font-weight: bold;
+}
+
+/* 设置按钮单独底部圆角 */
+.leftbar-down .lb-button {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+/* antd icon-only按钮宽高适配 */
 .LeftBar-container .ant-btn.ant-btn-icon-only {
-    width: 50px !important;   /* 或你需要的宽度 */
-    height: 50px !important;  /* 建议同时设置高度 */
-    min-width: 0 !important;  /* 防止最小宽度影响 */
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 0 !important;
     min-height: 0 !important;
     padding: 0 !important;
+}
+
+/* 滚动条风格统一 */
+.LeftBar-container,
+.leftbar-main,
+.leftbar-up,
+.leftbar-down {
+    scrollbar-width: thin;
+    scrollbar-color: #4e8cff #555555;
+}
+.LeftBar-container::-webkit-scrollbar,
+.leftbar-main::-webkit-scrollbar,
+.leftbar-up::-webkit-scrollbar,
+.leftbar-down::-webkit-scrollbar {
+    width: 8px;
+    background: #555555;
+}
+.LeftBar-container::-webkit-scrollbar-thumb,
+.leftbar-main::-webkit-scrollbar-thumb,
+.leftbar-up::-webkit-scrollbar-thumb,
+.leftbar-down::-webkit-scrollbar-thumb {
+    background: #4e8cff;
+    border-radius: 6px;
+}
+.LeftBar-container::-webkit-scrollbar-thumb:hover,
+.leftbar-main::-webkit-scrollbar-thumb:hover,
+.leftbar-up::-webkit-scrollbar-thumb:hover,
+.leftbar-down::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
 }
