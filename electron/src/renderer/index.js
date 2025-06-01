@@ -206,6 +206,7 @@ import MainWindow from './views/MainWindow/MainWindow.jsx'
 import StartWindow from './views/StartWindow/StartWindow.jsx'
 import SettingsWindow from './views/SettingsWindow/SettingsWindow.jsx'
 import '@ant-design/v5-patch-for-react-19'
+import './index.css'
 
 
 // select different components based on different window types

@@ -56,6 +56,15 @@ export function MainWindowInit() {
     window.conversations = new Map()
     window.crashTime = 0
 
+    window.initConversationMap = async () => {
+      await window.repoInitializePromise
+      const conversationIds = await window.electronAPI.getConversation(window.repoPath)
+      for(const conversationId of conversationIds) {
+        const conversationPath = await window.electronAPI.pathJoin(window.repoPath, '.PocketRAG', 'conversation', `conversation-${conversationId}.json`)
+        window.conversations.set(conversationId, conversationPath)
+      }
+    }
+
     window.addEventListener('embeddingStatus', (event) => {
       let reply = event.detail
       reply.isReply = true

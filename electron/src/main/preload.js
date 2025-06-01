@@ -46,15 +46,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   getRepoFileTree : (repoPath) => ipcRenderer.invoke('getRepoFileTree', repoPath),
 
-  updateFile : (action, path, title, treeData, selectNode) => ipcRenderer.send('updateFile', action, path, title, treeData, selectNode),
-
   openRepoCheck : (repoName) => ipcRenderer.invoke('openRepoCheck', repoName),
 
   repoListCheck : () => ipcRenderer.invoke('repoListCheck'),
 
   watchRepoDir : (repoPath) => ipcRenderer.send('watchRepoDir', repoPath),
 
-  onRepoFileChanged : (callback) => ipcRenderer.on('repoFileChanged', callback)
+  onRepoFileChanged : (callback) => ipcRenderer.on('repoFileChanged', callback),
+
+  getConversation : (repoPath) => ipcRenderer.invoke('getConversation', repoPath),
+
+  updateFile : (path, data) => ipcRenderer.send('updateFile', path, data),
+
+  getFile : (filePath) => ipcRenderer.invoke('getFile', filePath),
 
 })
 //expose apis to the renderer process 

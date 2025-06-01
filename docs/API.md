@@ -324,7 +324,7 @@ main.js -> kernel server
 
     "message" : {
         "type" : "closeRepo",
-        "windowId" : 120
+        "sessionId" : 120
     }
 }
 ```
