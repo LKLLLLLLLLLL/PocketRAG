@@ -814,7 +814,7 @@ function generateTree(dir) {
             key: fullPath,
             children: generateTree(fullPath)
           }
-        } else if (item.isFile()) {
+        } else if (item.isFile() && (item.name.endsWith('.md') || item.name.endsWith('.txt'))) {
           return {
             title: item.name,
             key: fullPath,
@@ -836,12 +836,6 @@ function getRepoFileTree(event, repoPath) {
   return fileTreeData
 }
 
-/*function updateFile(event, action, filePath, title, treeData, selectNode) {
-  switch(action) {
-    case 'create':
-
-  }
-}*/
 const repoWatchers = new Map()
 function watchRepoDir(event, repoPath) {
   if(repoWatchers.has(repoPath)) {
@@ -872,6 +866,32 @@ function unwatchRepoDir(repoPath) {
   }
 }
 
+function getConversation(event, repoPath) {
+  const convDir = path.join(repoPath, '.PocketRAG', 'conversation')
+  if(!fs.existsSync(convDir)) return []
+  return fs.readdirSync(convDir).filter(name => name.endsWith('.json') && !name.includes('_full')).map(name => {
+    const match = name.match(/^conversation-(\d+)\.json$/)
+  }).filter(Boolean)
+}
+
+function updateFile(event, path, data) {
+  try {
+    console.log('文本编辑器更新文件内容')
+    fs.writeFileSync(path, data, {encoding: 'utf-8'})
+  }catch (err) {
+    console.err('更新文件失败:', err)
+  }
+}
+
+function getFile(event, filePath) {
+  try {
+    const res = fs.readFileSync(filePath, {encoding: 'utf-8'})
+    return res
+  }catch(err) {
+    console.err('读取文件失败:', err)
+  }
+}
+
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
@@ -896,7 +916,9 @@ app.whenReady().then(async () => {
   ipcMain.handle('openRepoCheck', openRepoCheck)
   ipcMain.handle('repoListCheck', checkRepoList)
   ipcMain.on('watchRepoDir', watchRepoDir)
-  // ipcMain.on('updateFile', updateFile)
+  ipcMain.handle('getConversation', getConversation)
+  ipcMain.on('updateFile', updateFile)
+  ipcMain.handle('getFile', getFile)
   //add the event listeners before the window is created
 
   kernel = spawn(kernelPath, [], {
