@@ -1,8 +1,7 @@
-import React,{useState} from 'react';
+import {useState} from 'react';
 import './SettingsWindowContainer.css';
 import LeftBar from './LeftBar/LeftBar';
 import RightScreen from './RightScreen/RightScreen';
-import TopBar from '../../templates/TopBar/TopBar';
 export default function SettingsWindowContainer(){
     const [content,setContent] = useState('');
     return(

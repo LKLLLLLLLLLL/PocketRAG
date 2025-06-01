@@ -25,9 +25,11 @@
     justify-content: flex-end;
     height: 30px;
     width: 100%;
-    -webkit-app-region: no-drag; /* 允许按钮可点击 */
+    -webkit-app-region: drag; /* 允许按钮可点击 */
 }
-
+.closebutton{
+    -webkit-app-region: no-drag;
+}
 
 /* 可追加到 RightScreen.css */
 .settings-form {

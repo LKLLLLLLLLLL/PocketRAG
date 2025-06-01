@@ -121,7 +121,7 @@ function RightScreenContainer({ children, onClick }) {
     return (
         <div className='rightscreen-container'>
             <div className='closebar-container'>
-                <Button icon={<CloseOutlined />} onClick={onClick}></Button>
+                <Button className = 'closebutton' icon={<CloseOutlined />} onClick={onClick}></Button>
             </div>
             <div className='rightscreen-main'>
                 {children}

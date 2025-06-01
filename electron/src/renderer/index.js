@@ -208,7 +208,6 @@ import SettingsWindow from './views/SettingsWindow/SettingsWindow.jsx'
 import '@ant-design/v5-patch-for-react-19'
 import './index.css'
 
-
 // select different components based on different window types
 const getWindowRenderFunc = () => {
   switch (window.windowType) {

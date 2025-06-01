@@ -4,44 +4,52 @@ import { LoadingOutlined } from "@ant-design/icons";
 import { Input, Button } from "antd";
 import Doclist from "../../templates/Doclist/Doclist";
 import LeftBar from "./LeftBar/LeftBar";
-import "./MainWindowContents.css";
 import RepoFileTree from "./RepoFileTree";
+import "./MainWindowContents.css";
 
 const { TextArea } = Input;
 
 export default function MainWindowContents() {
     //overall state management
-    const [content, setContent] = useState('');// recognize the content of the main window, either 'conversation' or 'search'
-    
+    const [content, setContent] = useState('conversation');
     //search state management
-    const [inputValue, setInputValue] = useState('');// record the input value
-    const [showResult, setShowResult] = useState(false);// whether to show the search result
-    const [isLoading, setIsLoading] = useState(false);// whether the search is loading
-    const [isTimeout, setIsTimeout] = useState(false);// whether the search is timeout
-    const [searchResult, setSearchResult] = useState([]);// record the search result
-    const [selectedResultIndex, setSelectedResultIndex] = useState(null);// record the selected result index
-    const [lastClickTime, setLastClickTime] = useState(0);//record the last click time
+    const [inputValue, setInputValue] = useState('');
+    const [showResult, setShowResult] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isTimeout, setIsTimeout] = useState(false);
+    const [searchResult, setSearchResult] = useState([]);
+    const [selectedResultIndex, setSelectedResultIndex] = useState(null);
+    const [lastClickTime, setLastClickTime] = useState(0);
 
     // conversation state management
-    const [history, setHistory] = useState([]); //history
+    const [history, setHistory] = useState([]);
     const [inputQuestionValue, setInputQuestionValue] = useState('');
-    const [streaming, setStreaming] = useState([]); //current stream
+    const [streaming, setStreaming] = useState([]);
     const [convLoading, setConvLoading] = useState(false);
-    const [stopped, setStopped] = useState(false); // judge whether stop or not
-    const streamingRef = useRef([]); //
+    const [stopped, setStopped] = useState(false);
+    const streamingRef = useRef([]);
+
+    // information state management
+    const [showInfo, setShowInfo] = useState(false);
+    const [info, setInfo] = useState([]);
+
+    //information related
+    const handleInfoClick = async () => {
+        setShowInfo(!showInfo);
+        let usage = await window.getApiUsage();
+        setInfo(usage);
+    };
 
     // search related
-    const handleOnChange = (event) => {
-        setInputValue(event.target.value);
-    };
+    const handleOnChange = (event) => setInputValue(event.target.value);
 
     const handleKeyPress = async (e) => {
         if (e.key === 'Enter') {
             setShowResult(true);
             setIsLoading(true);
             setIsTimeout(false);
-            try{
-                let result = await window.search(inputValue,true);
+            try {
+                let result = await window.search(inputValue, true);
                 setSearchResult(result);
             } catch (error) {
                 if (error && error.message && error.message.includes('timeout')) {
@@ -58,7 +66,7 @@ export default function MainWindowContents() {
         if (convLoading) return;
         if (!inputQuestionValue.trim()) return;
         setConvLoading(true);
-        setStopped(false); 
+        setStopped(false);
         setStreaming([]);
         streamingRef.current = [];
 
@@ -117,7 +125,6 @@ export default function MainWindowContents() {
         window.addEventListener('conversationAnswer', handleAnswer);
         window.addEventListener('conversationDone', handleDone);
 
-        // 发送请求（modelName可自定义，如'deepseek'）
         window.beginConversation('deepseek', inputQuestionValue);
 
         setInputQuestionValue('');
@@ -170,14 +177,14 @@ export default function MainWindowContents() {
             onClick={() => setSelectedResultIndex(index)}>
             <div className='result0-item-container'>
                 <div className='chunkcontent-container'>
-                    <div className = 'chunkcontent-explanation'>分块内容</div>
-                    <div className = 'chunkcontent-content'>
+                    <div className='chunkcontent-explanation'>分块内容</div>
+                    <div className='chunkcontent-content'>
                         <span dangerouslySetInnerHTML={{ __html: item.highlightedContent }} />
                     </div>
                 </div>
                 <div className='filepath-container'>
-                    <div className = 'filepath-explanation'>文件路径</div>
-                    <div className = 'filepath-content'>{item.filePath}</div>
+                    <div className='filepath-explanation'>文件路径</div>
+                    <div className='filepath-content'>{item.filePath}</div>
                 </div>
             </div>
         </li>
@@ -190,22 +197,22 @@ export default function MainWindowContents() {
 
     return (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-            <LeftBar    
+            <LeftBar
                 handleConversation={() => setContent('conversation')}
                 handleSearch={() => setContent('search')}>
             </LeftBar>
             <div style={{ flex: 1, display: 'flex' }}>
                 <PanelGroup direction="horizontal" autoSaveId="main-window-horizontal">
-                    <Panel 
+                    <Panel
                         minSize={10}
                         maxSize={40}
                         defaultSize={30}
                         className='mainwindow-panel_1'>
                         <div className='topbar-tools'>工具栏</div>
-                        <Doclist><RepoFileTree/></Doclist>
+                        <Doclist><RepoFileTree /></Doclist>
                     </Panel>
                     <PanelResizeHandle></PanelResizeHandle>
-                    <Panel 
+                    <Panel
                         minSize={60}
                         maxSize={90}
                         defaultSize={70}
@@ -235,6 +242,10 @@ export default function MainWindowContents() {
                             onClick_Conv={onClick_Conv}
                             stopped={stopped}
                             onStop={handleStop}
+                            //information related
+                            handleInfoClick={handleInfoClick}
+                            info={info}
+                            showInfo={showInfo}
                         />
                     </Panel>
                 </PanelGroup>
@@ -246,7 +257,7 @@ export default function MainWindowContents() {
 const MainDemo = ({
     content, inputValue, resultItem, onChange, onKeyDown, isLoading, showResult, isTimeout, className,
     history, streaming, inputQuestionValue, setInputQuestionValue, onSendConversation, onConvKeyDown, convLoading,
-    onChange_Conv, onPressEnter_Conv, onClick_Conv, stopped, onStop
+    onChange_Conv, onPressEnter_Conv, onClick_Conv, stopped, onStop, handleInfoClick, showInfo, info
 }) => {
     switch (content) {
         case 'conversation':
@@ -255,17 +266,23 @@ const MainDemo = ({
                     <div className='maindemo-content'>
                         <PanelGroup direction="vertical" className='conversation-panelgroup'>
                             <Panel minSize={30} maxSize={80} defaultSize={70} className='conversation-panel_1'>
-                                <div className='conversation-container' style={{height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', marginTop: 24}}>
-                                    <div className="chat-history" style={{flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column'}}>
+                                <div className='conversation-container' style={{ height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', marginTop: 24 }}>
+                                    <div className="chat-history" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                                         {history.map((item, idx) => (
-                                            <div key={idx} className="chat-history-item" style={{display: 'flex', flexDirection: 'column'}}>
+                                            <div key={idx} className="chat-history-item" style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <div className="chat-row chat-row-question">
                                                     <div className="chat-bubble chat-bubble-question">{item.query}</div>
                                                 </div>
-                                                {item.pending && idx === history.length - 1
-                                                    ? (
+                                                {item.pending && idx === history.length - 1 ? (
+                                                    stopped ? (
+                                                        <div className="chat-row chat-row-answer">
+                                                            <div className="chat-bubble chat-bubble-answer chat-loading" style={{ color: '#ff4d4f' }}>
+                                                                检索已停止
+                                                            </div>
+                                                        </div>
+                                                    ) : (
                                                         <>
-                                                            {streaming.reduce((acc, msg, i) => {
+                                                            {streaming.reduce((acc, msg) => {
                                                                 if (msg.type === 'annotation') {
                                                                     acc.push({ annotation: msg.content, search: [], result: [] });
                                                                 } else if (msg.type === 'search') {
@@ -278,85 +295,81 @@ const MainDemo = ({
                                                                 return acc;
                                                             }, []).map((retr, i) => (
                                                                 <React.Fragment key={i}>
-                                                                    <div className="chat-row">
-                                                                        <div className="chat-annotation">检索目的：{retr.annotation}</div>
+                                                                    <div className="annotation-container">
+                                                                        检索目的：{retr.annotation}
                                                                     </div>
-                                                                    <div className="chat-row">
-                                                                        <div className="chat-search">关键词：{retr.search.join('、')}</div>
+                                                                    <div className="searchkey-container">
+                                                                        关键词：{retr.search.join('、')}
                                                                     </div>
-                                                                    <div className="chat-result-list">
+                                                                    <div className="conversation-result-list">
                                                                         {retr.result.map((res, j) => (
-                                                                            <div key={j} className="chat-result">
-                                                                                <div dangerouslySetInnerHTML={{ __html: res.highlightedContent || res.content || res }} />
-                                                                                {res.filePath &&
-                                                                                    <div className="chat-result-meta">{res.filePath} [{res.beginLine}-{res.endLine}]</div>
-                                                                                }
+                                                                            <div key={j} className="conversation-result">
+                                                                                <div className="conversation-result-container">
+                                                                                    <div className="chunkcontent-container">
+                                                                                        <div className="chunkcontent-explanation">分块内容</div>
+                                                                                        <div className="chunkcontent-content">
+                                                                                            <span dangerouslySetInnerHTML={{ __html: res.highlightedContent || res.content || res }} />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    {res.filePath &&
+                                                                                        <div className="filepath-container">
+                                                                                            <div className="filepath-explanation">文件路径</div>
+                                                                                            <div className="filepath-content">
+                                                                                                {res.filePath} {res.beginLine && res.endLine ? `[${res.beginLine}-${res.endLine}]` : ''}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    }
+                                                                                </div>
                                                                             </div>
                                                                         ))}
                                                                     </div>
                                                                 </React.Fragment>
                                                             ))}
-                                                            {stopped ? (
-                                                                <div className="chat-row chat-row-answer">
-                                                                    <div className="chat-bubble chat-bubble-answer chat-loading" style={{ color: '#ff4d4f' }}>
-                                                                        检索已停止
-                                                                    </div>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="chat-row chat-row-answer">
-                                                                    <div className="chat-bubble chat-bubble-answer chat-loading">正在检索...</div>
-                                                                </div>
-                                                            )}
+                                                            <div className="chat-row chat-row-answer">
+                                                                <div className="chat-bubble chat-bubble-answer chat-loading">正在检索...</div>
+                                                            </div>
                                                         </>
                                                     )
-                                                    : (
-                                                        item.retrieval?.map((retr, i) => (
-                                                            <React.Fragment key={i}>
-                                                                <div className="chat-row">
-                                                                    <div className="chat-annotation">检索目的：{retr.annotation}</div>
-                                                                </div>
-                                                                <div className="chat-row">
-                                                                    <div className="chat-search">关键词：{Array.isArray(retr.search) ? retr.search.join('、') : retr.search}</div>
-                                                                </div>
-                                                                <div className="chat-result-list">
-                                                                    {retr.result?.map((res, j) => (
-                                                                        <div key={j} className="chat-result">
-                                                                            <div dangerouslySetInnerHTML={{ __html: res.highlightedContent || res.content }} />
+                                                ) : (
+                                                    item.retrieval?.map((retr, i) => (
+                                                        <React.Fragment key={i}>
+                                                            <div className="annotation-container">
+                                                                检索目的：{retr.annotation}
+                                                            </div>
+                                                            <div className="searchkey-container">
+                                                                关键词：{Array.isArray(retr.search) ? retr.search.join('、') : retr.search}
+                                                            </div>
+                                                            <div className="conversation-result-list">
+                                                                {retr.result.map((res, j) => (
+                                                                    <div key={j} className="conversation-result">
+                                                                        <div className="conversation-result-container">
+                                                                            <div className="chunkcontent-container">
+                                                                                <div className="chunkcontent-explanation">分块内容</div>
+                                                                                <div className="chunkcontent-content">
+                                                                                    <span dangerouslySetInnerHTML={{ __html: res.highlightedContent || res.content || res }} />
+                                                                                </div>
+                                                                            </div>
                                                                             {res.filePath &&
-                                                                                <div className="chat-result-meta">{res.filePath} [{res.beginLine}-{res.endLine}]</div>
+                                                                                <div className="filepath-container">
+                                                                                    <div className="filepath-explanation">文件路径</div>
+                                                                                    <div className="filepath-content">
+                                                                                        {res.filePath} {res.beginLine && res.endLine ? `[${res.beginLine}-${res.endLine}]` : ''}
+                                                                                    </div>
+                                                                                </div>
                                                                             }
                                                                         </div>
-                                                                    ))}
-                                                                </div>
-                                                            </React.Fragment>
-                                                        ))
-                                                    )
-                                                }
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </React.Fragment>
+                                                    ))
+                                                )}
                                                 {!item.pending &&
                                                     <div className="chat-row chat-row-answer">
                                                         <div className="chat-bubble chat-bubble-answer">
                                                             {item.answer}
                                                         </div>
                                                     </div>
-                                                }
-                                                {item.pending && idx === history.length - 1 &&
-                                                    (() => {
-                                                        const hasAllRetrieval = streaming.filter(msg => msg.type === 'annotation').length > 0 &&
-                                                            streaming.filter(msg => msg.type === 'result').length > 0;
-                                                        if (
-                                                            hasAllRetrieval &&
-                                                            streaming.filter(msg => msg.type === 'answer').length > 0
-                                                        ) {
-                                                            return (
-                                                                <div className="chat-row chat-row-answer">
-                                                                    <div className="chat-bubble chat-bubble-answer">
-                                                                        {streaming.filter(msg => msg.type === 'answer').map(msg => msg.content).join('')}
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()
                                                 }
                                             </div>
                                         ))}
@@ -365,6 +378,20 @@ const MainDemo = ({
                             </Panel>
                             <PanelResizeHandle />
                             <Panel minSize={20} maxSize={70} defaultSize={30} className='conversation-panel_2'>
+                                {showInfo && Array.isArray(info) && info.length > 0 && typeof info[0] === 'object' && (
+                                    <div className="model-info-panel">
+                                        <table>
+                                            <tbody>
+                                                {Object.entries(info[0]).map(([key, value]) => (
+                                                    <tr key={key}>
+                                                        <td>{key}</td>
+                                                        <td>{value}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                                 <div className='question-input'>
                                     <div className='input-area'>
                                         <TextArea
@@ -375,23 +402,33 @@ const MainDemo = ({
                                             onPressEnter={onPressEnter_Conv}
                                             value={inputQuestionValue}
                                             disabled={convLoading}
-                                            style={{fontSize: 16, padding: '12px', minHeight: 48, maxHeight: 120}}
+                                            style={{ fontSize: 16, padding: '12px', minHeight: 48, maxHeight: 120 }}
                                         />
                                     </div>
-                                    <div className='button-area' style={{display: 'flex', flexDirection: 'row', alignItems: 'flex-end'}}>
-                                        <Button
-                                            onClick={convLoading ? onStop : onClick_Conv}
-                                            disabled={convLoading ? false : !inputQuestionValue.trim()}
-                                            className={convLoading ? 'stop-button' : 'send-button'}
-                                            style={{
-                                                height: 48,
-                                                fontSize: 16,
-                                                marginLeft: 12,
-                                                background: convLoading ? '#ff4d4f' : undefined,
-                                                color: convLoading ? '#fff' : undefined
-                                            }}>
-                                            {convLoading ? '停止' : '发送'}
-                                        </Button>
+                                    <div className='button-area'>
+                                        <div className="model-information-area">
+                                            <Button
+                                                className="model-information-button"
+                                                onClick={handleInfoClick}
+                                            >
+                                                {showInfo ? '关闭' : '信息'}
+                                            </Button>
+                                        </div>
+                                        <div className="conversation-control-area">
+                                            <Button
+                                                onClick={convLoading ? onStop : onClick_Conv}
+                                                disabled={convLoading ? false : !inputQuestionValue.trim()}
+                                                className={convLoading ? 'stop-button' : 'send-button'}
+                                                style={{
+                                                    height: 48,
+                                                    fontSize: 16,
+                                                    marginLeft: 12,
+                                                    background: convLoading ? '#ff4d4f' : undefined,
+                                                    color: convLoading ? '#fff' : undefined
+                                                }}>
+                                                {convLoading ? '停止' : '发送'}
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </Panel>
@@ -417,7 +454,7 @@ const MainDemo = ({
                             <div className='explanation-container'>
                                 <div className="explanation">
                                     {isTimeout ? <div>请求超时</div>
-                                        : isLoading ? <div><LoadingOutlined></LoadingOutlined></div>
+                                        : isLoading ? <div><LoadingOutlined /></div>
                                             : showResult ? <div>结果如下</div>
                                                 : <div>请进行搜索</div>}
                                 </div>
