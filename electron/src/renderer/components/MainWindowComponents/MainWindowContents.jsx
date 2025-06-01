@@ -1,5 +1,6 @@
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import React, { useState, useRef } from "react";
+import { LoadingOutlined } from "@ant-design/icons";
 import { Input, Button } from "antd";
 import Doclist from "../../templates/Doclist/Doclist";
 import LeftBar from "./LeftBar/LeftBar";
@@ -169,12 +170,14 @@ export default function MainWindowContents() {
             onClick={() => setSelectedResultIndex(index)}>
             <div className='result0-item-container'>
                 <div className='chunkcontent-container'>
-                    <span>分块内容</span>
-                    <span dangerouslySetInnerHTML={{ __html: item.highlightedContent }} />
+                    <div className = 'chunkcontent-explanation'>分块内容</div>
+                    <div className = 'chunkcontent-content'>
+                        <span dangerouslySetInnerHTML={{ __html: item.highlightedContent }} />
+                    </div>
                 </div>
                 <div className='filepath-container'>
-                    <span>文件路径</span>
-                    <span>{item.filePath}</span>
+                    <div className = 'filepath-explanation'>文件路径</div>
+                    <div className = 'filepath-content'>{item.filePath}</div>
                 </div>
             </div>
         </li>
@@ -194,8 +197,8 @@ export default function MainWindowContents() {
             <div style={{ flex: 1, display: 'flex' }}>
                 <PanelGroup direction="horizontal" autoSaveId="main-window-horizontal">
                     <Panel 
-                        minSize={20}
-                        maxSize={70}
+                        minSize={10}
+                        maxSize={40}
                         defaultSize={30}
                         className='mainwindow-panel_1'>
                         <div className='topbar-tools'>工具栏</div>
@@ -203,8 +206,8 @@ export default function MainWindowContents() {
                     </Panel>
                     <PanelResizeHandle></PanelResizeHandle>
                     <Panel 
-                        minSize={30}
-                        maxSize={80}
+                        minSize={60}
+                        maxSize={90}
                         defaultSize={70}
                         className='mainwindow-panel_2'>
                         <div className='biaoqian'>标签栏</div>
@@ -376,19 +379,18 @@ const MainDemo = ({
                                         />
                                     </div>
                                     <div className='button-area' style={{display: 'flex', flexDirection: 'row', alignItems: 'flex-end'}}>
-                                        <Button onClick={onClick_Conv} 
-                                            disabled={convLoading || !inputQuestionValue.trim()}
-                                            className='send-button'
-                                            style={{height: 48, fontSize: 16, marginLeft: 12}}>
-                                            发送
-                                        </Button>
                                         <Button
-                                            onClick={onStop}
-                                            disabled={!convLoading}
-                                            className='stop-button'
-                                            style={{ height: 48, fontSize: 16, marginLeft: 12, background: '#ff4d4f', color: '#fff' }}
-                                        >
-                                            停止
+                                            onClick={convLoading ? onStop : onClick_Conv}
+                                            disabled={convLoading ? false : !inputQuestionValue.trim()}
+                                            className={convLoading ? 'stop-button' : 'send-button'}
+                                            style={{
+                                                height: 48,
+                                                fontSize: 16,
+                                                marginLeft: 12,
+                                                background: convLoading ? '#ff4d4f' : undefined,
+                                                color: convLoading ? '#fff' : undefined
+                                            }}>
+                                            {convLoading ? '停止' : '发送'}
                                         </Button>
                                     </div>
                                 </div>
@@ -415,7 +417,7 @@ const MainDemo = ({
                             <div className='explanation-container'>
                                 <div className="explanation">
                                     {isTimeout ? <div>请求超时</div>
-                                        : isLoading ? <div>加载中</div>
+                                        : isLoading ? <div><LoadingOutlined></LoadingOutlined></div>
                                             : showResult ? <div>结果如下</div>
                                                 : <div>请进行搜索</div>}
                                 </div>

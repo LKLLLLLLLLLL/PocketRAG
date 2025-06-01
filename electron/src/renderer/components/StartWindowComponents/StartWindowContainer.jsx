@@ -1,11 +1,10 @@
-import React,{useState,useEffect} from "react";
+import {useState,useEffect} from "react";
 import './StartWindowContainer.css';
 import {Panel,PanelGroup,PanelResizeHandle} from 'react-resizable-panels';
 import { DeleteOutlined } from "@ant-design/icons";
 import {Button} from 'antd';
 import Option from './Option/Option.jsx';
 import PocketRAG from './PocketRAG/PocketRAG.jsx';
-import WindowControl_WithoutMax from '../../templates/WindowControl_WithoutMax/WindowControl_WithoutMax.jsx';
 export default function StartWindowContainer(){
     const [demo,setDemo] = useState(true);
     const [others,setOthers] = useState(false);
@@ -78,7 +77,7 @@ export default function StartWindowContainer(){
 
     return(
         <PanelGroup direction = "horizontal" className = 'startwindow-container'>
-            <Panel defaultSize = {33} minSize = {20} maxSize = {60} className = 'sw-left'>
+            <Panel defaultSize = {33} minSize = {30} maxSize = {50} className = 'sw-left'>
                 { demo &&
                     <div className = 'repolist-container'>
                         <ul className = 'repolist'>
@@ -89,9 +88,6 @@ export default function StartWindowContainer(){
             </Panel>
             <PanelResizeHandle className="sw-resize"></PanelResizeHandle>
             <Panel defaultSize = {67} className = 'sw-right'>
-                {/* <div style = {{display :'flex',marginLeft: 'auto'}}>
-                    <WindowControl_WithoutMax></WindowControl_WithoutMax>
-                </div> */}
                 <PocketRAG></PocketRAG>
                 <Option setDemo = {setDemo} 
                         others = {others} 
