@@ -12,14 +12,14 @@ function RepoFileTree() {
   const [expandedKeys, setExpandedKeys] = useState([])
 
   // 封装刷新逻辑
-  const fetchTreeData = () => {
+  const fetchTreeData = (needExpand = false) => {
     console.log('Fetching file tree data...')
     const repoPath = window.repoPath
     if (!repoPath) return
     window.electronAPI.getRepoFileTree(repoPath).then((data) => {
       setTreeData(data)
       setCurrentPath(repoPath)
-      if (data && data.length > 0) {
+      if (needExpand === true && data && data.length > 0) {
         setExpandedKeys([data[0].key]) // 自动展开第一个节点
       }
     })
@@ -29,8 +29,8 @@ function RepoFileTree() {
     let isMounted = true
     window.repoInitializePromise.then(() => {
       if (!isMounted) return
-      fetchTreeData()
-      window.electronAPI.onRepoFileChanged(fetchTreeData)
+      fetchTreeData(true)
+      window.electronAPI.onRepoFileChanged(() => fetchTreeData(false))
       window.electronAPI.watchRepoDir(window.repoPath)
     })
     return () => { isMounted = false }
@@ -80,7 +80,7 @@ function RepoFileTree() {
 
   return (
     <div style = {{ position: 'relative', width: '100%', height: '100%'}}>
-      <Button onClick={fetchTreeData} size="small" style={{ marginBottom: 8 }}>
+      <Button onClick={() => fetchTreeData(true)} size="small" style={{ marginBottom: 8 }}>
         刷新文件树
       </Button>
       <DirectoryTree

@@ -633,8 +633,8 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
     
     case 'repoList':
       let repoListOptions = {
-        width: Math.floor(srceenWidth * 0.4),
-        height: Math.floor(srceenWidth * 0.3),
+        width: 800,
+        height: 600,
         frame: false,
         maximizable: false,
         fullscreenable: false,
@@ -643,12 +643,6 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
         }
-      }
-      if(windowState) {
-        repoListOptions.x = windowState.x
-        repoListOptions.y = windowState.y
-        repoListOptions.width = windowState.width
-        repoListOptions.height = windowState.height
       }
       if(platform === 'win32') {
         repoListOptions.titleBarOverlay = {
