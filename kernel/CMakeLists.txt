@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.15)
 
 project(PocketRAG_kernel VERSION 0.0.1)
 
-option(USE_CUDA "Use CUDA GPU" ON) # 是否使用GPU
-
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin) # 可执行文件输出目录
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib) # 动态库输出目录
@@ -13,12 +11,39 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib) # 静态库输出目
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(MSVC)
-    add_compile_options(/utf-8) # 设置MSVC编译器使用UTF-8编码
-    add_compile_definitions(NOMINMAX) # 禁用windows.h中的min/max宏，避免与std::min/max冲突
+# 平台检测和编译器设置
+if(APPLE)
+    # macOS 设置
+    if(EXISTS "/opt/homebrew/opt/llvm/bin/clang")
+        set(CMAKE_C_COMPILER "/opt/homebrew/opt/llvm/bin/clang")
+        set(CMAKE_CXX_COMPILER "/opt/homebrew/opt/llvm/bin/clang++")
+        message(STATUS "Using Homebrew LLVM compiler")
+    else()
+        # 回退到系统默认编译器
+        message(STATUS "Using system default compiler")
+    endif()
+elseif(WIN32)
+    # Windows 设置 
+    if(MSVC)
+        set(CMAKE_C_COMPILER "cl.exe")
+        set(CMAKE_CXX_COMPILER "cl.exe")
+        add_compile_options(/utf-8) # 设置MSVC编译器使用UTF-8编码
+        add_compile_definitions(NOMINMAX) # 禁用windows.h中的min/max宏，避免与std::min/max冲突
+    endif()
+elseif(UNIX)
+    # TODO
 endif()
 
-set(BUILD_SHARED_LIBS OFF)
+# 设置cuda选项
+if(APPLE)
+    set(USE_CUDA OFF)
+elseif(WIN32)
+    # Windows 可以选择是否使用 CUDA
+    option(USE_CUDA "Use CUDA GPU" ON)
+else()
+    option(USE_CUDA "Use CUDA GPU" OFF)
+endif()
+message(STATUS "USE_CUDA setting: ${USE_CUDA}")
 
 # 设置vcpkg工具链文件
 include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
@@ -63,7 +88,16 @@ set(FAISS_ENABLE_GPU OFF)
 set(FAISS_ENABLE_PYTHON OFF)
 set(FAISS_ENABLE_C_API OFF)
 set(BUILD_TESTING OFF)
-set(FAISS_OPT_LEVEL avx2)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|ARM64")
+    set(FAISS_OPT_LEVEL sve)
+    message(STATUS "Using SVE optimization for ARM64")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    set(FAISS_OPT_LEVEL avx2)
+    message(STATUS "Using AVX2 optimization for x86_64")
+else()
+    set(FAISS_OPT_LEVEL generic)
+    message(STATUS "Using generic optimization")
+endif()
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/faiss)
 
 # 导入curl
@@ -74,17 +108,6 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 # 导入cmark
 find_package(cmark CONFIG REQUIRED)
-
-# # 导入cmark-gfm
-# set(CMARK_TESTS OFF)
-# set(CMARK_SHARED OFF)
-# set(CMARK_STATIC ON)
-# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/cmark-gfm)
-# include_directories(
-#     ${CMAKE_CURRENT_SOURCE_DIR}/external/cmark-gfm/src
-#     ${CMAKE_CURRENT_SOURCE_DIR}/external/cmark-gfm/extensions
-#     ${CMAKE_BINARY_DIR}/external/cmark-gfm/src
-# )
 
 # 导入xxhash
 find_package(xxHash CONFIG REQUIRED)
@@ -112,12 +135,12 @@ set(SPM_ENABLE_NFKC_NORMALIZATION OFF CACHE BOOL "Enable NFKC normalization")
 set(SPM_ENABLE_SAMPLING OFF CACHE BOOL "Enable subword sampling")
 set(SPM_USE_BUILTIN_PROTOBUF ON CACHE BOOL "Use built-in protobuf")
 set(SPM_USE_EXTERNAL_ABSL OFF CACHE BOOL "Use external abseil")
-# 如果不需要测试和示例程序
+# 不需要测试和示例程序
 set(SPM_BUILD_TEST OFF CACHE BOOL "Build test")
 set(SPM_ENABLE_TENSORFLOW_SHARED OFF CACHE BOOL "Link against TensorFlow shared lib")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/sentencepiece/src)
 # 添加SentencePiece作为子目录
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/sentencepiece)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/sentencepiece EXCLUDE_FROM_ALL)
 
 # 导入ONNXruntime
 set(ONNXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime")
@@ -160,8 +183,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 # 添加源文件
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-# # 创建库
-# add_library(${PROJECT_NAME} ${SOURCES})
+set(BUILD_SHARED_LIBS OFF)
+
 # 创建可执行文件
 add_executable(${PROJECT_NAME} ${SOURCES})
 
@@ -170,13 +193,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     faiss    
     sqlite3
     onnxruntime
-    sentencepiece
+    sentencepiece-static
     CURL::libcurl
     nlohmann_json::nlohmann_json
     cmark::cmark
     xxHash::xxhash
-    # libcmark-gfm
-    # libcmark-gfm-extensions
 )    
 
 # -------------拷贝动态链接库--------------
@@ -186,6 +207,12 @@ if(APPLE)
     
     # 为每个找到的dylib文件创建复制命令
     foreach(DYLIB_FILE ${ONNXRUNTIME_DYLIB_FILES})
+        # 检查是否是符号链接，如果是则跳过
+        if(IS_SYMLINK ${DYLIB_FILE})
+            get_filename_component(DYLIB_NAME ${DYLIB_FILE} NAME)
+            message(STATUS "Skip: ${DYLIB_NAME}")
+            continue()
+        endif()
         get_filename_component(DYLIB_NAME ${DYLIB_FILE} NAME)
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different

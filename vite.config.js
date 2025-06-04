@@ -6,16 +6,23 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   
-  // 指定 electron 目录为 Vite 根目录
-  root: resolve(__dirname, 'electron'),
+  // 指定 electron/renderer 目录为 Vite 根目录
+  root: resolve(__dirname, 'electron/renderer'),
   
   // 静态资源目录
-  publicDir: resolve(__dirname, 'electron/public'),
+  publicDir: resolve(__dirname, 'electron/renderer/public'),
   
   build: {
     // 构建输出到 electron/build 目录
     outDir: resolve(__dirname, 'electron/build'),
     emptyOutDir: true,
+    // 添加优化
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_debugger: true
+      }
+    },
   },
   
   server: {
@@ -24,8 +31,8 @@ export default defineConfig({
   
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'electron/src/renderer'),
-      '@main': resolve(__dirname, 'electron/src/main')
+      '@': resolve(__dirname, 'electron/renderer'),
+      '@main': resolve(__dirname, 'electron/main')
     }
   }
 });

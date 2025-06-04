@@ -2,14 +2,13 @@
   "name": "pocketrag",
   "version": "0.0.1",
   "description": "",
-  "main": "./electron/src/main/main.js",
+  "main": "./electron/main/main.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "electron:dev": "concurrently -k \"npm run dev\" \"electron .\"",
-    "electron:build": "npm run build && electron-builder",
-    "electron:start": "electron ."
+    "dev:vite": "vite",
+    "build:vite": "vite build",
+    "build:kernel": "node ./scripts/build_kernel.js",
+    "dev": "concurrently -k \"npm run dev:vite\" \"electron .\"",
+    "build": "npm run build:vite && npm run build:kernel && electron-builder"
   },
   "author": "",
   "license": "",
@@ -36,15 +35,21 @@
     "appId": "com.example.pocketrag",
     "files": [
       "electron/build/**/*",
-      "electron/src/main/**/*",
-      "node_modules/**/*"
+      "electron/main/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "kernel/bin",
+        "to": "bin"
+      }
     ],
     "directories": {
-      "buildResources": "electron/public",
+      "buildResources": "electron/resources",
       "output": "dist"
     },
     "extraMetadata": {
-      "main": "electron/src/main/main.js"
-    }
+      "main": "electron/main/main.js"
+    },
+    "compression": "normal"
   }
 }

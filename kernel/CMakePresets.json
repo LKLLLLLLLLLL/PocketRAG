@@ -2,63 +2,31 @@
     "version": 8,
     "configurePresets": [
         {
-            "name": "ninja",
-            "displayName": "ninja-debug",
-            "description": "在Windows上使用Ninja生成器进行调试构建",
+            "name": "debug",
+            "displayName": "Debug Build",
+            "description": "Debug build with all platforms",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
-                "VCPKG_ROOT": "${sourceDir}/../vcpkg",
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../vcpkg/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
-                "CMAKE_C_COMPILER": "cl.exe",
-                "CMAKE_CXX_COMPILER": "cl.exe",
-                "USE_CUDA": "OFF"
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/install"
             }
         },
         {
-            "name": "ninja-macos",
-            "inherits": "ninja",
-            "displayName": "ninja-macos-debug",
-            "description": "在macOS上使用Ninja生成器进行调试构建",
-            "cacheVariables": {
-            "CMAKE_C_COMPILER": "/opt/homebrew/opt/llvm/bin/clang",
-            "CMAKE_CXX_COMPILER": "/opt/homebrew/opt/llvm/bin/clang++"
-            }
-        },
-        {
-            "name": "ninja-release",
-            "inherits": "ninja",
-            "displayName": "ninja-release",
-            "description": "使用Ninja生成器进行发布版本构建",
+            "name": "release",
+            "inherits": "debug",
+            "displayName": "Release Build",
+            "description": "Release build with optimizations",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
         },
         {
-            "name": "ninja-macos-release",
-            "inherits": "ninja-macos",
-            "displayName": "ninja-macos-release",
-            "description": "macOS 发布版本构建",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
-            }
-        },
-        {
-            "name": "ninja-release-debInfo",
-            "inherits": "ninja-release",
-            "displayName": "ninja-release-debInfo",
-            "description": "设置 Ninja 生成器、版本和安装目录",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
-            }
-        },
-        {
-            "name": "ninja-macos-release-debInfo",
-            "inherits": "ninja-macos-release",
-            "displayName": "ninja-macos-release-debInfo",
-            "description": "macOS 带调试信息的发布版本",
+            "name": "relwithdebinfo",
+            "inherits": "debug",
+            "displayName": "Release with Debug Info",
+            "description": "Release build with debug information",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
@@ -66,40 +34,25 @@
     ],
     "buildPresets": [
         {
-            "name": "ninja",
-            "configurePreset": "ninja",
+            "name": "debug",
+            "configurePreset": "debug",
             "targets": [
                 "PocketRAG_kernel"
-            ],
-            "jobs": 16
+            ]
         },
         {
-            "name": "ninja-macos",
-            "configurePreset": "ninja-macos",
+            "name": "release",
+            "configurePreset": "release",
             "targets": [
                 "PocketRAG_kernel"
-            ],
-            "jobs": 10
+            ]
         },
         {
-            "name": "ninja-release",
-            "inherits": "ninja",
-            "configurePreset": "ninja-release"
-        },
-        {
-            "name": "ninja-macos-release",
-            "inherits": "ninja-macos",
-            "configurePreset": "ninja-macos-release"
-        },
-        {
-            "name": "ninja-release-debInfo",
-            "inherits": "ninja",
-            "configurePreset": "ninja-release-debInfo"
-        },
-        {
-            "name": "ninja-macos-release-debInfo",
-            "inherits": "ninja-macos",
-            "configurePreset": "ninja-macos-release-debInfo"
+            "name": "relwithdebinfo",
+            "configurePreset": "relwithdebinfo",
+            "targets": [
+                "PocketRAG_kernel"
+            ]
         }
     ]
 }

@@ -5,24 +5,30 @@ const EventEmitter = require('events')
 const fs = require('node:fs')
 //import electron and node modules
 
-const userDataPath = /*app.getPath('userData')*/ path.join(__dirname, '..', '..', '..', 'tests')
+const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
+const userDataPath = isDev
+  ? path.join(__dirname, '..', '..', 'tests')
+  : app.getPath('userData')
 const stateFile = path.join(userDataPath, 'windowState.json')
 const platform = process.platform
 const dateNow = Date.now()
 const windows = new Map()
 const callbacks = new Map()
 const eventEmitter = new EventEmitter()
-const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
 console.log('stateFile is: ', stateFile)
 
-let kernelPath
-if (platform === 'win32') {
-  kernelPath = path.join(__dirname, '..','..','..','kernel','bin','PocketRAG_kernel.exe')
-} else if (platform === 'darwin') {
-  kernelPath = path.join(__dirname, '..','..','..','kernel','bin','PocketRAG_kernel')
-} else {
-  kernelPath = path.join(__dirname, '..','..','..','kernel','bin','PocketRAG_kernel')
+function getBackendPath() {
+  const exeName = process.platform === 'win32' ? 'PocketRAG_kernel.exe' : 'PocketRAG_kernel';
+
+  if (isDev) {
+    return path.join(__dirname, '../../kernel/bin', exeName);
+  } else {
+    return path.join(process.resourcesPath, 'bin', exeName);
+  }
 }
+
+let kernelPath = getBackendPath();
+
 let restartTime = 0
 let kernel
 let isKernelRunning
