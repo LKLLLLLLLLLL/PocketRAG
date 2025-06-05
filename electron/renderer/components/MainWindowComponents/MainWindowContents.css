@@ -798,3 +798,22 @@ html, body, #root {
     background: #4e8cff !important;
     box-shadow: 0 0 12px #4e8cff88;
 }
+
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
+    width: 8px;
+    background: #333333;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #555555;
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #444444;
+}
+
+::-webkit-scrollbar-corner {
+    background: #333333;
+}

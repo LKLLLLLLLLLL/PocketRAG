@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { Button } from 'antd';
 import './LeftBar.css';
+import { 
+    FileOutlined, 
+    CodeOutlined, 
+    SearchOutlined, 
+    MessageOutlined,
+    SettingOutlined
+} from '@ant-design/icons';
 
 export default function LeftBar({ setContent }) {
     const [active, setActive] = useState('page');
@@ -8,25 +15,37 @@ export default function LeftBar({ setContent }) {
         setActive(key);
         setContent(key);
     };
+    
+    const menuItems = [
+        { key: 'page', label: '页面', icon: <FileOutlined /> },
+        { key: 'localModelManagement', label: '模型', icon: <CodeOutlined /> },
+        { key: 'searchSettings', label: '搜索', icon: <SearchOutlined /> },
+        { key: 'conversationSettings', label: '对话', icon: <MessageOutlined /> },
+        { key: 'settings', label: '高级设置', icon: <SettingOutlined /> }
+    ];
+    
     return (
         <div className='leftbar-container'>
+            <div className='leftbar-header'>
+                <h3>设置</h3>
+            </div>
             <div className='leftbar-main'>
-                <Button className={`set-lb-button${active === 'page' ? ' selected' : ''}`}
-                        onClick={() => handleClick('page')}>
-                    页面
-                </Button>
-                <Button className={`set-lb-button${active === 'localModelManagement' ? ' selected' : ''}`}
-                        onClick={() => handleClick('localModelManagement')}>
-                    模型
-                </Button>
-                <Button className={`set-lb-button${active === 'searchSettings' ? ' selected' : ''}`}
-                        onClick={() => handleClick('searchSettings')}>
-                    搜索
-                </Button>
-                <Button className={`set-lb-button${active === 'conversationSettings' ? ' selected' : ''}`}
-                        onClick={() => handleClick('conversationSettings')}>
-                    对话
-                </Button>
+                {menuItems.map(item => (
+                    <Button 
+                        key={item.key}
+                        className={`set-lb-button${active === item.key ? ' selected' : ''}`}
+                        onClick={() => handleClick(item.key)}
+                    >
+                        <span className="button-icon">{item.icon}</span>
+                        <span className="button-label">{item.label}</span>
+                    </Button>
+                ))}
+            </div>
+            <div className='leftbar-footer'>
+                <div className="version-info">
+                    <p>版本 v1.0.0</p>
+                    <p>© 2023 MyApp</p>
+                </div>
             </div>
         </div>
     );

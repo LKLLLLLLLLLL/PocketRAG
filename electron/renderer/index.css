@@ -2,3 +2,15 @@
     border: none !important;
     box-shadow: none !important;
 }
+
+/* index.css */
+:root {
+  /* 注意 antd v5 重置了 --ant-font-family 变量 */
+  --ant-font-family: 'Microsoft YaHei', sans-serif;
+}
+
+/* 兜底一下 body */
+html, body {
+  font-family: var(--ant-font-family) !important;
+}
+

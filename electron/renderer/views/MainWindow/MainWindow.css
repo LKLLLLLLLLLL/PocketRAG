@@ -13,24 +13,3 @@
     color: white;
     -webkit-app-region: drag;
 }
-
-/*全局滚动条样式*/
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-    background: #222;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #4e8cff;
-    border-radius: 6px;
-    min-height: 40px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #2563eb;
-}
-
-::-webkit-scrollbar-corner {
-    background: #222;
-}

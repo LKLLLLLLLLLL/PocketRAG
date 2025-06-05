@@ -3,7 +3,7 @@
     display: flex;
     flex: 1 1 0%;
     flex-direction: column;
-    background-color: #555555;
+    background-color: #444444;
     color: #fff;
     overflow: hidden;
     min-height: 0;
@@ -12,7 +12,7 @@
 
 .rightscreen-main {
     flex: 1 1 0%;
-    background-color: #555555;
+    background-color: #444444;
     color: #fff;
     overflow-y: auto;
     min-height: 0;
@@ -27,55 +27,136 @@
 .closebar-container {
     display: flex;
     justify-content: flex-end;
-    height: 38px;
+    height: 30px;
     width: 100%;
     -webkit-app-region: drag;
+    background-color: #333333;
+    border-bottom: 1px solid #555555;
 }
 
 .closebutton {
     -webkit-app-region: no-drag;
+    background: transparent;
+    border: none;
+    color: #999;
+    transition: color 0.2s;
 }
 
-/* 可追加到 RightScreen.css */
+.closebutton:hover {
+    color: #00b0b0;
+}
+
 .settings-form {
-    background: #777777;
+    background: #333333;
     padding: 28px 36px;
-    /* border-radius: 8px; */
+    border-radius: 8px;
     max-width: 520px;
     width: 100%;
     margin: 0 auto;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 18px;
+    border: 1px solid #555555;
 }
 .settings-form h3 {
-    color: #fff;
-    margin-bottom: 18px;
+    color: #00b0b0;
+    margin-bottom: 24px;
     width: 100%;
     text-align: left;
+    font-size: 18px;
+    border-bottom: 1px solid #555555;
+    padding-bottom: 12px;
 }
 .settings-row {
     display: flex;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 16px;
     width: 100%;
 }
 .settings-row label {
     width: 110px;
     color: #e0e0e0;
     font-weight: 500;
-    margin-right: 8px;
+    margin-right: 12px;
     text-align: right;
     flex-shrink: 0;
+    font-size: 14px;
 }
 .settings-row input,
 .settings-row .ant-input,
 .settings-row .ant-input-password {
-    background: #fff;
-    color: #222;
+    background: #222;
+    color: #eee;
+    border: 1px solid #555;
+    transition: border 0.2s;
+}
+.settings-row input:focus,
+.settings-row .ant-input:focus,
+.settings-row .ant-input-password:focus {
+    border-color: #00b0b0;
+    box-shadow: 0 0 0 2px rgba(0, 176, 176, 0.2);
 }
 .settings-row .ant-select {
     margin-left: 0;
+}
+.settings-row .ant-select-selector {
+    background-color: #222 !important;
+    border: 1px solid #555 !important;
+    color: #eee !important;
+}
+.settings-row .ant-select-arrow {
+    color: #999 !important;
+}
+
+.welcome-container {
+    width: 100%;
+    max-width: 800px;
+    padding: 40px;
+}
+
+.welcome-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #555555;
+}
+
+.welcome-header h2 {
+    color: #00b0b0;
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.welcome-header p {
+    color: #aaa;
+    font-size: 16px;
+}
+
+.welcome-content {
+    display: flex;
+    gap: 30px;
+}
+
+.welcome-card {
+    background: #333333;
+    border-radius: 8px;
+    padding: 24px;
+    flex: 1;
+    border: 1px solid #555555;
+}
+
+.welcome-card h4 {
+    color: #00b0b0;
+    margin-bottom: 16px;
+    font-size: 18px;
+    border-bottom: 1px solid #555555;
+    padding-bottom: 10px;
+}
+
+.welcome-card p {
+    color: #ddd;
+    margin-bottom: 10px;
+    font-size: 14px;
 }

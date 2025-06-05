@@ -3,31 +3,50 @@
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background-color: #bababa;
+    background-color: #444444; /* 调整为中灰色背景 */
     -webkit-app-region: no-drag;
 }
 
 .doclist_top-container {
     width: 100%;
     height: 30px;
-    background-color: #424242;
+    background-color: #555555; /* 调整为浅灰背景 */
     flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 12px;
+    color: #ffffff;
 }
 
 .doclist_main-container {
     flex: 1 1 auto;
-    background-color: #363636;
+    background-color: #333333; /* 调整为深灰背景 */
     overflow: auto;
     min-height: 0;
 }
 
 .doclist_tools-container {
-    background-color: #121212;
+    background-color: #555555; /* 调整为浅灰背景 */
     height: 30px;
     width: 100%;
-    color: #fff;
+    color: #ffffff;
     display: flex;
     align-items: center;
-    border-top: 1px solid #232b38;
+    padding: 0 12px;
+    border-top: 1px solid #666666; /* 调整为浅灰边框 */
     flex-shrink: 0;
+}
+
+.doclist-refresh-btn button {
+    background-color: #555555; /* 调整为浅灰背景 */
+    color: #ffffff;
+    border: none;
+    padding: 0 8px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.doclist-refresh-btn button:hover {
+    background-color: #666666; /* 调整为深浅灰悬停颜色 */
 }

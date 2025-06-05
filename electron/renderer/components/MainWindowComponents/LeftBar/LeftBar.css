@@ -81,25 +81,25 @@
 .leftbar-up,
 .leftbar-down {
     scrollbar-width: thin;
-    scrollbar-color: #4e8cff #555555;
+    scrollbar-color: #00b0b0 #333333;
 }
 .LeftBar-container::-webkit-scrollbar,
 .leftbar-main::-webkit-scrollbar,
 .leftbar-up::-webkit-scrollbar,
 .leftbar-down::-webkit-scrollbar {
     width: 8px;
-    background: #555555;
+    background: #333333;
 }
 .LeftBar-container::-webkit-scrollbar-thumb,
 .leftbar-main::-webkit-scrollbar-thumb,
 .leftbar-up::-webkit-scrollbar-thumb,
 .leftbar-down::-webkit-scrollbar-thumb {
-    background: #4e8cff;
+    background: #00b0b0;
     border-radius: 6px;
 }
 .LeftBar-container::-webkit-scrollbar-thumb:hover,
 .leftbar-main::-webkit-scrollbar-thumb:hover,
 .leftbar-up::-webkit-scrollbar-thumb:hover,
 .leftbar-down::-webkit-scrollbar-thumb:hover {
-    background: #2563eb;
+    background: #008888;
 }

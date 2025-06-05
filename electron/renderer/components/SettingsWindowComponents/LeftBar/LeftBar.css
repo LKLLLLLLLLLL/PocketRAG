@@ -1,11 +1,26 @@
 .leftbar-container {
-    width: 200px;
+    width: 240px;
     height: 100%;
     background-color: #333333;
     color: #fff;
     display: flex;
+    flex-direction: column;
     min-height: 0;
-    border-right: 2px solid #555555;
+    border-right: 1px solid #555555;
+}
+
+.leftbar-header {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 1px solid #555555;
+}
+
+.leftbar-header h3 {
+    color: #00b0b0;
+    margin: 0;
+    font-size: 18px;
 }
 
 .leftbar-main {
@@ -16,41 +31,62 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    margin-top: 30px;
+    padding: 20px 10px;
     -webkit-app-region: no-drag;
-    gap: 12px;
+    gap: 8px;
 }
 
 .set-lb-button {
-    width: 90%;
+    width: 100%;
     margin: 0 auto;
     height: 44px;
-    font-size: 17px;
-    background-color: #555555;
-    color: #fff;
-    border-radius: 8px;
+    font-size: 15px;
+    background-color: #333333;
+    color: #e0e0e0;
+    border-radius: 6px;
     border: none;
-    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+    transition: background 0.2s, color 0.2s;
     text-align: left;
-    padding-left: 18px;
-    font-weight: 500;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
     outline: none;
 }
 
 /* 选中高亮 */
 .set-lb-button.selected,
 .set-lb-button.active {
-    background-color: #999999 !important;
-    color: #2563eb !important;
-    box-shadow: 0 4px 16px rgba(78,140,255,0.18);
-    border: 2px solid #4e8cff;
+    background-color: #444444 !important;
+    color: #00b0b0 !important;
 }
 
 /* 鼠标悬停 */
 .set-lb-button:hover {
-    background-color: #777777;
-    color: #4e8cff;
+    background-color: #3a3a3a;
+    color: #00b0b0;
+}
+
+.button-icon {
+    margin-right: 12px;
+    font-size: 16px;
+    width: 24px;
+    display: flex;
+    justify-content: center;
+}
+
+.button-label {
+    flex: 1;
+}
+
+.leftbar-footer {
+    padding: 20px;
+    border-top: 1px solid #555555;
+}
+
+.version-info {
+    color: #888;
+    font-size: 12px;
+    line-height: 1.6;
 }
 
 .leftbar-container .ant-btn.ant-btn-icon-only {

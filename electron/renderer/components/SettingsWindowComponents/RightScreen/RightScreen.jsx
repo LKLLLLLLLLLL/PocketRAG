@@ -111,7 +111,24 @@ export default function RightScreen({ content, onClick }) {
         default:
             return (
                 <RightScreenContainer onClick={onClick}>
-                    <div>Welcome</div>
+                    <div className="welcome-container">
+                        <div className="welcome-header">
+                            <h2>设置</h2>
+                            <p>配置您的应用参数</p>
+                        </div>
+                        <div className="welcome-content">
+                            <div className="welcome-card">
+                                <h4>应用信息</h4>
+                                <p>版本: v1.0.0</p>
+                                <p>更新日期: 2023-11-15</p>
+                            </div>
+                            <div className="welcome-card">
+                                <h4>系统状态</h4>
+                                <p>模型加载: 正常</p>
+                                <p>存储空间: 256GB可用</p>
+                            </div>
+                        </div>
+                    </div>
                 </RightScreenContainer>
             );
     }
@@ -121,7 +138,7 @@ function RightScreenContainer({ children, onClick }) {
     return (
         <div className='rightscreen-container'>
             <div className='closebar-container'>
-                <Button className = 'closebutton' icon={<CloseOutlined />} onClick={onClick}></Button>
+                <Button className='closebutton' icon={<CloseOutlined />} onClick={onClick}></Button>
             </div>
             <div className='rightscreen-main'>
                 {children}
@@ -171,7 +188,12 @@ function EmbeddingModelList() {
                     )}
                 </div>
             ))}
-            <Button icon={<PlusOutlined />} size="small" onClick={addModel} style={{ marginTop: 4 }}>
+            <Button 
+                icon={<PlusOutlined />} 
+                size="small" 
+                onClick={addModel} 
+                style={{ marginTop: 4, background: '#444', color: '#00b0b0', borderColor: '#555' }}
+            >
                 添加
             </Button>
         </div>
@@ -232,7 +254,12 @@ function GenerationModelList() {
                     )}
                 </div>
             ))}
-            <Button icon={<PlusOutlined />} size="small" onClick={addModel} style={{ marginTop: 4 }}>
+            <Button 
+                icon={<PlusOutlined />} 
+                size="small" 
+                onClick={addModel} 
+                style={{ marginTop: 4, background: '#444', color: '#00b0b0', borderColor: '#555' }}
+            >
                 添加
             </Button>
         </div>

@@ -11,12 +11,6 @@ export default function Doclist({ children, handleRefresh }) {
       <div className="doclist_top-container">
         <span>项目</span>
         <span className="doclist-refresh-btn" style = {{float:'right'}}>
-          <Button
-            onClick={handleRefresh}
-            size="small"
-            className="doclist-refresh-button"
-            icon={<RedoOutlined />}
-          />
         </span>
       </div>
       <div className="doclist_main-container">

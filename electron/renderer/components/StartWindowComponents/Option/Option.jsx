@@ -9,20 +9,15 @@ const Option =({others,setOthers})=>{
     const handleClick_new = async ()=>{
         await window.createRepo();
     }
-    
-    // const handleClick_open =()=>{
-    //     setDemo(true);
-    //     receiveRepolist();
-    // }
 
     return(
         <div className = 'option-container'>
             <div className = 'new-container'>
                 <span className = 'new-description'>
-                    <div>
+                    <div style = {{fontWeight: 'bond', fontSize: '20px'}}>
                         新建
                     </div>
-                    <div>
+                    <div style ={{fontSize: '15px',color: 'darkgrey'}}>
                         点击右侧“新建仓库”按钮，选择文件夹并建立仓库。
                     </div>
                 </span>
@@ -34,27 +29,12 @@ const Option =({others,setOthers})=>{
                     </Button>
                 </span>
             </div>
-            {/* <div className = 'open-container'>
-                <span className = 'open-description'>
-                    <div>
-                        undefined
-                    </div>
-                    <div>
-                        undefined
-                    </div>
-                </span>
-                <span>
-                    <Button className = 'open-button'>
-                        undefined
-                    </Button>
-                </span>
-            </div> */}
             <div className = 'other-container'>
                 <span className = 'other-description'>
-                    <div>
+                    <div style = {{fontWeight: 'bond', fontSize: '20px'}}>
                         其他
                     </div>
-                    <div>
+                    <div style ={{fontSize: '15px',color: 'darkgrey'}}>
                         点击右侧“其他选项”按钮，展开其他选项。
                     </div>
                 </span>

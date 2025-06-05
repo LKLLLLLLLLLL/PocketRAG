@@ -9,174 +9,115 @@
 .sw-left {
     background-color: #333333;
     color: #fff;
+    display: flex;
+    flex-direction: column;
 }
 
 .sw-right {
-    background-color: #555555;
+    background-color: #222222;
     color: #fff;
     display: flex;
     flex-direction: column;
 }
 
 .repolist-container {
-    margin-top: 30px;
-    width: 100%;
-    height: 100%;
+    flex: 1 1 0%;
     display: flex;
     flex-direction: column;
     overflow: auto;
     -webkit-app-region: no-drag;
+    margin-top: 30px;
 }
 
 .repolist {
     flex-grow: 1;
-    height: 100%;
-    color: #fff;
     display: flex;
     flex-direction: column;
     list-style: none;
     margin: 0;
     padding: 0;
 }
+.repo-item-container{
+    flex: 1;
+    display: flex;
+}
 
 .repo-item {
     width: 100%;
-    min-height: 100px;
+    min-height: 60px;
     display: flex;
-    color: #fff;
-    flex-direction: column;
-    padding: 4px;
+    align-items: center;
+    padding: 0 16px;
     box-sizing: border-box;
-    background-color: #777777;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-    -webkit-app-region: no-drag;
-    margin-bottom: 18px;
-    transition: box-shadow 0.2s, background 0.2s;
-    /* border-radius: 10px; */
+    /* background-color: #444444; */
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
 }
+
 .repo-item:hover {
-    background-color: #999999 !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+    background-color: #555555;
 }
-.repo-item.selected {
-    background-color: #999999 !important;
-    box-shadow: 0 4px 16px rgba(153,153,153,0.25);
-}
-.repo-item-container {
-    width: 100%;
-    height: 100%;
-    display: flex;
-}
+
+/* .repo-item.selected {
+    background-color: #00b0b0;
+    color: #ffffff;
+} */
+
 .repo-item-info {
     flex: 1 1 0%;
-    min-width: 100px;
-    height: 100%;
-    padding-left: 5px;
-}
-.repo-name {
     display: flex;
-    font-size: 20px;
-    width: 100%;
-    height: 50%;
-    align-items: flex-end;
-    justify-content: flex-start;
-    padding-bottom: 2px;
+    flex-direction: column;
+}
+
+.repo-name {
+    font-size: 16px;
+    font-weight: 500;
     color: #fff;
 }
+
 .repo-path {
-    display: flex;
-    font-size: 10px;
-    width: 100%;
-    height: 50%;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding-top: 4px;
-    color: #e0e0e0;
+    font-size: 12px;
+    color: #aaaaaa;
+    margin-top: 4px;
 }
+
 .repo-delete-container {
-    width: 50px;
+    width: 40px;
     flex-shrink: 0;
     display: flex;
     justify-content: center;
     align-items: center;
+    opacity: 0.7;
 }
-.repo-delete {
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    min-height: 40px !important;
-    border-radius: 8px !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(255,77,79,0.15);
-    transition: background 0.2s, box-shadow 0.2s;
-    font-size: 20px;
-    padding: 0 !important;
-}
-.repo-delete:hover, .repo-delete:focus {
-    box-shadow: 0 4px 16px rgba(255,77,79,0.25);
+.repo-delete{
+    background: none;
 }
 
-.repo-item.selected {
-    background-color: #999999 !important;
-    box-shadow: 0 4px 24px 0 rgba(78,140,255,0.25), 0 2px 8px rgba(153,153,153,0.18);
-    border: 2.5px solid #4e8cff;
-    color: #232b38;
-    position: relative;
-    z-index: 2;
-    transition: background 0.2s, box-shadow 0.2s, border 0.2s, color 0.2s;
-}
-.repo-item.selected .repo-name {
-    color: #2563eb;
-}
-.repo-item.selected .repo-path {
-    color: #232b38;
+.repo-delete-container:hover {
+    opacity: 1;
 }
 
-.sw-resize,
-.panel-resize-handle,
-.PanelResizeHandle,
-[class*="resizeHandle"] {
-    background: #999999;
-    opacity: 0.95 !important;
-    min-width: 3px !important;
-    min-height: 3px !important;
-    border-radius: 2px !important;
-    cursor: col-resize !important;
-    z-index: 20;
-    transition: opacity 0.2s, background 0.2s;
-    box-shadow: 0 0 6px #55555555;
-}
-.sw-resize:hover,
-.panel-resize-handle:hover,
-.PanelResizeHandle:hover,
-[class*="resizeHandle"]:hover {
-    opacity: 1 !important;
-    background: #4e8cff !important;
-    box-shadow: 0 0 12px #4e8cff88;
+.sw-resize {
+    width: 0px;
+    background-color: #555555;
 }
 
-.repolist-container,
-.sw-right {
-    scrollbar-width: thin;
-    scrollbar-color: #4e8cff #555555;
-}
-
-.repolist-container::-webkit-scrollbar,
-.sw-right::-webkit-scrollbar {
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
     width: 8px;
+    background: #333333;
+}
+
+::-webkit-scrollbar-thumb {
     background: #555555;
-}
-
-.repolist-container::-webkit-scrollbar-thumb,
-.sw-right::-webkit-scrollbar-thumb {
-    background: #4e8cff;
     border-radius: 6px;
-    min-height: 40px;
 }
 
-.repolist-container::-webkit-scrollbar-thumb:hover,
-.sw-right::-webkit-scrollbar-thumb:hover {
-    background: #2563eb;
+::-webkit-scrollbar-thumb:hover {
+    background: #444444;
+}
+
+::-webkit-scrollbar-corner {
+    background: #333333;
 }

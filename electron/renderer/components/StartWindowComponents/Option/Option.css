@@ -2,35 +2,53 @@
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    background: #777777;
+    /* background: #333333; */
     -webkit-app-region: no-drag;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.18);
-    /* border-radius: 12px; */
-    /* margin-bottom: 10px; */
-    padding: 24px 24px;
+    /* box-shadow: 0 2px 12px rgba(0,0,0,0.18); */
+    padding: 24px;
     width: 95%;
     max-width: 700px;
     align-self: center;
 }
+
 .new-container,
 .other-container {
     min-height: 80px;
     display: flex;
     align-items: center;
     margin-bottom: 20px;
-    background: #555555;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+    /* background: #444444; */
+    /* box-shadow: 0 1px 4px rgba(0,0,0,0.10); */
     padding: 12px 18px;
 }
 
-/* 去除最后一个的 margin-bottom */
 .option-container > .other-container:last-child,
 .option-container > .new-container:last-child {
     margin-bottom: 0;
 }
+
 .new-description,
 .other-description {
     flex-grow: 1;
     color: #fff;
     font-size: 16px;
+}
+
+.new-button,
+.other-button {
+    background-color: #00b0b0;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    height: 40px;
+    min-width: 100px;
+    /* font-weight: bold; */
+    font-size: 16px;
+    /* box-shadow: 0 1px 4px rgba(0,0,0,0.10); */
+    transition: background 0.2s;
+}
+
+.new-button:hover,
+.other-button:hover {
+    background-color: #008888;
 }

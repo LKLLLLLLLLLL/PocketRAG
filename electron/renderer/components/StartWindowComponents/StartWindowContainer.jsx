@@ -66,7 +66,7 @@ export default function StartWindowContainer(){
                     </div>
                     <div className = 'repo-delete-container'>
                         <Button className = 'repo-delete' 
-                                icon = {<DeleteOutlined style = {{fontSize:20}}/>}
+                                icon = {<DeleteOutlined style = {{fontSize:20,color: 'white'}}/>}
                                 onClick = {async (e)=>{e.stopPropagation();window.deleteRepo(repo.name);}}>
                         </Button>
                     </div>
@@ -77,7 +77,7 @@ export default function StartWindowContainer(){
 
     return(
         <PanelGroup direction = "horizontal" className = 'startwindow-container'>
-            <Panel defaultSize = {33} minSize = {30} maxSize = {50} className = 'sw-left'>
+            <Panel defaultSize = {33} minSize = {33} maxSize = {33} className = 'sw-left'>
                 { demo &&
                     <div className = 'repolist-container'>
                         <ul className = 'repolist'>
