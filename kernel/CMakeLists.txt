@@ -146,22 +146,17 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/sentencepiece EXCLUDE_FROM
 set(ONNXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime")
 # 添加ONNX Runtime头文件路径
 include_directories("${ONNXRUNTIME_DIR}/include")
-# 导入ONNXruntime
-set(ONNXRUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime")
-# 添加ONNX Runtime头文件路径
-include_directories("${ONNXRUNTIME_DIR}/include")
 
 # 根据平台不同设置 ONNX Runtime 库
+add_library(onnxruntime SHARED IMPORTED)
 if(APPLE)
     # macOS 平台
-    add_library(onnxruntime SHARED IMPORTED)
     set(ONNXRUNTIME_LIB "${ONNXRUNTIME_DIR}/lib/libonnxruntime.dylib")
     set_target_properties(onnxruntime PROPERTIES
         IMPORTED_LOCATION "${ONNXRUNTIME_LIB}"
     )
 else()
     # Windows 平台
-    add_library(onnxruntime SHARED IMPORTED)
     set(ONNXRUNTIME_LIB "${ONNXRUNTIME_DIR}/lib/onnxruntime.lib")
     set(ONNXRUNTIME_DLL "${ONNXRUNTIME_DIR}/lib/onnxruntime.dll")
     set_target_properties(onnxruntime PROPERTIES

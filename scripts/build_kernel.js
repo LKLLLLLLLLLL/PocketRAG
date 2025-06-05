@@ -33,7 +33,9 @@ function cleanBinDirectory() {
 }
 
 // CMake 构建命令
-const buildCmd = "cmake -B build --preset release && cmake --build build";
+const buildCmd = isWin ? 
+"cmake -B build --preset release-windows && cmake --build build" :
+"cmake -B build --preset release-mac && cmake --build build";
 
 console.log('Building kernel...');
 

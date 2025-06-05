@@ -2,31 +2,84 @@
     "version": 8,
     "configurePresets": [
         {
-            "name": "debug",
-            "displayName": "Debug Build",
-            "description": "Debug build with all platforms",
+            "name": "base",
+            "hidden": true,
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
+                "VCPKG_ROOT": "${sourceDir}/../vcpkg",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/../vcpkg/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/install"
             }
         },
         {
+            "name": "base-windows",
+            "inherits": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            }
+        },
+        {
+            "name": "base-mac",
+            "inherits": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "/opt/homebrew/opt/llvm/bin/clang",
+                "CMAKE_CXX_COMPILER": "/opt/homebrew/opt/llvm/bin/clang++"
+            }
+        },
+        {
+            "name": "debug",
+            "inherits": "base-windows",
+            "displayName": "Debug Windows",
+            "description": "Debug build for Windows",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "debug-mac",
+            "inherits": "base-mac",
+            "displayName": "Debug macOS",
+            "description": "Debug build for macOS",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
             "name": "release",
-            "inherits": "debug",
-            "displayName": "Release Build",
-            "description": "Release build with optimizations",
+            "inherits": "base-windows",
+            "displayName": "Release Windows",
+            "description": "Release build for Windows with optimizations",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "release-mac",
+            "inherits": "base-mac",
+            "displayName": "Release macOS",
+            "description": "Release build for macOS with optimizations",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
         },
         {
             "name": "relwithdebinfo",
-            "inherits": "debug",
-            "displayName": "Release with Debug Info",
-            "description": "Release build with debug information",
+            "inherits": "base-windows",
+            "displayName": "RelWithDebInfo Windows",
+            "description": "Release build for Windows with debug information",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "relwithdebinfo-mac",
+            "inherits": "base-mac",
+            "displayName": "RelWithDebInfo macOS",
+            "description": "Release build for macOS with debug information",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
@@ -34,25 +87,34 @@
     ],
     "buildPresets": [
         {
-            "name": "debug",
+            "name": "debug-windows",
             "configurePreset": "debug",
-            "targets": [
-                "PocketRAG_kernel"
-            ]
+            "targets": ["PocketRAG_kernel"]
         },
         {
-            "name": "release",
+            "name": "release-windows",
             "configurePreset": "release",
-            "targets": [
-                "PocketRAG_kernel"
-            ]
+            "targets": ["PocketRAG_kernel"]
         },
         {
-            "name": "relwithdebinfo",
+            "name": "relwithdebinfo-windows",
             "configurePreset": "relwithdebinfo",
-            "targets": [
-                "PocketRAG_kernel"
-            ]
+            "targets": ["PocketRAG_kernel"]
+        },
+        {
+            "name": "debug-mac",
+            "configurePreset": "debug-mac",
+            "targets": ["PocketRAG_kernel"]
+        },
+        {
+            "name": "release-mac",
+            "configurePreset": "release-mac",
+            "targets": ["PocketRAG_kernel"]
+        },
+        {
+            "name": "relwithdebinfo-mac",
+            "configurePreset": "relwithdebinfo-mac",
+            "targets": ["PocketRAG_kernel"]
         }
     ]
 }
