@@ -187,4 +187,30 @@ export function MainWindowInit() {
         window.callbacks.delete(callbackId)
       }
     }
+
+    window.getChunksInfo = async () => {
+      await window.sessionPreparedPromise
+      const callbackId = window.callbackRegister(() => {})
+      try {
+        const chunksInfo = await new Promise((resolve, reject) => {
+          let timeout
+          const listener = (event) => {
+            clearTimeout(timeout)
+            resolve(event.detail)
+          }
+          window.addEventListener('getChunksInfoResult', listener, {once : true})
+          window.electronAPI.getChunksInfo(callbackId)
+          setTimeout(() => {
+            window.removeEventListener('getChunksInfoResult', listener)
+            reject(new Error('getChunksInfo timeout!'))
+          }, window.timeLimit)
+        })
+        return chunksInfo
+      }catch(err) {
+        console.error(err)
+        throw err
+      }finally {
+        window.callbacks.delete(callbackId)
+      }
+    }
 }

@@ -1,6 +1,7 @@
 /**************electron's render process********************/
 import { MainWindowInit } from './components/MainWindowComponents/MainWindow.js'
 import { RepoListWindowInit } from './components/StartWindowComponents/RepoListWindow.js'
+import { SettingsWindowInit } from './components/SettingsWindowComponents/SettingsWindow.js'
 
 const urlParams = new URLSearchParams(window.location.search)
 window.windowType = urlParams.get('windowType') // obtain the window type
@@ -169,6 +170,37 @@ window.electronAPI.onKernelData((data) => {
         console.error('isReply may be wrong, expected: true, but the result is: ', data)
       }
       break
+    case 'checkSettings': //isReply check has been done in main.js 
+      const checkSettingsResultEvent = new CustomEvent('checkSettingsResult', {detail : data.status})
+      window.dispatchEvent(checkSettingsResultEvent)
+      break
+    case 'getApiKey':  //isReply check has been done in main.js
+      if(data.status.code === 'SUCCESS') {
+        const getApiKeyResultEvent = new CustomEvent('getApiKeyResult', {detail : data.data})
+        window.dispatchEvent(getApiKeyResultEvent)
+      }
+      else {
+        console.error(data.status.message)
+      }
+      break
+    case 'testApi':  //isReply check has been done in main.js
+      const testApiResultEvent = new CustomEvent('testApiResult', {detail : data.status})
+      window.dispatchEvent(testApiResultEvent)
+      break
+    case 'getChunksInfo':
+      if(data.isReply) {
+        if(data.status.code === 'SUCCESS'){
+          const getChunksInfoResultEvent = new CustomEvent('getChunksInfoResult', {detail : data.data.chunkInfo})
+          window.dispatchEvent(getChunksInfoResultEvent)
+        }
+        else {
+          console.error(data.status.message)
+        }
+      }
+      else {
+        console.error('isReply may be wrong, expected: true, but the result is: ', data)
+      }
+      break
 
   }
 })
@@ -195,6 +227,8 @@ switch(window.windowType){
     // window.openSettingsWindow()
     break
   case 'settings':
+    SettingsWindowInit()
+    break
     
 }
 

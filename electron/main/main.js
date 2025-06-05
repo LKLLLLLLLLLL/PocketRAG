@@ -285,6 +285,76 @@ async function stdoutListener (data) {
                 console.error('isReply may be wrong, expected: false, but the result is: ', result)
               }
               break
+            case 'checkSettings':
+              if(result.isReply) {
+                const window = windows.get(result.message.windowId)
+                if(!window) {
+                  console.error('Window not found from sessionId: ' + result.message.windowId + ', the whole message is: ' + result)
+                }
+                else {
+                  window.webContents.send('kernelData', result)
+                }
+              }
+              else {
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
+              }
+              break
+            case 'updateSettings':
+              if(result.isReply) {
+                if(result.status.code === 'SUCCESS') {
+                  callbacks.delete(result.callbackId)
+                }
+                else {
+                  console.error(result.status.message)
+                  callbacks.delete(result.callbackId)
+                }
+              }
+              else {
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
+              }
+              break
+            case 'setApiKey':
+              if(result.isReply) {
+                if(result.status.code === 'SUCCESS') {
+                  callbacks.delete(result.callbackId)
+                }
+                else {
+                  console.error(result.status.message)
+                  callbacks.delete(result.callbackId)
+                }
+              }
+              else {
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
+              }
+              break
+            case 'getApiKey':
+              if(result.isReply) {
+                const window = windows.get(result.message.windowId)
+                if(!window) {
+                  console.error('Window not found from sessionId: ' + result.message.windowId + ', the whole message is: ' + result)
+                }
+                else {
+                  window.webContents.send('kernelData', result)
+                }
+              }
+              else {
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
+              }
+              break
+            case 'testApi':
+              if(result.isReply) {
+                const window = windows.get(result.message.windowId)
+                if(!window) {
+                  console.error('Window not found from sessionId: ' + result.message.windowId + ', the whole message is: ' + result)
+                }
+                else {
+                  window.webContents.send('kernelData', result)
+                }
+              }
+              else {
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
+              }
+              break
 
           }
         }
@@ -565,6 +635,126 @@ function getApiUsage(event, callbackId) {
   console.log(JSON.stringify(getApiUsage) + '\n')
 }
 
+function checkSettings(event, callbackId, settings) {
+  try {
+    fs.writeFileSync(path.join(userDataPath, 'settings-modified.json'), JSON.stringify(settings))
+    const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+    const checkSettings = {
+      sessionId : -1,
+      toMain : true,
+
+      callbackId : callbackId,
+      isReply : false,
+
+      message : {
+        type : 'checkSettings',
+        windowId : windowId
+      }
+    }
+    kernel.stdin.write(JSON.stringify(checkSettings) + '\n')
+    console.log(JSON.stringify(checkSettings) + '\n')
+  }catch(err) {
+    console.error('writing settings-modified.json failed: ', err)
+  }
+}
+
+function updateSettings(event, settings) {
+  try {
+    fs.writeFileSync(path.join(userDataPath, 'settings.json'), JSON.stringify(settings))
+    const callbackId = callbackRegister(() => {})
+    const updateSettings = {
+      sessionId : -1,
+      toMain : true,
+
+      callbackId : callbackId,
+      isReply : false,
+
+      message : {
+        type : 'updateSettings'
+      }
+    }
+    kernel.stdin.write(JSON.stringify(updateSettings) + '\n')
+    console.log(JSON.stringify(updateSettings) + '\n')
+  }catch(err) {
+    console.error('writing settings.json failed: ', err)
+  }
+}
+
+function setApiKey(event, modelName, apiKey) {
+  const callbackId = callbackRegister(() => {})
+  const setApiKey = {
+    sessionId : -1,
+    toMain : true,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'setApiKey',
+      name : modelName,
+      apiKey : apiKey
+    }
+  }
+  kernel.stdin.write(JSON.stringify(setApiKey) + '\n')
+  console.log(JSON.stringify(setApiKey) + '\n')
+}
+
+function getApiKey(event, callbackId, modelName) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const getApiKey = {
+    sessionId : -1,
+    toMain : true,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'getApiKey',
+      name : modelName,
+      windowId : windowId
+    }
+  }
+  kernel.stdin.write(JSON.stringify(getApiKey) + '\n')
+  console.log(JSON.stringify(getApiKey) + '\n')
+}
+
+function testApi(event, callbackId, modelName, url, api) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const testApi = {
+    sessionId : -1,
+    toMain : true,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'testApi',
+      modelName : modelName,
+      url : url,
+      api : api,
+      windowId : windowId
+    }
+  }
+  kernel.stdin.write(JSON.stringify(testApi) + '\n')
+  console.log(JSON.stringify(testApi) + '\n')
+}
+
+function getChunksInfo(event, callbackId) {
+  const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const getChunksInfo = {
+    sessionId : sessionId,
+    toMain : false,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'getChunksInfo'
+    }
+  }
+  kernel.stdin.write(JSON.stringify(getChunksInfo) + '\n')
+  console.log(JSON.stringify(getChunksInfo) + '\n')
+}
 
 async function saveWindowState(window, windowType) {
   if (!window) return
@@ -623,7 +813,7 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
         mainOptions.titleBarOverlay = {
           color: '#2f3241',
           symbolColor: '#74b1be',
-          height: 20
+          height: 35
         }
         mainOptions.titleBarStyle = 'hidden'        
       }
@@ -672,7 +862,7 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
         repoListOptions.titleBarOverlay = {
           color: '#2f3241',
           symbolColor: '#74b1be',
-          height: 20
+          height: 35
         }
         repoListOptions.titleBarStyle = 'hidden'
       }
@@ -865,7 +1055,7 @@ function watchRepoDir(event, repoPath) {
       for(const win of windows.values()) {
         const currentRepoPath = await win.webContents.executeJavaScript('window.repoPath')
         if(currentRepoPath === repoPath){
-          win.webContents.send('repoFileChanged', {eventType, filename, repoPath})
+          win.webContents.send('repoFileChanged')
         }
       }
     })
@@ -889,6 +1079,7 @@ function getConversation(event, repoPath) {
   if(!fs.existsSync(convDir)) return []
   return fs.readdirSync(convDir).filter(name => name.endsWith('.json') && !name.includes('_full')).map(name => {
     const match = name.match(/^conversation-(\d+)\.json$/)
+    return match ? match[1] : null
   }).filter(Boolean)
 }
 
@@ -938,6 +1129,12 @@ app.whenReady().then(async () => {
   ipcMain.on('updateFile', updateFile)
   ipcMain.handle('getFile', getFile)
   ipcMain.handle('deleteRepoCheck', deleteRepoCheck)
+  ipcMain.on('checkSettings', checkSettings)
+  ipcMain.on('updateSettings', updateSettings)
+  ipcMain.on('setApiKey', setApiKey)
+  ipcMain.on('getApiKey', getApiKey)
+  ipcMain.on('testApi', testApi)
+  ipcMain.on('getChunksInfo', getChunksInfo)
   //add the event listeners before the window is created
 
   kernel = spawn(kernelPath, [], {

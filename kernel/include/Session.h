@@ -39,6 +39,7 @@ private:
 
     class AugmentedConversation;
     std::shared_ptr<AugmentedConversation> conversation = nullptr; // conversation instance
+    int historyLength;
 
     KernelServer& kernelServer;
     std::shared_ptr<Utils::CallbackManager> callbackManager = std::make_shared<Utils::CallbackManager>();
@@ -54,11 +55,11 @@ private:
     void initializeSqlite();
 
 public:
-    Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer);
+    Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer, int historyLength);
     ~Session();
 
     // this method can only be called in one thread
-    void run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent);
+    void run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent, int maxThreads, ONNXModel::device device);
 
     // this function can be called by another thread, it will shuddown all threads under this session
     void stop();
@@ -86,7 +87,7 @@ private:
     std::shared_ptr<Utils::WorkerThread> conversationThread = nullptr;
 
     // only read maxHistoryLength characters from conversation history
-    static const int maxHistoryLength = 1000;
+    const int maxHistoryLength;
 
     void conversationProcess(std::atomic<bool>& stopFlag);
 
@@ -94,7 +95,7 @@ private:
     struct HistoryManager;
     friend struct HistoryManager;
 public:
-    AugmentedConversation(std::filesystem::path historyDirPath, Session& session);
+    AugmentedConversation(std::filesystem::path historyDirPath, Session& session, int maxHistoryLength);
     ~AugmentedConversation();
     // open a new conversation
     void openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int64_t conversationId);

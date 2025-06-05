@@ -12,7 +12,7 @@
 #include "DocPipe.h"
 #include "Utils.h"
 
-Repository::Repository(std::string repoName, std::filesystem::path repoPath, Utils::PriorityMutex& sqliteMutex, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter, std::function<void(std::string)> doneReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter), doneReporter(doneReporter), sqliteMutex(sqliteMutex)
+Repository::Repository(std::string repoName, std::filesystem::path repoPath, Utils::PriorityMutex& sqliteMutex,  int maxThreads, ONNXModel::device device, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter, std::function<void(std::string)> doneReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter), doneReporter(doneReporter), sqliteMutex(sqliteMutex), device(device), maxThreads(maxThreads)
 {
     // initialize sqliteDB
     initializeSqlite();
@@ -157,7 +157,7 @@ void Repository::updateEmbeddings(const EmbeddingConfigList &configs, bool needL
         int inputLength = stmt.get<int>(3);
 
         // create embedding model
-        auto embeddingModel = std::make_shared<EmbeddingModel>(modelPath, ONNXModel::device::cpu);
+        auto embeddingModel = std::make_shared<EmbeddingModel>(modelPath, device, maxThreads);
         int dimension = embeddingModel->getDimension();
         auto embedding = std::make_shared<Embedding>(id, name, dimension, inputLength, embeddingModel);
         tempEmbeddings.push_back(embedding);
@@ -660,7 +660,7 @@ void Repository::configReranker(const std::filesystem::path &modelPath)
     logger.debug("[Repository.configReranker] begin to config reranker model");
     Utils::LockGuard lock(repoMutex, true, true);
     if(!modelPath.empty())
-        rerankerModel = std::make_shared<RerankerModel>(modelPath, ONNXModel::device::cpu);
+        rerankerModel = std::make_shared<RerankerModel>(modelPath, device, maxThreads);
     logger.debug("[Repository.configReranker] reranker model config done");
     startBackgroundProcess();
 }

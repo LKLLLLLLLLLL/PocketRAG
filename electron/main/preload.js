@@ -60,7 +60,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getFile : (filePath) => ipcRenderer.invoke('getFile', filePath),
 
-  deleteRepoCheck : (repoName) => ipcRenderer.invoke('deleteRepoCheck', repoName)
+  deleteRepoCheck : (repoName) => ipcRenderer.invoke('deleteRepoCheck', repoName),
+
+  checkSettings : (callbackId, settings) => ipcRenderer.send('checkSettings', callbackId, settings),
+
+  updateSettings : (settings) => ipcRenderer.send('updateSettings', settings),
+
+  setApiKey : (modelName, apiKey) => ipcRenderer.send('setApiKey', modelName, apiKey),
+
+  getApiKey : (modelName) => ipcRenderer.send('getApiKey', callbackId, modelName),
+
+  testApi : (callbackId, modelName, url, api) => ipcRenderer.send('testApi', callbackId, modelName, url, api),
+
+  getChunksInfo : (callbackId) => ipcRenderer.send('getChunksInfo', callbackId)
 
 })
 //expose apis to the renderer process 

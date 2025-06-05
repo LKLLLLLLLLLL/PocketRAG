@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 
 #include "LLMConv.h"
+#include "ONNXModel.h"
 #include "Session.h"
 #include "SqliteConnection.h"
 #include "Utils.h"
@@ -164,7 +165,14 @@ public:
                 bool lastUsed;
             };
             std::vector<GenerationModel> generationModel;
+            int historyLength;
         } conversationSettings;
+        struct PerformanceSettings
+        {
+            int maxThreads = 0; // max threads for ONNX model, 0 means use all available threads
+            bool useCoreML = false;
+            bool useCuda = false;
+        } performanceSettings;
     };
 private:
     const std::filesystem::path settingsPath;
@@ -184,4 +192,17 @@ public:
     std::vector<SettingsCache::SearchSettings::EmbeddingConfig::Config> getEmbeddingConfigs() const;
     std::vector<SettingsCache::SearchSettings::RrankConfig::Config> getRerankConfigs() const;
     std::string getModelPath(const std::string &modelName) const;
+    std::pair<int, ONNXModel::device> getPerfConfig() const
+    {
+        ONNXModel::device dev = ONNXModel::device::cpu;
+        if(settingsCache.performanceSettings.useCoreML)
+            dev = ONNXModel::device::coreML;
+        else if(settingsCache.performanceSettings.useCuda)
+            dev = ONNXModel::device::cuda;
+        return {settingsCache.performanceSettings.maxThreads, dev};
+    }
+    int getHistoryLength() const
+    {
+        return settingsCache.conversationSettings.historyLength;
+    }
 };

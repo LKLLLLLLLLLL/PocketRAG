@@ -64,23 +64,6 @@ std::unordered_map<Ort::Session *, std::shared_ptr<std::mutex>> ONNXModel::sessi
 
 std::atomic<int> ONNXModel::instanceCount = 0;
 
-// namespace
-// {
-//     struct ONNXInitializer
-//     {
-//     private:
-//         ONNXInitializer()
-//         {
-//             ONNXModel::initialize();
-//         }
-//     public:
-//         static void initialize()
-//         {
-//             static ONNXInitializer instance;
-//         }
-//     };
-// }
-
 void ONNXModel::initialize()
 {
     env.reset(new Ort::Env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelEnv")); // ONNX runtime will log warnings and errors
@@ -98,7 +81,54 @@ void ONNXModel::release()
     ONNXModel::memoryInfo.reset(); // release memory info
 }
 
-ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf): 
+bool ONNXModel::checkCapability(device dev)
+{
+    auto provider = Ort::GetAvailableProviders();
+    switch (dev)
+    {
+    case device::cpu:
+        return true;
+    case device::cuda:
+        if (std::find(provider.begin(), provider.end(), "CUDAExecutionProvider") == provider.end())
+            return false;
+        try
+        {
+            initialize();
+            auto testOptions = Ort::SessionOptions();
+            OrtCUDAProviderOptions cudaOptions;
+            testOptions.AppendExecutionProvider_CUDA(cudaOptions);
+            return true;
+        }
+        catch(...)
+        {
+            return false;
+        }
+    case device::coreML:
+        if (std::find(provider.begin(), provider.end(), "CoreMLExecutionProvider") == provider.end())
+            return false;
+        try
+        {
+            initialize();
+            auto testOptions = Ort::SessionOptions();
+            std::unordered_map<std::string, std::string> provider_options;
+            provider_options["ModelFormat"] = "MLProgram";
+            provider_options["MLComputeUnits"] = "ALL";
+            provider_options["RequireStaticInputShapes"] = "1";
+            provider_options["EnableOnSubgraphs"] = "1";
+            provider_options["AllowLowPrecisionAccumulationOnGPU"] = "1";
+            testOptions.AppendExecutionProvider("CoreML", provider_options);
+            return true;
+        }
+        catch(...)
+        {
+            return false;
+        }
+    default:
+        return false;
+    }
+}
+
+ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, int maxThreads): 
     modelDirPath(targetModelDirPath)
 {
     if(instanceCount == 0)
@@ -126,34 +156,68 @@ ONNXModel::ONNXModel(std::filesystem::path targetModelDirPath, device dev, perfS
             // configure device and perf setting
             Ort::SessionOptions sessionOptions;
             sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-// #ifdef __APPLE__
-//             std::unordered_map<std::string, std::string> provider_options;
-//             provider_options["ModelFormat"] = "MLProgram";
-//             provider_options["MLComputeUnits"] = "All";
-//             // provider_options["RequireStaticInputShapes"] = "1";
-//             provider_options["EnableOnSubgraphs"] = "0";
-//             sessionOptions.AppendExecutionProvider("CoreML", provider_options);
-// #elif defined(_WIN32)
-//             if (dev == device::cuda)
-//             {
-//                 OrtCUDAProviderOptions cudaOptions;
-//                 sessionOptions.AppendExecutionProvider_CUDA(cudaOptions);
-//             }
-// #endif
-            if (dev == device::cpu)
+
+            if(!checkCapability(dev))
             {
-                int maxThreads = std::thread::hardware_concurrency();
-                if (perf == perfSetting::low) // limit max thread
-                {
-                    sessionOptions.SetIntraOpNumThreads(2);
-                    sessionOptions.SetInterOpNumThreads(2);
-                }
-                else 
-                {
-                    sessionOptions.SetIntraOpNumThreads(maxThreads);
-                    sessionOptions.SetInterOpNumThreads(maxThreads);
-                }
+                dev = device::cpu;
+                logger.warning("Device " + device_to_string(dev) + " is not supported, fallback to CPU.");
             }
+
+            bool hasConfiged = false;
+#ifdef __APPLE__
+            // coreml support
+            // require special format of model to reach best performance
+            if(dev == device::coreML)
+            {
+                std::unordered_map<std::string, std::string> provider_options;
+                provider_options["ModelFormat"] = "MLProgram";
+                provider_options["MLComputeUnits"] = "ALL";
+                provider_options["RequireStaticInputShapes"] = "1";
+                provider_options["EnableOnSubgraphs"] = "1";
+                provider_options["AllowLowPrecisionAccumulationOnGPU"] = "1";
+                if(dataPath.empty())
+                {
+                    provider_options["ModelCacheDirectory"] = std::filesystem::temp_directory_path() / "onnxruntime_cache";
+                }
+                else
+                {
+                    provider_options["ModelCacheDirectory"] = dataPath / "cache";
+                }
+                sessionOptions.AppendExecutionProvider("CoreML", provider_options);
+                hasConfiged = true;
+                logger.info("Create model " + targetModelDirPath.string() + " with CoreML execution provider.");
+            }
+#elif defined(_WIN32)
+            if (dev == device::cuda)
+            {
+                OrtCUDAProviderOptions cudaOptions;
+                sessionOptions.AppendExecutionProvider_CUDA(cudaOptions);
+                hasConfiged = true;
+                logger.info("Create model " + targetModelDirPath.string() + " with CUDA execution provider.");
+            }
+#endif
+            if (dev == device::cpu || !hasConfiged)
+            {
+                sessionOptions.EnableCpuMemArena();
+                sessionOptions.EnableMemPattern();
+
+                sessionOptions.SetExecutionMode(ExecutionMode::ORT_PARALLEL);
+                logger.info("Create model " + targetModelDirPath.string() + " with CPU execution.");
+            }
+
+            // set max threads for any device
+            int hardwareThreads = std::thread::hardware_concurrency();
+            if(maxThreads == 0) 
+            {
+                sessionOptions.SetIntraOpNumThreads(hardwareThreads);
+                sessionOptions.SetInterOpNumThreads(hardwareThreads);
+            }
+            else
+            {
+                sessionOptions.SetIntraOpNumThreads(maxThreads);
+                sessionOptions.SetInterOpNumThreads(maxThreads);
+            }
+            
             
             // open session
             auto modelPath = targetModelDirPath / "model.onnx";
@@ -239,7 +303,7 @@ ONNXModel::~ONNXModel()
 }
 
 // ------------------------ EmbeddingModel ------------------------ //
-EmbeddingModel::EmbeddingModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf) : ONNXModel(targetModelDirPath, dev, perf)
+EmbeddingModel::EmbeddingModel(std::filesystem::path targetModelDirPath, device dev, int maxThreads) : ONNXModel(targetModelDirPath, dev, maxThreads)
 {
     // load tokenizer
     tokenizer = std::make_unique<sentencepiece::SentencePieceProcessor>();
@@ -420,7 +484,7 @@ std::vector<std::vector<float>> EmbeddingModel::embed(const std::vector<std::str
 }
 
 //------------------------- RerankerModel -------------------------//
-RerankerModel::RerankerModel(std::filesystem::path targetModelDirPath, device dev, perfSetting perf) : ONNXModel(targetModelDirPath, dev, perf)
+RerankerModel::RerankerModel(std::filesystem::path targetModelDirPath, device dev, int maxThreads) : ONNXModel(targetModelDirPath, dev, maxThreads)
 {
     // load tokenizer
     tokenizer = std::make_unique<sentencepiece::SentencePieceProcessor>();

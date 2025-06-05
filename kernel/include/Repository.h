@@ -72,6 +72,10 @@ private:
     std::vector<std::shared_ptr<Embedding>> embeddings;
     std::shared_ptr<RerankerModel> rerankerModel = nullptr;
 
+    // for onnx runtime performance config
+    int maxThreads;
+    ONNXModel::device device;
+
     std::shared_ptr<Utils::WorkerThread> backgroundThread; // background thread for processing documents
 
     // to avoid deadlock, must lock sqlitemutex first, then repoMutex
@@ -120,7 +124,7 @@ private:
     void reConstruct(bool needLock = false);
 
 public:
-    Repository(std::string repoName, std::filesystem::path repoPath, Utils::PriorityMutex& mutex, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr, std::function<void(std::string)> doneReporter = nullptr);
+    Repository(std::string repoName, std::filesystem::path repoPath, Utils::PriorityMutex& mutex,  int maxThreads, ONNXModel::device device, std::function<void(std::vector<std::string>)> docStateReporter = nullptr, std::function<void(std::string, double)> progressReporter = nullptr, std::function<void(std::string)> doneReporter = nullptr);
     ~Repository();
 
     Repository(const Repository&) = delete; // disable copy constructor
