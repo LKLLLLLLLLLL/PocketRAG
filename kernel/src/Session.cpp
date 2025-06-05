@@ -288,6 +288,7 @@ void Session::handleMessage(Utils::MessageQueue::Message &message)
         }
         else if(type == "getApiUsage")
         {
+            Utils::LockGuard lock(mutex, true, false);
             auto stmt = sqlite->getStatement(
                 "SELECT SUM(input_token), SUM(output_token), generation_model "
                 "FROM turn "
@@ -305,6 +306,31 @@ void Session::handleMessage(Utils::MessageQueue::Message &message)
             }
             json["data"]["apiUsage"] = apiUsageJson;
 
+            json["status"]["code"] = "SUCCESS";
+            json["status"]["message"] = "";
+        }
+        else if(type == "getChunksInfo")
+        {
+            Utils::LockGuard lock(mutex, true, false);
+            auto stmt = sqlite->getStatement(
+                "SELECT c.chunk_id, c.begin_line, c.end_line, d.doc_path, e.config_name, t.content, t.metadata "
+                "FROM chunks c, text_search t, documents d, embedding_config e "
+                "WHERE c.chunk_id = t.chunkId AND c.doc_id = d.id AND c.embedding_id = e.id;"
+            );
+            nlohmann::json chunksInfoJson = nlohmann::json::array();
+            while (stmt.step())
+            {
+                nlohmann::json chunkInfo;
+                chunkInfo["chunkId"] = stmt.get<int64_t>(0);
+                chunkInfo["beginLine"] = stmt.get<int>(1);
+                chunkInfo["endLine"] = stmt.get<int>(2);
+                chunkInfo["filePath"] = stmt.get<std::string>(3);
+                chunkInfo["embeddingName"] = stmt.get<std::string>(4);
+                chunkInfo["content"] = stmt.get<std::string>(5);
+                chunkInfo["metadata"] = stmt.get<std::string>(6);
+                chunksInfoJson.push_back(chunkInfo);
+            }
+            json["data"]["chunkInfo"] = chunksInfoJson;
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
         }

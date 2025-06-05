@@ -683,6 +683,61 @@ return:
 }
 ```
 
+### getChunksInfo
+window -> session
+获取整个仓库的chunk信息
+
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "getChunksInfo"
+    }
+}
+```
+
+return:
+```json
+{
+    "sessionId" : 120,
+    "toMain" : false,
+
+    "callbackId" : 42,
+    "isReply" : true,
+
+    "message" : {
+        "type" : "chunkInfo"
+    },
+
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    },
+
+    "data": {
+        "chunkInfo" : [
+            {
+                "chunkId" : 1, // unique id for the chunk
+                "filePath" : "/relative/path/to/file",
+                "content" : "chunk content",
+                "metadata" : "metadata",
+                "beginLine" : 0, // begin line in the file
+                "endLine" : 10, // end line in the file
+                "embeddingName" : "bge-m3-512", // refer to config name 
+            },
+            {
+                ...
+            }
+        ]
+    }
+}
+```
+
 # 关于设置
 这些全局设置都应该由main.js向kernel server发送消息。
 ## 一般设置
