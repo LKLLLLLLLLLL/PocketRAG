@@ -71,10 +71,12 @@ private:
     std::vector<std::shared_ptr<VectorTable>> vectorTables;
     std::vector<std::shared_ptr<Embedding>> embeddings;
     std::shared_ptr<RerankerModel> rerankerModel = nullptr;
-    Utils::PriorityMutex repoMutex; // mutex for vector tables, embeddings, reranker model
 
     std::shared_ptr<Utils::WorkerThread> backgroundThread; // background thread for processing documents
+
+    // to avoid deadlock, must lock sqlitemutex first, then repoMutex
     Utils::PriorityMutex& sqliteMutex;
+    Utils::PriorityMutex repoMutex; // mutex for vector tables, embeddings, reranker model
 
     std::atomic<bool> integrity = true; // if false, call reConstruct() to fix the database
 
@@ -112,7 +114,6 @@ private:
     const static int maxRestartCount = 3;
 
     void suspendBackgroundProcess(); // only let background release mutex
-    void startBackgroundProcess();
 
     // to fix internal error, drop all tables and reconstruct
     // this method can only be called in background thread
@@ -146,4 +147,5 @@ public:
     }
 
     void stopBackgroundProcess();
+    void startBackgroundProcess();
 };

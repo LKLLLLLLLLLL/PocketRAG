@@ -108,6 +108,7 @@ void Session::run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent)
         sessionMessageQueue->shutdown();
         Utils::WorkerThread::getCurrentThread()->notify();
     });
+    repository->startBackgroundProcess();
     // initialize sqlite
     auto dbPath = repoPath / ".PocketRAG" / "db";
     sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);

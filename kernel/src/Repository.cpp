@@ -23,7 +23,7 @@ Repository::Repository(std::string repoName, std::filesystem::path repoPath, Uti
     // read embeddings config from embeddings table and initialize embedding models
     // updateEmbeddings();
 
-    startBackgroundProcess();
+    // startBackgroundProcess();
 }
 
 void Repository::initializeSqlite(bool needLock)
@@ -40,7 +40,7 @@ void Repository::initializeSqlite(bool needLock)
     sqlite->execute(
         "CREATE TABLE IF NOT EXISTS documents("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "doc_name TEXT UNIQUE NOT NULL, "
+        "doc_path TEXT UNIQUE NOT NULL, " // relative path from repoPath
         "last_modified INTEGER, "       // file's last modified timestamp
         "file_size INTEGER, "       // file size
         "content_hash TEXT, "       // file content hash
@@ -74,6 +74,19 @@ void Repository::initializeSqlite(bool needLock)
         "FOREIGN KEY(doc_id) REFERENCES documents(id) ON DELETE CASCADE, "
         "FOREIGN KEY(embedding_id) REFERENCES embedding_config(id) ON DELETE CASCADE"
         ");"
+    );
+
+    // add index for chunks table
+    sqlite->execute(
+        "CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON chunks(doc_id);"
+    );
+    sqlite->execute(
+        "CREATE INDEX IF NOT EXISTS idx_chunks_embedding_id ON chunks(embedding_id);"
+    );
+
+    // add index for documents table
+    sqlite->execute(
+        "CREATE INDEX IF NOT EXISTS idx_documents_doc_path ON documents(doc_path);"
     );
 }
 
@@ -171,12 +184,12 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
     while (!retFlag)
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
-        Utils::LockGuard lock(sqliteMutex, false, true);      // lock for writing
+        Utils::LockGuard sqlitelock(sqliteMutex, false, true);      // lock for writing
         Utils::LockGuard repoLock(repoMutex, false, false); // lock for vector tables and embeddings
 
-        lock.yield();
+        sqlitelock.yield();
         repoLock.yield();
-        if (lock.needRelease() || repoLock.needRelease() || retFlag)
+        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag)
         {
             continue;
         }
@@ -190,9 +203,9 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
             }
         }
 
-        lock.yield();
+        sqlitelock.yield();
         repoLock.yield();
-        if (lock.needRelease() || repoLock.needRelease() || retFlag)
+        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag)
         {
             continue;
         }
@@ -203,9 +216,9 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
             reConstruct(false);
         }
 
-        lock.yield();
+        sqlitelock.yield();
         repoLock.yield();
-        if (lock.needRelease() || repoLock.needRelease() || retFlag)
+        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag)
         {
             continue;
         }
@@ -213,12 +226,12 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
         std::queue<DocPipe> docqueue; // create a new doc queue for each iteration
         checkDoc(docqueue); // check for changed documents
         // though refreshDoc will change vector tables and text table, but this changes will not affect to search result, so no need to use writelock(unique_lock)
-        refreshDoc(docqueue, lock, repoLock, retFlag); // process the documents in the queue
+        refreshDoc(docqueue, sqlitelock, repoLock, retFlag); // process the documents in the queue
         // logically, there is no other thread use these invalid embedding configs, only need to avoid changes in embedding_config table, so use shared_lock
 
-        lock.yield();
+        sqlitelock.yield();
         repoLock.yield();
-        if (lock.needRelease() || repoLock.needRelease() || retFlag)
+        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag)
         {
             continue;
         }
@@ -284,29 +297,41 @@ void Repository::checkDoc(std::queue<DocPipe>& docqueue)
 {
     // get all documents from disk
     std::vector<std::filesystem::path> files;
-    for (const auto &entry : std::filesystem::directory_iterator(repoPath))
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(repoPath, std::filesystem::directory_options::skip_permission_denied))
     {
-        auto filename = entry.path().filename().string();
-        if (filename.empty() || filename[0] == '.')
+        bool hasHiddenDir = false;
+        auto relPath = std::filesystem::relative(entry.path(), repoPath);
+
+        for (const auto &component : relPath)
         {
-            continue; // skip hidden files
+            auto componentStr = component.string();
+            if (!componentStr.empty() && componentStr[0] == '.')
+            {
+                hasHiddenDir = true;
+                break;
+            }
         }
-        if (entry.is_regular_file()) // only register files
+
+        if (hasHiddenDir)
         {
-            files.push_back(entry.path());
+            continue;
+        }
+        if (entry.is_regular_file())
+        {
+            files.push_back(relPath);
         }
     }
 
     // get all documents from sqlite
-    auto stmt = sqlite->getStatement("SELECT doc_name FROM documents;");
+    auto stmt = sqlite->getStatement("SELECT doc_path FROM documents;");
     while (stmt.step())
     {
-        auto docName = stmt.get<std::string>(0);
-        auto docPath = repoPath / docName;
+        auto docPath = stmt.get<std::string>(0);
+        auto docFullPath = repoPath / docPath;
         bool found = false;
         for (auto it = files.begin(); it != files.end(); ++it) // avoid repeat add
         {
-            if (it->filename() == docName)
+            if (*it == docPath)
             {
                 found = true;
                 break; // file found, no need to check other files
@@ -322,7 +347,7 @@ void Repository::checkDoc(std::queue<DocPipe>& docqueue)
     std::vector<std::string> changedDocs;
     for (const auto &filepath : files)
     {
-        DocPipe docPipe(filepath, *sqlite, *textTable, vectorTables, embeddings);
+        DocPipe docPipe(repoPath / filepath, filepath, *sqlite, *textTable, vectorTables, embeddings);
         docPipe.check(); // check the file
         auto state = docPipe.getState(); // get the state of the document
         if (state == DocPipe::DocState::modified || state == DocPipe::DocState::created || state == DocPipe::DocState::deleted)
@@ -346,7 +371,7 @@ void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &sql
         auto docPipe = std::move(docqueue.front()); // get the front document
         docqueue.pop(); // remove it from the queue
 
-        auto path = docPipe.getPath(); // get the path of the document
+        auto path = docPipe.getRelPath(); // get the path of the document
         docPipe.process(
             [&path, this](double progress) { // process the document
                 if (this->progressReporter)
@@ -573,13 +598,13 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
     }
 
     // get filepath from database
-    auto stmt = sqlite->getStatement("SELECT doc_name FROM documents WHERE id = (SELECT doc_id FROM chunks WHERE chunk_id = ?);");
+    auto stmt = sqlite->getStatement("SELECT doc_path FROM documents WHERE id = (SELECT doc_id FROM chunks WHERE chunk_id = ?);");
     for (auto &result : uniqueResults)
     {
         stmt.bind(1, result.chunkId);
         if (stmt.step())
         {
-            result.filePath = (repoPath / stmt.get<std::string>(0)).string();
+            result.filePath = stmt.get<std::string>(0);
         }
         else
         {

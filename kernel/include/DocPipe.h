@@ -44,7 +44,7 @@ This class is a single threaded class, it is not thread safe.
 class DocPipe
 {
 public:
-    enum class DocState {unchecked, modified, created, deleted, unchanged};
+    enum class DocState {unchecked, modified, created, deleted, unchanged, skipped};
     
     class Progress;
 
@@ -59,8 +59,8 @@ public:
     };
 
 private:  
-    std::string docName; // extract from path
-    std::filesystem::path docPath; // full path
+    std::filesystem::path docRelPath; // relative path from repository root
+    std::filesystem::path docFullPath; // full path
     DocState state = {DocState::unchecked};
 
     std::string docContent; // cache content, avoid file changed while processing, do not use this variable directly, use readDoc() instead
@@ -99,7 +99,7 @@ private:
     void updateSqlite(std::string hash = "");
 
 public:
-    DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<std::shared_ptr<VectorTable>> &vTable, std::vector<std::shared_ptr<Embedding>> &embeddings);
+    DocPipe(const std::filesystem::path& docFullPath, const std::filesystem::path& docRelPath,  SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<std::shared_ptr<VectorTable>> &vTable, std::vector<std::shared_ptr<Embedding>> &embeddings);
     ~DocPipe() = default; 
 
     DocPipe(const DocPipe&) = delete; // disable copy constructor
@@ -120,8 +120,8 @@ public:
     // get docId
     int64_t getId() const { return docId; } 
 
-    // get doc path
-    std::string getPath() const { return docPath.string(); } // get doc path
+    // get doc relative path
+    std::string getRelPath() const { return docRelPath.string(); } // get doc path
 
 };
 

@@ -12,19 +12,14 @@
 #include "Utils.h"
 
 //-------------------------------------DocPipe-------------------------------------//
-DocPipe::DocPipe(std::filesystem::path docPath, SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<std::shared_ptr<VectorTable>> &vTable, std::vector<std::shared_ptr<Embedding>> &embeddings) : docPath(docPath), sqlite(sqlite), vTable(vTable), tTable(tTable), embeddings(embeddings)
+DocPipe::DocPipe(const std::filesystem::path& docFullPath, const std::filesystem::path& docRelPath,  SqliteConnection &sqlite, TextSearchTable &tTable, std::vector<std::shared_ptr<VectorTable>> &vTable, std::vector<std::shared_ptr<Embedding>> &embeddings) : docFullPath(docFullPath), docRelPath(docRelPath), sqlite(sqlite), vTable(vTable), tTable(tTable), embeddings(embeddings)
 {
-    // extract docName from docPath
-    docName = docPath.filename().string();
-
     // get doc type
-    auto fileType = docPath.extension().string(); // get document's type
-    if (fileType == ".txt")
-        docType = Chunker::docType::plainText;
-    else if (fileType == ".md")
+    auto fileType = docFullPath.extension().string(); // get document's type
+    if (fileType == ".md")
         docType = Chunker::docType::Markdown;
     else
-        throw Error{"Unsupported document type: " + fileType, Error::Type::Input};
+        docType = Chunker::docType::plainText;
 }
 
 std::string& DocPipe::readDoc()
@@ -33,9 +28,9 @@ std::string& DocPipe::readDoc()
         return docContent; 
 
     // read document from disk
-    std::ifstream file{docPath};
+    std::ifstream file{docFullPath};
     if (!file.is_open())
-        throw Error{"Failed to open file: " + docPath.string(), Error::Type::FileAccess};
+        throw Error{"Failed to open file: " + docFullPath.string(), Error::Type::FileAccess};
     std::stringstream buffer;
     buffer << file.rdbuf();    
     docContent = buffer.str(); 
@@ -46,32 +41,41 @@ std::string& DocPipe::readDoc()
 void DocPipe::check()
 {
     // check if the doeument exists
-    if(!std::filesystem::exists(docPath))
+    if(!std::filesystem::exists(docFullPath))
     {
         state = DocState::deleted;
         return;
     }
 
     // check if the document is a file
-    if(!std::filesystem::is_regular_file(docPath))
-        throw Error{"Document is not a file: " + docPath.string(), Error::Type::Input};
+    if(!std::filesystem::is_regular_file(docFullPath))
+        throw Error{"Document is not a file: " + docFullPath.string(), Error::Type::Input};
 
     // check if the document exists in the database
-    auto stmt = sqlite.getStatement("SELECT id, last_modified, last_checked, content_hash FROM documents WHERE doc_name = ?");
-    stmt.bind(1, docName);
+    auto stmt = sqlite.getStatement("SELECT id, last_modified, last_checked, content_hash FROM documents WHERE doc_path= ?");
+    stmt.bind(1, docRelPath.string());
     if (!stmt.step())
     {
-        state = DocState::created;
-        return;
+        // check if the document a valid utf-8 text file
+        if (!Utils::isTextFile(docFullPath))
+        {
+            state = DocState::skipped;
+            return;
+        }
+        else
+        {
+            state = DocState::created;
+            return;
+        }
     }
 
     // document exists both on disk and in database
     // check if the document is modified
     // get docId, last_modified time, last_checked time, content_hash from documents table
-    stmt = sqlite.getStatement("SELECT id, last_modified, last_checked, content_hash FROM documents WHERE doc_name = ?");
-    stmt.bind(1, docName);
+    stmt = sqlite.getStatement("SELECT id, last_modified, last_checked, content_hash FROM documents WHERE doc_path = ?");
+    stmt.bind(1, docRelPath.string());
     if (!stmt.step())
-        throw Error{"Document not found in database: " + docName, Error::Type::Internal};
+        throw Error{"Document not found in database, with relative path:" + docRelPath.string(), Error::Type::Internal};
 
     docId = stmt.get<int64_t>(0);
     auto lastModified = stmt.get<int64_t>(1);
@@ -79,12 +83,21 @@ void DocPipe::check()
     auto contentHash = stmt.get<std::string>(3);
 
     // quick check if the document is changed
-    auto lastModifiedTime = std::filesystem::last_write_time(docPath);
+    auto lastModifiedTime = std::filesystem::last_write_time(docFullPath);
     auto lastModifiedTimeInt = std::chrono::duration_cast<std::chrono::seconds>(lastModifiedTime.time_since_epoch()).count();
     if (lastModifiedTimeInt != lastModified)
     {
-        state = DocState::modified; // document is modified
-        return;
+        // check if the document a valid utf-8 text file
+        if (!Utils::isTextFile(docFullPath))
+        {
+            state = DocState::deleted; // if not utf-8, treat it as deleted
+            return;
+        }
+        else
+        {
+            state = DocState::modified;
+            return;
+        }
     }
 
     auto now = std::chrono::system_clock::now();
@@ -99,8 +112,17 @@ void DocPipe::check()
     auto hash = Utils::calculateHash(readDoc());
     if (hash != contentHash)
     {
-        state = DocState::modified; // document is modified
-        return;
+        // check if the document a valid utf-8 text file
+        if (!Utils::isTextFile(docFullPath))
+        {
+            state = DocState::deleted; // if not utf-8, treat it as deleted
+            return;
+        }
+        else
+        {
+            state = DocState::modified;
+            return;
+        }
     }
 
     state = DocState::unchanged;
@@ -119,6 +141,8 @@ void DocPipe::process(std::function<void(double)> callback, std::function<bool(v
             break;
         case DocState::deleted:
             delDoc(callback); // very quick, no need to stop
+            break;
+        case DocState::skipped:
             break;
         default:
             return; // do nothing
@@ -152,10 +176,10 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     Progress progress(callback);
 
     // get docId from documents table
-    auto stmt = sqlite.getStatement("SELECT id FROM documents WHERE doc_name = ?;");
-    stmt.bind(1, docName);
+    auto stmt = sqlite.getStatement("SELECT id FROM documents WHERE doc_path = ?;");
+    stmt.bind(1, docRelPath.string());
     if (!stmt.step())
-        throw Error{"Document not found in database: " + docName, Error::Type::Internal};
+        throw Error{"Document not found in database, with relative path: " + docRelPath.string(), Error::Type::Internal};
     docId = stmt.get<int64_t>(0);
 
     // find chunk ids
@@ -184,7 +208,7 @@ void DocPipe::delDoc(std::function<void(double)> callback)
     docStmt.bind(1, docId);
     docStmt.step();
     if (docStmt.changes() == 0)
-        throw Error{"Failed to delete document from database: " + docName, Error::Type::Internal};
+        throw Error{"Failed to delete document from database, with relative path" + docRelPath.string(), Error::Type::Internal};
     progress.update(0.6); // update progress
     
     // delete from text search table
@@ -221,17 +245,17 @@ void DocPipe::addDoc(std::function<void(double)> callback, std::function<bool(vo
     {
         auto trans = sqlite.beginTransaction();
         auto sql =
-            "INSERT INTO documents (doc_name, last_modified, file_size, content_hash, last_checked) "
+            "INSERT INTO documents (doc_path, last_modified, file_size, content_hash, last_checked) "
             "VALUES (?, ?, ?, ?, ?);";
         auto stmt = sqlite.getStatement(sql);
-        stmt.bind(1, docName);
+        stmt.bind(1, docRelPath.string());
         stmt.bind(2, SqliteConnection::null);
         stmt.bind(3, SqliteConnection::null);
         stmt.bind(4, SqliteConnection::null);
         stmt.bind(5, SqliteConnection::null);
         stmt.step();
         if (stmt.changes() == 0)
-            throw Error{"Failed to add document to database: " + docName, Error::Type::Internal};
+            throw Error{"Failed to add document to database, with relative path: " + docRelPath.string(), Error::Type::Internal};
 
         docId = sqlite.getLastInsertId(); // get docId
         trans.commit();
@@ -258,22 +282,22 @@ void DocPipe::updateSqlite(std::string hash)
         hash = Utils::calculateHash(readDoc()); // calculate hash if not provided
     }
     // get last_modified
-    auto lastModifiedTime = std::filesystem::last_write_time(docPath);
+    auto lastModifiedTime = std::filesystem::last_write_time(docFullPath);
     auto lastModifiedTimeInt = std::chrono::duration_cast<std::chrono::seconds>(lastModifiedTime.time_since_epoch()).count();
     // get last_checked
     auto now = std::chrono::system_clock::now();
     auto last_checked = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
     // get file_size
-    auto fileSize = static_cast<size_t>(std::filesystem::file_size(docPath));
+    auto fileSize = static_cast<size_t>(std::filesystem::file_size(docFullPath));
 
     // write to documents table
     {
         auto trans = sqlite.beginTransaction();
         auto sql = 
-            "UPDATE documents SET doc_name = ?, last_modified = ?, file_size = ?, content_hash = ?, last_checked = ? "
+            "UPDATE documents SET doc_path = ?, last_modified = ?, file_size = ?, content_hash = ?, last_checked = ? "
             "WHERE id = ?;"; // use REPLACE to update or insert
         auto stmt = sqlite.getStatement(sql);
-        stmt.bind(1, docName);
+        stmt.bind(1, docRelPath.string());
         stmt.bind(2, lastModifiedTimeInt);
         stmt.bind(3, fileSize);
         stmt.bind(4, hash);
@@ -281,7 +305,7 @@ void DocPipe::updateSqlite(std::string hash)
         stmt.bind(6, docId); // bind docId
         stmt.step();
         if(stmt.changes() == 0)
-            throw Error{"Failed to update document in database: " + docName, Error::Type::Internal};
+            throw Error{"Failed to update document in database, with relative path: " + docRelPath.string(), Error::Type::Internal};
         trans.commit(); // commit transaction
     }
     
@@ -320,7 +344,7 @@ void DocPipe::updateOneEmbedding(const std::string &content, std::shared_ptr<Emb
     }
     std::vector<Chunker::Chunk> newChunks;
     Chunker chunker(docType, chunkLength); // create chunker
-    newChunks = chunker(content, {{"FilePath", docPath.string()}}); 
+    newChunks = chunker(content, {{"FilePath", docFullPath.string()}}); 
     progress.updateSubprocess(0.01); 
 
     // 2. get existing chunks

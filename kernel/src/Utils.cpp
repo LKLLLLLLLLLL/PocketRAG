@@ -5,11 +5,11 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <codecvt>
 #include <mutex>
 #include <random>
 #include <condition_variable>
 #include <queue>
+#include <codecvt>
 
 std::string Utils::calculatedocHash(const std::filesystem::path &path)
 {
@@ -162,7 +162,7 @@ std::string Utils::getTimeStr()
     std::tm tm = *std::localtime(&time);
     char buffer[100];
     std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &tm);
-    std::sprintf(buffer + strlen(buffer), ".%03lld", static_cast<long long>(ms.count()));
+    std::snprintf(buffer + strlen(buffer), sizeof(buffer) - strlen(buffer),".%03lld", static_cast<long long>(ms.count()));
     return std::string(buffer);
 }
 

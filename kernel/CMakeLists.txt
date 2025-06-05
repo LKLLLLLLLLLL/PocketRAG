@@ -12,21 +12,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 平台检测和编译器设置
-if(APPLE)
-    # macOS 设置
-    if(EXISTS "/opt/homebrew/opt/llvm/bin/clang")
-        set(CMAKE_C_COMPILER "/opt/homebrew/opt/llvm/bin/clang")
-        set(CMAKE_CXX_COMPILER "/opt/homebrew/opt/llvm/bin/clang++")
-        message(STATUS "Using Homebrew LLVM compiler")
-    else()
-        # 回退到系统默认编译器
-        message(STATUS "Using system default compiler")
-    endif()
-elseif(WIN32)
+if(WIN32)
     # Windows 设置 
     if(MSVC)
-        set(CMAKE_C_COMPILER "cl.exe")
-        set(CMAKE_CXX_COMPILER "cl.exe")
         add_compile_options(/utf-8) # 设置MSVC编译器使用UTF-8编码
         add_compile_definitions(NOMINMAX) # 禁用windows.h中的min/max宏，避免与std::min/max冲突
     endif()
@@ -44,6 +32,9 @@ else()
     option(USE_CUDA "Use CUDA GPU" OFF)
 endif()
 message(STATUS "USE_CUDA setting: ${USE_CUDA}")
+
+# 默认使用静态库
+set(BUILD_SHARED_LIBS OFF)
 
 # 设置vcpkg工具链文件
 include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
@@ -177,8 +168,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # 添加源文件
 file(GLOB_RECURSE SOURCES "src/*.cpp")
-
-set(BUILD_SHARED_LIBS OFF)
 
 # 创建可执行文件
 add_executable(${PROJECT_NAME} ${SOURCES})

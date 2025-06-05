@@ -10,6 +10,7 @@
 #include <fstream>
 #include <thread>
 #include <source_location>
+#include <unordered_set>
 #ifdef _WIN32
     #include <conio.h>
     #include <windows.h>
@@ -340,4 +341,102 @@ namespace Utils
     void setThreadName(const std::string &name);
 
     std::string removeInvalidUtf8(const std::string &str);
+
+    inline bool isTextFile(const std::filesystem::path& fullPath)
+    {
+        // First check the extension
+        std::string ext = fullPath.extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        
+        static const std::unordered_set<std::string> textExtensions = {
+            ".txt", ".md", ".json", ".xml", ".html", ".css", ".js", 
+            ".c", ".cpp", ".h", ".hpp", ".py", ".java", ".cs", ".php"
+        };
+        
+        if (textExtensions.find(ext) != textExtensions.end()) {
+            return true; // Known text extension
+        }
+        
+        std::ifstream file(fullPath, std::ios::binary);
+        if (!file.is_open()) return false;
+    
+        // only check the first 8192 bytes for performance
+        std::vector<char> buffer(8192); 
+        file.read(buffer.data(), buffer.size());
+        std::streamsize bytesRead = file.gcount();
+        file.close();
+    
+        if (bytesRead == 0) return true;
+    
+        // Check for BOM
+        if (bytesRead >= 3 && 
+            static_cast<unsigned char>(buffer[0]) == 0xEF &&
+            static_cast<unsigned char>(buffer[1]) == 0xBB &&
+            static_cast<unsigned char>(buffer[2]) == 0xBF) {
+            return true;
+        }
+    
+        // Count character types
+        int validUtf8Chars = 0;
+        int printableChars = 0;
+        int nullBytes = 0;
+        int controlChars = 0;
+    
+        for (std::streamsize i = 0; i < bytesRead; ) {
+            unsigned char byte = static_cast<unsigned char>(buffer[i]);
+            
+            // ASCII characters
+            if (byte <= 0x7F) {
+                validUtf8Chars++;
+                if (byte >= 32 || byte == '\t' || byte == '\n' || byte == '\r') {
+                    printableChars++;
+                } else if (byte == 0) {
+                    nullBytes++;
+                } else {
+                    controlChars++;
+                }
+                i++;
+            }
+            // Multi-byte UTF-8 sequences
+            else if ((byte & 0xE0) == 0xC0) {
+                if (i + 1 >= bytesRead || (static_cast<unsigned char>(buffer[i + 1]) & 0xC0) != 0x80)
+                    return false; // Invalid UTF-8
+                validUtf8Chars++;
+                printableChars++; // Multi-byte characters are usually printable
+                i += 2;
+            }
+            else if ((byte & 0xF0) == 0xE0) {
+                if (i + 2 >= bytesRead || 
+                    (static_cast<unsigned char>(buffer[i + 1]) & 0xC0) != 0x80 ||
+                    (static_cast<unsigned char>(buffer[i + 2]) & 0xC0) != 0x80)
+                    return false;
+                validUtf8Chars++;
+                printableChars++;
+                i += 3;
+            }
+            else if ((byte & 0xF8) == 0xF0) {
+                if (i + 3 >= bytesRead ||
+                    (static_cast<unsigned char>(buffer[i + 1]) & 0xC0) != 0x80 ||
+                    (static_cast<unsigned char>(buffer[i + 2]) & 0xC0) != 0x80 ||
+                    (static_cast<unsigned char>(buffer[i + 3]) & 0xC0) != 0x80)
+                    return false;
+                validUtf8Chars++;
+                printableChars++;
+                i += 4;
+            }
+            else {
+                return false; // Invalid UTF-8 starting byte
+            }
+        }
+    
+        // Determine if it's a text file
+        if (validUtf8Chars == 0) return false;
+        
+        double nullRatio = static_cast<double>(nullBytes) / bytesRead;
+        double printableRatio = static_cast<double>(printableChars) / validUtf8Chars;
+        double controlRatio = static_cast<double>(controlChars) / validUtf8Chars;
+    
+        // Text files should have high ratio of printable characters, low ratio of null bytes and control characters
+        return (nullRatio < 0.05 && printableRatio > 0.70 && controlRatio < 0.30);
+    }
 }
