@@ -1,4 +1,5 @@
 #include "KernelServer.h"
+#include "ONNXModel.h"
 #include "Repository.h"
 #include "Utils.h"
 
@@ -412,6 +413,27 @@ void KernelServer::handleMessage(nlohmann::json &json, std::shared_ptr<Utils::Ti
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
         }
+        else if(type == "getAvailableHardware")
+        {
+            auto hardwareList = ONNXModel::getAvailableDevices();
+            nlohmann::json dataJson = nlohmann::json::object();
+            dataJson["cudaAvailable"] = false;
+            dataJson["coreMLAvailable"] = false;
+            for(const auto& hardware : hardwareList)
+            {
+                if(hardware == ONNXModel::device::cuda)
+                {
+                    dataJson["cudaAvailable"] = true;
+                }
+                else if(hardware == ONNXModel::device::coreML)
+                {
+                    dataJson["coreMLAvailable"] = true;
+                }
+            }
+            json["data"] = dataJson;
+            json["status"]["code"] = "SUCCESS";
+            json["status"]["message"] = "";
+        }
         else
         {
             json["status"]["code"] = "INVALID_TYPE";
@@ -463,12 +485,13 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
         return;
     }
     auto sessionId = Utils::getTimeStamp();
-    auto session = std::make_shared<Session>(sessionId, repoName, repoPath, *this);
+    auto session = std::make_shared<Session>(sessionId, repoName, repoPath, *this, settings->getHistoryLength());
     auto sessionThreadIt = sessionThreads.find(sessionId);
     sessions[sessionId] = session;
     // sessionThreads[sessionId] = std::thread(&Session::run, session);
+    auto perfconfig = settings->getPerfConfig();
     sessionThreads[sessionId] = std::make_shared<Utils::WorkerThread>("Session" + std::to_string(sessionId) + " main", 
-    [this, sessionId](std::atomic<bool>& stopFlag, Utils::WorkerThread& parent)
+    [this, sessionId, perfconfig](std::atomic<bool>& stopFlag, Utils::WorkerThread& parent)
     {
         std::shared_ptr<Session> session;
         {
@@ -479,7 +502,7 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
             }
         }
         if (session) {
-            session->run(stopFlag, parent);
+            session->run(stopFlag, parent, perfconfig.first, perfconfig.second);
         }
     },[this, sessionId](const std::exception& e)
     {
@@ -987,6 +1010,13 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
             generationModel.lastUsed = model["lastUsed"].get<bool>();
             tempCache.conversationSettings.generationModel.push_back(generationModel);
         }
+        tempCache.conversationSettings.historyLength = settingsJson["conversationSettings"]["historyLength"].get<int>();
+        // parse performance settings
+        SettingsCache::PerformanceSettings perfsettings;
+        perfsettings.maxThreads = settingsJson["performance"]["maxThreads"].get<int>();
+        perfsettings.useCoreML = settingsJson["performance"]["useCoreML"].get<bool>();
+        perfsettings.useCuda = settingsJson["performance"]["useCuda"].get<bool>();
+        tempCache.performanceSettings = perfsettings;
     }
     catch(std::exception& e)
     {
@@ -1066,6 +1096,32 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
     if(lastUsedCount > 1)
     {
         throw Error{"Generation model can only have one or zero last used model.", Error::Type::Input};
+    }
+    if(tempCache.conversationSettings.historyLength < 0)
+    {
+        throw Error{"Invalid history length: " + std::to_string(tempCache.conversationSettings.historyLength), Error::Type::Input};
+    }
+
+    // check performanceSettings
+    int systemThreads = std::thread::hardware_concurrency();
+    if (tempCache.performanceSettings.maxThreads < 0)
+    {
+        throw Error{"Invalid max threads: " + std::to_string(tempCache.performanceSettings.maxThreads), Error::Type::Input};
+    }
+    if (tempCache.performanceSettings.maxThreads > systemThreads)
+    {
+        tempCache.performanceSettings.maxThreads = systemThreads;
+    }
+    auto availableDevices = ONNXModel::getAvailableDevices();
+    if (tempCache.performanceSettings.useCuda && 
+        std::find(availableDevices.begin(), availableDevices.end(), ONNXModel::device::cuda) == availableDevices.end())
+    {
+        throw Error{"Cuda is not available on this system.", Error::Type::Input};
+    }
+    if (tempCache.performanceSettings.useCoreML && 
+        std::find(availableDevices.begin(), availableDevices.end(), ONNXModel::device::coreML) == availableDevices.end())
+    {
+        throw Error{"CoreML is not available on this system.", Error::Type::Input};
     }
 
     return tempCache;

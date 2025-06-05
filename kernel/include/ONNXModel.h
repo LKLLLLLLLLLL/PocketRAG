@@ -8,6 +8,8 @@
 #include <onnxruntime_cxx_api.h>
 #include <sentencepiece_processor.h>
 
+extern std::filesystem::path dataPath;
+
 /*
 This class is a base class of all ONNX models.
 Can't be instantiated directly.
@@ -16,9 +18,30 @@ make sure one instance is only used by one thread.
 class ONNXModel
 {
 public:
-    enum class device{cpu, cuda}; // only support cpu or cuda now
-    enum class perfSetting{low, high}; // set performance exepect, only have effect on cpu
+    enum class device{cpu, cuda, coreML}; // only support cpu or cuda now
+    std::string device_to_string(device dev)
+    {
+        switch(dev)
+        {
+            case device::cpu: return "CPU";
+            case device::cuda: return "CUDA";
+            case device::coreML: return "CoreML";
+            default: return "Unknown";
+        }
+    }
 
+
+    static std::vector<device> getAvailableDevices()
+    {
+        std::vector<device> devices;
+        if(checkCapability(device::cpu))
+            devices.push_back(device::cpu);
+        if(checkCapability(device::cuda))
+            devices.push_back(device::cuda);
+        if(checkCapability(device::coreML))
+            devices.push_back(device::coreML);
+        return devices;
+    }
 private:
     static std::mutex mutex;    // mutex for all static variables
 
@@ -28,7 +51,9 @@ private:
 
     static std::atomic<int> instanceCount;
     std::filesystem::path modelDirPath; // the path of the model directory
-protected:
+
+    static bool checkCapability(device dev);
+  protected:
     static std::shared_ptr<Ort::Env> env; // manage ONNX environment, only initialized once
     static std::shared_ptr<Ort::AllocatorWithDefaultOptions> allocator; // allocator
     static std::shared_ptr<Ort::MemoryInfo> memoryInfo; // memory info for tensor creation
@@ -42,7 +67,7 @@ protected:
 
     // instantiate the ONNX model, 
     // will find `model.onnx` & `model.onnx_data` in the modelDirPath, 
-    ONNXModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+    ONNXModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, int maxThreads = 0);
 
 public:
     // initialize the ONNX environment for all ONNX models
@@ -81,7 +106,7 @@ public:
     // instantiate the ONNX model,
     // will find `model.onnx` & `model.onnx_data` & `sentencepiece.bpe.model` in the modelDirPath,
     // modelDirPath should end with `/`
-    EmbeddingModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+    EmbeddingModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, int maxThreads = 0);
     ~EmbeddingModel() = default;
 
     // get embedding dimension
@@ -112,7 +137,7 @@ private:
     std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::vector<int64_t>> tokenize(const std::string& query, const std::vector<std::string>& contents) const;
 
 public:
-    RerankerModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, perfSetting perf = perfSetting::high);
+    RerankerModel(std::filesystem::path targetModelDirPath, device dev = device::cpu, int maxThreads = 0);
 
     inline int getMaxLength() const { return maxLength; }
 

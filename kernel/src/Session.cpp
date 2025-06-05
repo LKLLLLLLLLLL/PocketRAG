@@ -59,9 +59,9 @@ void Session::doneReporter(std::string path)
 }
 
 // lazy initialization
-Session::Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer &kernelServer) : sessionId(sessionId), kernelServer(kernelServer), repoName(repoName), repoPath(repoPath)
+Session::Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer &kernelServer, int historyLength) : sessionId(sessionId), kernelServer(kernelServer), repoName(repoName), repoPath(repoPath), historyLength(historyLength)
 {
-    conversation = std::make_shared<AugmentedConversation>(repoPath / ".PocketRAG" / "conversation", *this);
+    conversation = std::make_shared<AugmentedConversation>(repoPath / ".PocketRAG" / "conversation", *this, historyLength);
     lastprintTime.store(std::chrono::steady_clock::now());
 }
 
@@ -91,14 +91,14 @@ void Session::execCallback(nlohmann::json &json, int64_t callbackId)
     callbackManager->callCallback(callbackId, json);
 }
 
-void Session::run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent)
+void Session::run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent, int maxThreads, ONNXModel::device device)
 {
     Utils::Timer timer("Session " + std::to_string(sessionId) + " started");
     // open repo
     auto docStateReporter_wrap = [this](std::vector<std::string> docs) { docStateReporter(docs); };
     auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
     auto doneReporter_wrap = [this](std::string path) { doneReporter(path); };
-    repository = std::make_shared<Repository>(repoName, repoPath, mutex, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
+    repository = std::make_shared<Repository>(repoName, repoPath, mutex, maxThreads, device, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
     config();
     repository->setErrorCallback([this](std::exception_ptr e) {
         {
@@ -445,7 +445,7 @@ void Session::sendMessage(const std::shared_ptr<Utils::MessageQueue::Message>& m
 }
 
 //--------------------------AugmentedConversaion--------------------------//
-Session::AugmentedConversation::AugmentedConversation(std::filesystem::path historyDirPath, Session& session) : historyDirPath(historyDirPath), session(session)
+Session::AugmentedConversation::AugmentedConversation(std::filesystem::path historyDirPath, Session& session, int maxHistoryLength) : historyDirPath(historyDirPath), session(session), maxHistoryLength(maxHistoryLength)
 {
     if(!std::filesystem::exists(historyDirPath))
     {
@@ -653,7 +653,7 @@ Session::AugmentedConversation::HistoryManager::HistoryManager(AugmentedConversa
             auto content = message["content"].get<std::string>();
             historyMessages.push_back({role, content});
             historyLength += content.size();
-            if (historyLength > maxHistoryLength)
+            if (parent.maxHistoryLength != 0 && historyLength > parent.maxHistoryLength)
             {
                 break;
             }

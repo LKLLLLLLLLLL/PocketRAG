@@ -711,7 +711,7 @@ return:
     "isReply" : true,
 
     "message" : {
-        "type" : "chunkInfo"
+        "type" : "getChunksInfo"
     },
 
     "status" : {
@@ -810,7 +810,15 @@ settings.json如下：
             {
                 ...
             }
-        ]
+        ],
+        "historyLength" : 1000, // 历史对话长度，单位为字符数量, 0 for no limit
+    },
+    "performance": {
+        "maxThreads" : 0, // max threads for onnxruntime, 0 means max available threads
+        "cuda available" : true, // this is not a setting, just indicate whether cuda choice can be selected
+        "useCuda" : false, // whether to use cuda, if available
+        "coreML available" : true, 
+        "useCoreML" : false
     }
 }
 ```
@@ -987,6 +995,58 @@ return:
     }
 }
 ```
+
+## 性能设置
+由于性能设置需要访问硬件信息，因此比较特殊。
+该设置的流程是：
+1. 用户打开performance设置页面，main.js发送`getAvailableHardware`消息到kernel server；同时前端按照settings.json中缓存的available硬件信息来渲染页面。
+2. 当后端返回可用的硬件信息时，main.js更新settings.json中的`performance`信息，并通知前端更新页面。
+3. 当用户更改设置并保存后，后端不会验证"available"信息是否正确（因为改信息只影响显示效果），只会验证`coreML`和`cuda`的设置是否与实际可用性一致。
+
+### getAvailableHardware
+main.js -> kernel server
+获取可用的硬件信息，返回是否支持cuda、coreML等。
+
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : false,
+
+    "message" : {
+        "type" : "getAvailableHardware"
+    }
+}
+```
+
+return:
+```json
+{
+    "sessionId" : -1,
+    "toMain" : true,
+
+    "callbackId" : 42,
+    "isReply" : true,
+
+    "message" : {
+        "type" : "getAvailableHardware"
+    },
+
+    "status" : {
+        "code" : "SUCCESS",
+        "message" : ""
+    },
+
+    "data" : {
+        "cudaAvailable" : true, // 是否支持cuda
+        "coreMLAvailable" : true // 是否支持coreML
+    }
+}
+```
+
+
 ## 特殊页面：api用量信息
 该用量信息是与仓库相关联的，并不是全局用量信息；该信息应单独显示在一个页面中。
 window -> session
