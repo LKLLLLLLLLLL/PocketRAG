@@ -60,6 +60,10 @@
     "extraMetadata": {
       "main": "electron/main/main.js"
     },
-    "compression": "normal"
+    "compression": "normal",
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

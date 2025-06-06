@@ -1044,8 +1044,8 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
       let settingsOptions = {
         x: Math.floor(srceenWidth * 0.25),
         y: Math.floor(screenHeight * 0.1),
-        width: Math.floor(srceenWidth * 0.5),
-        height: Math.floor(screenHeight * 0.85),
+        width: 800,
+        height: 800,
         backgroundColor: '#222222',
         frame: false,
         minimizable: false,
@@ -1192,7 +1192,7 @@ function generateTree(dir) {
             key: fullPath,
             children: generateTree(fullPath)
           }
-        } else if (item.isFile() && (item.name.endsWith('.md') || item.name.endsWith('.txt'))) {
+        } else if (item.isFile()) {
           return {
             title: item.name,
             key: fullPath,
@@ -1258,7 +1258,7 @@ function updateFile(event, path, data) {
     console.log('文本编辑器更新文件内容')
     fs.writeFileSync(path, data, {encoding: 'utf-8'})
   }catch (err) {
-    console.err('更新文件失败:', err)
+    console.error('更新文件失败:', err)
   }
 }
 
