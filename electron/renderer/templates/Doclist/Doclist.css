@@ -5,7 +5,6 @@
     flex: 1;
     background-color: #333333; /* 调整为中灰色背景 */
     -webkit-app-region: no-drag;
-    border: 1px solid #555555;
 }
 
 .doclist_top-container {

@@ -1,0 +1,26 @@
+.tabsbar-root {
+    width: 80%;
+    height: 35px;
+    background-color: #f0f2f5;
+    display: flex;
+}
+
+.tabsbar {
+    width: 80%;
+    height: 35px;
+    background-color: #f0f2f5;
+    flex: 1;
+    display: flex;
+}
+
+.new-tab-btn {
+    height: 32px;
+    margin-top: 4px;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.new-tab-btn:hover {
+    background-color: #e6f7ff;
+}

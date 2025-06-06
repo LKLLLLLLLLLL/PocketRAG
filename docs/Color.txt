@@ -1,5 +1,5 @@
 全局样式
-    按钮和滚动条
+    按钮
         按钮
         按钮背景：#00b0b0（强调色）
         按钮悬浮效果：
@@ -23,6 +23,8 @@
         ::-webkit-scrollbar-corner {
             background: #333333;
         }
+    分割条
+        
 
 开始页面（仓库选择页面）StartWindow
     左侧

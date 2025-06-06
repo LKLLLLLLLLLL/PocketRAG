@@ -81,7 +81,7 @@ export default function RightScreen({ content, onClick }) {
                                     <label>模型类型</label>
                                     <Select defaultValue="llm" style={{ width: '100%' }}>
                                         <Option value="llm">LLM</Option>
-                                        <Option value="embedding">Embedding</Option>
+                                        <Option value="embedding">嵌入模型</Option>
                                         <Option value="rerank">Rerank</Option>
                                     </Select>
                                 </div>
@@ -116,16 +116,22 @@ export default function RightScreen({ content, onClick }) {
                                     <div className="model-table-cell">3.8GB</div>
                                     <div className="model-table-cell"><span className="status-active">已加载</span></div>
                                     <div className="model-table-cell">
-                                        <Button size="small" danger icon={<DeleteOutlined />} />
+                                        <Button size="small" danger 
+                                                icon={<DeleteOutlined />}
+                                                color="default"
+                                                variant='text' />
                                     </div>
                                 </div>
                                 <div className="model-table-row">
                                     <div className="model-table-cell">bge-large</div>
-                                    <div className="model-table-cell">Embedding</div>
+                                    <div className="model-table-cell">嵌入模型</div>
                                     <div className="model-table-cell">1.2GB</div>
                                     <div className="model-table-cell"><span className="status-active">已加载</span></div>
                                     <div className="model-table-cell">
-                                        <Button size="small" danger icon={<DeleteOutlined />} />
+                                        <Button size="small" danger 
+                                                icon={<DeleteOutlined />}
+                                                color="default"
+                                                variant='text' />
                                     </div>
                                 </div>
                                 <div className="model-table-row">
@@ -134,7 +140,10 @@ export default function RightScreen({ content, onClick }) {
                                     <div className="model-table-cell">0.8GB</div>
                                     <div className="model-table-cell"><span className="status-inactive">未加载</span></div>
                                     <div className="model-table-cell">
-                                        <Button size="small" danger icon={<DeleteOutlined />} />
+                                        <Button size="small" danger 
+                                                icon={<DeleteOutlined />}
+                                                color="default"
+                                                variant='text' />
                                     </div>
                                 </div>
                             </div>
@@ -267,6 +276,8 @@ function EmbeddingModelList() {
                             icon={<DeleteOutlined />}
                             onClick={() => removeModel(idx)}
                             size="small"
+                            color="default"
+                            variant='text'
                             danger
                         />
                     )}
@@ -312,7 +323,6 @@ function GenerationModelList() {
                     <div className="model-table-cell">
                         <Select
                             value={m.type}
-                            bordered={false}
                             onChange={v => handleChange(idx, 'type', v)}
                         >
                             <Option value="deepseek">deepseek</Option>
@@ -326,7 +336,6 @@ function GenerationModelList() {
                             value={m.name}
                             onChange={e => handleChange(idx, 'name', e.target.value)}
                             placeholder="模型名称"
-                            bordered={false}
                         />
                     </div>
                     <div className="model-table-cell">
@@ -334,7 +343,6 @@ function GenerationModelList() {
                             value={m.url}
                             onChange={e => handleChange(idx, 'url', e.target.value)}
                             placeholder="接口地址"
-                            bordered={false}
                         />
                     </div>
                     <div className="model-table-cell">
@@ -342,7 +350,6 @@ function GenerationModelList() {
                             value={m.apiKey}
                             onChange={e => handleChange(idx, 'apiKey', e.target.value)}
                             placeholder="API Key"
-                            bordered={false}
                         />
                     </div>
                     <div className="model-table-cell">
@@ -350,6 +357,8 @@ function GenerationModelList() {
                             icon={<DeleteOutlined />}
                             onClick={() => removeModel(idx)}
                             size="small"
+                            color="default"
+                            variant='text'
                             danger
                         />
                     </div>
@@ -360,6 +369,8 @@ function GenerationModelList() {
                     icon={<PlusOutlined />} 
                     type="primary"
                     onClick={addModel}
+                    color="cyan"
+                    variant='solid'
                 >
                     添加模型
                 </Button>

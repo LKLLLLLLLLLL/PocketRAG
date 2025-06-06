@@ -1,7 +1,7 @@
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import React, { useState, useRef } from "react";
-import { LoadingOutlined } from "@ant-design/icons";
-import { Input, Button } from "antd";
+import React, { useState, useRef, useEffect } from "react";
+import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
+import { Input, Button, message } from "antd";
 import ReactMarkdown from 'react-markdown';
 import Doclist from "../../templates/Doclist/Doclist";
 import LeftBar from "./LeftBar/LeftBar";
@@ -35,11 +35,133 @@ export default function MainWindowContents() {
     const [showInfo, setShowInfo] = useState(false);
     const [info, setInfo] = useState([]);
 
+    // tabsbar and doclist state management
+    const [selectNode, setSelectNode] = useState(null);
+    const [tabs, setTabs] = useState([])
+    const [activeKey, setActiveKey] = useState('')
+    const [fileContentMap, setFileContentMap] = useState({}); // 存储文件内容
+
     //information related
     const handleInfoClick = async () => {
         setShowInfo(!showInfo);
         let usage = await window.getApiUsage();
         setInfo(usage);
+    };
+
+    // 处理文件选择 - 当文件树中选择文件时调用
+    const handleFileSelect = (node) => {
+        if (!node || !node.key) return;
+        
+        setSelectNode(node);
+        
+        // 检查是否已存在相同标签
+        const exists = tabs.some(tab => tab.key === node.key);
+        
+        if (!exists) {
+            // 添加新标签
+            setTabs(prev => [
+                ...prev,
+                {
+                    key: node.key,
+                    label: node.title,
+                    isLeaf: node.isLeaf,
+                    filePath: node.filePath || node.key
+                }
+            ]);
+        }
+        
+        // 激活该标签
+        setActiveKey(node.key);
+        setContent('edit'); // 切换到编辑模式
+    };
+
+    // 处理标签切换
+    const handleTabChange = (key) => {
+        setActiveKey(key);
+        setContent('edit'); // 切换到编辑模式
+    };
+
+    // 处理标签关闭
+    const handleTabEdit = (targetKey) => {
+        const newTabs = tabs.filter(tab => tab.key !== targetKey);
+        setTabs(newTabs);
+        
+        // 清除关闭标签的文件内容缓存
+        setFileContentMap(prev => {
+            const newMap = { ...prev };
+            delete newMap[targetKey];
+            return newMap;
+        });
+        
+        if (targetKey === activeKey) {
+            setActiveKey(newTabs.length > 0 ? newTabs[0].key : '');
+            setContent(newTabs.length > 0 ? 'edit' : content);
+        }
+    };
+
+    // 加载文件内容
+    const loadFileContent = async (filePath) => {
+        if (!filePath) return '';
+        
+        // 如果已经有缓存，直接返回
+        if (fileContentMap[filePath]) {
+            return fileContentMap[filePath];
+        }
+        
+        try {
+            const content = await window.electronAPI.getFile(filePath);
+            setFileContentMap(prev => ({
+                ...prev,
+                [filePath]: content
+            }));
+            return content;
+        } catch (error) {
+            console.error('Error loading file:', error);
+            return '无法加载文件内容';
+        }
+    };
+
+    // 更新文件内容
+    const updateFileContent = (filePath, content) => {
+        setFileContentMap(prev => ({
+            ...prev,
+            [filePath]: content
+        }));
+    };
+
+    // 保存文件内容
+    const saveFileContent = async (filePath, content) => {
+        try {
+            await window.electronAPI.updateFile(filePath, content);
+            updateFileContent(filePath, content);
+            message.success('文件保存成功');
+            return true;
+        } catch (error) {
+            console.error('Error saving file:', error);
+            message.error('文件保存失败');
+            return false;
+        }
+    };
+
+    // 创建新标签
+    const handleNewTab = () => {
+        const newTabKey = `new-file-${Date.now()}`;
+        const newTab = {
+            key: newTabKey,
+            label: '新文件',
+            isLeaf: true,
+            filePath: newTabKey
+        };
+        
+        setTabs(prev => [...prev, newTab]);
+        setActiveKey(newTabKey);
+        setContent('edit');
+        
+        // 初始化新文件内容
+        setFileContentMap(prev => ({
+            ...prev,
+            [newTabKey]: '# 新文件\n\n在这里开始编写您的内容...'
+        }));
     };
 
     // search related
@@ -201,9 +323,9 @@ export default function MainWindowContents() {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
             <LeftBar
                 handleConversation={() => setContent('conversation')}
-                handleSearch={() => setContent('search')}>
-                handleEdit={()=> setContent('edit')}
-            </LeftBar>
+                handleSearch={() => setContent('search')}
+                handleEdit={() => setContent('edit')}
+            />
             <div style={{ flex: 1, display: 'flex' }}>
                 <PanelGroup direction="horizontal" autoSaveId="main-window-horizontal">
                     <Panel
@@ -214,7 +336,7 @@ export default function MainWindowContents() {
                         <div className='topbar-tools'>
 
                         </div>
-                        <Doclist></Doclist>
+                        <Doclist setSelectNode={handleFileSelect}></Doclist>
                     </Panel>
                     <PanelResizeHandle className = 'main-panel-resize-handle'></PanelResizeHandle>
                     <Panel
@@ -224,10 +346,13 @@ export default function MainWindowContents() {
                         className='mainwindow-panel_2'>
                         <div className='biaoqian'>
                             <div className="tabsbar-container">
-                                {/* <TabsBar
-                                    onTabEdit={() => setContent('edit')}
-                                    onTabChange={() => setContent('edit')}
-                                /> */}
+                                <TabsBar
+                                    tabs={tabs}
+                                    activeKey={activeKey}
+                                    onTabEdit={handleTabEdit}
+                                    onTabChange={handleTabChange}
+                                    onNewTab={handleNewTab}
+                                />
                             </div>
                         </div>
                         <MainDemo
@@ -258,6 +383,13 @@ export default function MainWindowContents() {
                             handleInfoClick={handleInfoClick}
                             info={info}
                             showInfo={showInfo}
+                            // edit related
+                            activeKey={activeKey}
+                            tabs={tabs}
+                            fileContentMap={fileContentMap}
+                            loadFileContent={loadFileContent}
+                            updateFileContent={updateFileContent}
+                            saveFileContent={saveFileContent}
                         />
                     </Panel>
                 </PanelGroup>
@@ -269,7 +401,8 @@ export default function MainWindowContents() {
 const MainDemo = ({
     content, inputValue, resultItem, onChange, onKeyDown, isLoading, showResult, isTimeout, className,
     history, streaming, inputQuestionValue, setInputQuestionValue, onSendConversation, onConvKeyDown, convLoading,
-    onChange_Conv, onPressEnter_Conv, onClick_Conv, stopped, onStop, handleInfoClick, showInfo, info
+    onChange_Conv, onPressEnter_Conv, onClick_Conv, stopped, onStop, handleInfoClick, showInfo, info,
+    activeKey, tabs, fileContentMap, loadFileContent, updateFileContent, saveFileContent
 }) => {
     switch (content) {
         case 'conversation':
@@ -487,10 +620,21 @@ const MainDemo = ({
                 </div>
             );
         case 'edit':
+            const activeTab = tabs.find(tab => tab.key === activeKey);
+            const filePath = activeTab?.filePath || activeKey;
+            const fileContent = fileContentMap[filePath] || '';
+            
             return (
                 <div className={className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <div style={{ flex: 1, minHeight: 0 }}>
-                        <TextEditor />
+                    <div className="maindemo-content" style={{ flex: 1, minHeight: 0 }}>
+                        <TextEditor 
+                            activeKey={activeKey}
+                            filePath={filePath}
+                            content={fileContent} 
+                            loadFileContent={loadFileContent}
+                            updateFileContent={updateFileContent}
+                            saveFileContent={saveFileContent}
+                        />
                     </div>
                 </div>
             );

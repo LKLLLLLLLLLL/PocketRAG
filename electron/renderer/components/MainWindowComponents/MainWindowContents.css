@@ -9,7 +9,7 @@
     color: white;
     height: 35px;
     width: 100%;
-    border-bottom: 2px solid #555555;
+    /* border-bottom: 2px solid #555555; */
     display: flex;
     box-sizing: border-box;
 }
@@ -19,12 +19,13 @@
     height: 35px;
     display: flex;
     margin-left: 0;
-    width: 100%;
+    width: 80%;
+    max-width: 700px;
     display: flex;
     align-items: center;
     padding: 0 12px;
     margin-left: 0;
-    border-bottom: 2px solid #555555;
+    /* border-bottom: 2px solid #555555; */
     box-sizing: border-box;
 }
 .maindemo {
@@ -38,7 +39,8 @@
     -webkit-app-region: no-drag;
 }
 .maindemo-content {
-    width: 700px;
+    padding: 10px;
+    width: 820px;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -737,6 +739,7 @@ html, body, #root {
     display: flex;
     align-items: center;
 }
+
 /*searchinput improve*/
 .searchinput .ant-input,
 .searchinput input {
@@ -756,6 +759,13 @@ html, body, #root {
     font-size: 15px;
 }
 
+/* Bytemd编辑器样式 */
+.bytemd{
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+}
+
 /* 主显示区内容卡片统一阴影 */
 .maindemo-content,
 .result0-item,
@@ -766,13 +776,13 @@ html, body, #root {
     box-shadow: 0 2px 12px rgba(0,0,0,0.18);
 }
 .main-panel-resize-handle{
-    background-color: #555555;
-    width: 2px;
+    background-color: #444444;
+    width: 1px;
 }
 
 .conversation-panel-resize-handle{
-    background-color: #555555;
-    height: 2px;
+    background-color: #444444;
+    height: 1px;
 }
 
 /* 全局滚动条样式 */

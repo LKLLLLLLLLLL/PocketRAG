@@ -35,6 +35,8 @@ export default function LeftBar({ setContent }) {
                         key={item.key}
                         className={`set-lb-button${active === item.key ? ' selected' : ''}`}
                         onClick={() => handleClick(item.key)}
+                        color="cyan"
+                        variant='text'
                     >
                         <span className="button-icon">{item.icon}</span>
                         <span className="button-label">{item.label}</span>

@@ -77,13 +77,14 @@
 }
 
 .repo-path {
-    font-size: 12px;
+    font-size: 10px;
     color: darkgrey;
     margin-top: 4px;
 }
 
 .repo-delete-container {
-    width: 40px;
+    width: 35px;
+    margin-right: 0;
     flex-shrink: 0;
     display: flex;
     justify-content: center;

@@ -1,0 +1,34 @@
+.editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background-color: #f0f2f5;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.file-info {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 16px;
+}
+
+.file-path {
+    font-size: 14px;
+    color: #595959;
+}
+
+.save-btn {
+    min-width: 80px;
+}
+
+.loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    font-size: 16px;
+    color: #999;
+}
