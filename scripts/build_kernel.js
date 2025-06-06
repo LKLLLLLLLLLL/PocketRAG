@@ -10,19 +10,25 @@ const enableCuda = process.argv.includes('--cuda');
 const isWin = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 
-// 目录配置
+// 目录和版本配置
 const binDir = path.join(__dirname, '..', 'kernel', 'bin');
 const externalDir = path.join(__dirname, '..', 'kernel', 'external');
 const onnxruntimeDir = path.join(externalDir, 'onnxruntime');
 const cudnnDir = path.join(externalDir, 'cudnn');
 
-// 版本配置
 const ONNXRUNTIME_VERSION = '1.21.0';
 const ONNXRUNTIME_BASE_URL = 'https://github.com/microsoft/onnxruntime/releases/download';
-const CUDNN_VERSION = '8.9.7';
+const CUDNN_VERSION = '9.8.0.87';
 const CUDNN_CUDA_VERSION = '12';
 
-// 获取ONNX Runtime下载信息
+// 格式化下载速度显示
+function formatSpeed(bytes) {
+    if (bytes === 0) return '0 B/s';
+    const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
+}
+
 function getOnnxRuntimeInfo() {
     if (isWin) {
         const arch = process.arch === 'x64' ? 'x64' : 'x86';
@@ -44,10 +50,9 @@ function getOnnxRuntimeInfo() {
     }
 }
 
-// 获取CUDNN下载信息
 function getCudnnInfo() {
     if (!enableCuda || !isWin || process.arch !== 'x64') return null;
-    
+
     return {
         filename: `cudnn-windows-x86_64-${CUDNN_VERSION}_cuda${CUDNN_CUDA_VERSION}-archive.zip`,
         extractDir: `cudnn-windows-x86_64-${CUDNN_VERSION}_cuda${CUDNN_CUDA_VERSION}-archive`,
@@ -56,12 +61,10 @@ function getCudnnInfo() {
     };
 }
 
-// 检查是否已安装
 function isInstalled(dir) {
     return fs.existsSync(path.join(dir, 'lib')) && fs.existsSync(path.join(dir, 'include'));
 }
 
-// 下载文件
 async function downloadFile(url, filePath) {
     console.log(`Downloading from: ${url}`);
 
@@ -75,24 +78,31 @@ async function downloadFile(url, filePath) {
 
     const totalLength = parseInt(response.headers['content-length'], 10);
     let progressBar;
-    
+
     if (totalLength) {
-        progressBar = new ProgressBar('Downloading [:bar] :rate/bps :percent :etas', {
-            complete: '=', incomplete: ' ', width: 40, total: totalLength
+        progressBar = new ProgressBar('Downloading [:bar] :speed :percent :etas', {
+            complete: '=',
+            incomplete: ' ',
+            width: 40,
+            total: totalLength
         });
     }
 
     const writer = fs.createWriteStream(filePath);
-    
+
     if (progressBar) {
-        response.data.on('data', (chunk) => progressBar.tick(chunk.length));
+        response.data.on('data', (chunk) => {
+            progressBar.tick(chunk.length, {
+                speed: formatSpeed(Math.round(progressBar.curr / ((Date.now() - progressBar.start) / 1000)))
+            });
+        });
     }
 
     response.data.pipe(writer);
 
     return new Promise((resolve, reject) => {
         writer.on('finish', () => {
-            console.log('\nDownload completed!');
+            console.log('\nDownload completed');
             resolve();
         });
         writer.on('error', reject);
@@ -100,7 +110,6 @@ async function downloadFile(url, filePath) {
     });
 }
 
-// 解压文件
 async function extractFile(filePath, extractTo) {
     fs.mkdirSync(extractTo, { recursive: true });
 
@@ -112,31 +121,29 @@ async function extractFile(filePath, extractTo) {
         console.log(`Extracting TAR: ${filePath}`);
         await tar.extract({ file: filePath, cwd: extractTo, strip: 0 });
     }
-    
-    console.log('Extraction completed!');
+
+    console.log('Extraction completed');
 }
 
-// 清理目录
 function removeDirectory(dirPath) {
     if (!fs.existsSync(dirPath)) return;
     fs.rmSync(dirPath, { recursive: true, force: true });
 }
 
-// 安装依赖
 async function installDependency(name, getInfo, targetDir) {
     if (isInstalled(targetDir)) {
-        console.log(`✅ ${name} already installed, skipping download.`);
+        console.log(`[INFO] ${name} already installed, skipping download.`);
         return true;
     }
 
     const info = getInfo();
     if (!info) {
-        console.log(`⏭️  ${name} not available for this platform`);
+        console.log(`[INFO] ${name} not available for this platform`);
         return false;
     }
 
-    console.log(`📦 ${name} not found, downloading...`);
-    
+    console.log(`[INFO] ${name} not found, downloading...`);
+
     const downloadPath = path.join(externalDir, info.filename);
     fs.mkdirSync(externalDir, { recursive: true });
 
@@ -149,29 +156,27 @@ async function installDependency(name, getInfo, targetDir) {
         fs.renameSync(extractedPath, targetDir);
         fs.unlinkSync(downloadPath);
 
-        console.log(`✅ ${name} installed successfully!`);
+        console.log(`[SUCCESS] ${name} installed successfully`);
         return true;
     } catch (error) {
-        console.error(`❌ Failed to install ${name}:`, error.message);
-        
-        // 清理
+        console.error(`[ERROR] Failed to install ${name}:`, error.message);
+
         if (fs.existsSync(downloadPath)) fs.unlinkSync(downloadPath);
         removeDirectory(targetDir);
-        
+
         if (name === 'CUDNN') {
-            console.log('💡 Manual installation steps:');
+            console.log('[INFO] Manual installation steps:');
             console.log('1. Visit: https://developer.nvidia.com/cudnn');
             console.log(`2. Download CUDNN v${CUDNN_VERSION} for CUDA ${CUDNN_CUDA_VERSION}.x`);
             console.log('3. Extract to: ' + targetDir);
-            console.log('⚠️  Continuing build without CUDNN');
+            console.log('[WARNING] Continuing build without CUDNN');
             return false;
         }
-        
+
         throw error;
     }
 }
 
-// 构建命令
 function getBuildCommand() {
     if (isWin) {
         const preset = enableCuda ? 'release-windows-cuda' : 'release-windows';
@@ -181,70 +186,60 @@ function getBuildCommand() {
     }
 }
 
-// 主流程
 async function main() {
-    console.log('🚀 Starting kernel build process...');
+    console.log('[INFO] Starting kernel build process...');
     console.log(`Platform: ${process.platform}, Architecture: ${process.arch}`);
 
-    // 平台检查
     if (!isWin && !isMac) {
-        console.log('❌ Unsupported platform. Only Windows and macOS are supported.');
+        console.log('[ERROR] Unsupported platform. Only Windows and macOS are supported.');
         process.exit(1);
     }
 
-    // CUDA检查
     if (enableCuda) {
         if (isMac) {
-            console.log('⚠️  CUDA not supported on macOS, using CPU version');
+            console.log('[WARNING] CUDA not supported on macOS, using CPU version');
         } else if (process.arch !== 'x64') {
-            console.log('⚠️  CUDA requires x64 architecture, using CPU version');
+            console.log('[WARNING] CUDA requires x64 architecture, using CPU version');
         } else {
-            console.log('🔥 CUDA support enabled (using pre-compiled ONNX Runtime GPU)');
+            console.log('[INFO] CUDA support enabled (using pre-compiled ONNX Runtime GPU)');
         }
     }
 
     try {
-        // 安装依赖
         await installDependency('ONNX Runtime', getOnnxRuntimeInfo, onnxruntimeDir);
         await installDependency('CUDNN', getCudnnInfo, cudnnDir);
 
-        // 清理构建目录
-        console.log('Cleaning bin directory...');
+        console.log('[INFO] Cleaning bin directory...');
         removeDirectory(binDir);
         fs.mkdirSync(binDir, { recursive: true });
 
-        // 切换到kernel目录
         const kernelDir = path.join(__dirname, '..', 'kernel');
         process.chdir(kernelDir);
 
-        // 设置CUDNN环境变量
         if (enableCuda && isInstalled(cudnnDir)) {
             process.env.CUDNN_ROOT = cudnnDir;
-            console.log(`📍 Set CUDNN_ROOT: ${cudnnDir}`);
+            console.log(`[INFO] Set CUDNN_ROOT: ${cudnnDir}`);
         }
 
-        // 执行构建
         const buildCmd = getBuildCommand();
-        console.log('🔨 Building kernel...');
+        console.log('[INFO] Building kernel...');
         console.log(`Executing: ${buildCmd}`);
-        
+
         execSync(buildCmd, { stdio: 'inherit' });
-        console.log('🎉 Build completed successfully!');
+        console.log('[SUCCESS] Build completed successfully');
 
     } catch (error) {
-        console.error(`❌ Build failed: ${error.message}`);
+        console.error(`[ERROR] Build failed: ${error.message}`);
         process.exit(1);
     }
 }
 
-// 错误处理
 process.on('SIGINT', () => {
-    console.log('\n⚠️  Build interrupted by user');
+    console.log('\n[WARNING] Build interrupted by user');
     process.exit(1);
 });
 
-// 运行
 main().catch((error) => {
-    console.error('❌ Unexpected error:', error);
+    console.error('[ERROR] Unexpected error:', error);
     process.exit(1);
 });

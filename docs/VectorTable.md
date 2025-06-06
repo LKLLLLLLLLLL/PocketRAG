@@ -32,11 +32,3 @@ VectorTable会保证，只要SQL中的Valid为true，Faiss索引中就一定会�
 在查询时会自动过滤掉deleted = true或者valid = false的向量
 
 由于faiss的一些Index不支持删除，因此，在删除时，会使用将sql数据表中的deleted标记为true，实现软删除；当删除数量达到设定值时，重新构造索引以提高查找效率、释放内存。
-
-## TODO
-- [ ] 支持中文路径与表名   
-- [ ] 完善文档  
-- [ ] 添加单元测试
-- [ ] 添加线程数限制功能（`faiss::omp_set_num_threads(4)`）
-- [ ] 添加faiss与sql不一致检测功能
-- [ ] 使用更健壮的路径处理
