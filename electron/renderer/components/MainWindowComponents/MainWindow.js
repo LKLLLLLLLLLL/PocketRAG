@@ -7,7 +7,7 @@ export function MainWindowInit() {
       })
       timeout = setTimeout(() => {
         reject(new Error('session initialization time out!'))
-      }, window.timeLimit);
+      }, window.timeLimit)
     }).catch(async (err) => {
       await window.electronAPI.showMessageBoxSync({
         type : 'error',
@@ -92,7 +92,7 @@ export function MainWindowInit() {
 
     window.search = async (query, accuracy = false) => {
       await window.sessionPreparedPromise
-      const callbackId = window.callbackRegister(() => {})
+      const callbackId = window.callbackRegister()
       try{
         const result = await new Promise ((resolve, reject) => {
           let timeout
@@ -105,7 +105,7 @@ export function MainWindowInit() {
           timeout = setTimeout(() => {
             window.removeEventListener('searchResult', listener)
             reject(new Error('search timeout'))
-          }, window.timeLimit);
+          }, window.timeLimit)
         })
         return result
       } catch(err){
@@ -158,13 +158,13 @@ export function MainWindowInit() {
 
     window.stopConversation = async (conversationId) => {
       await window.sessionPreparedPromise
-      const callbackId = window.callbackRegister(() => {})
+      const callbackId = window.callbackRegister()
       window.electronAPI.stopConversation(callbackId, conversationId)
     }
 
     window.getApiUsage = async () => {
       await window.sessionPreparedPromise
-      const callbackId = window.callbackRegister(() => {})
+      const callbackId = window.callbackRegister()
       try {
         const apiUsage = await new Promise((resolve, reject) => {
           let timeout 
@@ -190,7 +190,7 @@ export function MainWindowInit() {
 
     window.getChunksInfo = async () => {
       await window.sessionPreparedPromise
-      const callbackId = window.callbackRegister(() => {})
+      const callbackId = window.callbackRegister()
       try {
         const chunksInfo = await new Promise((resolve, reject) => {
           let timeout

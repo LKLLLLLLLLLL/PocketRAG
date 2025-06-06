@@ -18,16 +18,16 @@ const eventEmitter = new EventEmitter()
 console.log('stateFile is: ', stateFile)
 
 function getBackendPath() {
-  const exeName = process.platform === 'win32' ? 'PocketRAG_kernel.exe' : 'PocketRAG_kernel';
+  const exeName = process.platform === 'win32' ? 'PocketRAG_kernel.exe' : 'PocketRAG_kernel'
 
   if (isDev) {
-    return path.join(__dirname, '../../kernel/bin', exeName);
+    return path.join(__dirname, '..', '..', 'kernel', 'bin', exeName)
   } else {
-    return path.join(process.resourcesPath, 'bin', exeName);
+    return path.join(process.resourcesPath, 'bin', exeName)
   }
 }
 
-let kernelPath = getBackendPath();
+let kernelPath = getBackendPath()
 
 let restartTime = 0
 let kernel
@@ -115,7 +115,7 @@ async function restartAllRepos() {
     const repoName = await window.webContents.executeJavaScript('window.repoName')
     if(repoName){
       console.log('restarting window with id: ', id, ' and repoName: ', repoName)
-      const callbackId = callbackRegister(() => {})
+      const callbackId = callbackRegister()
       const openRepo = {
         sessionId : -1,
         toMain : true,
@@ -190,14 +190,26 @@ async function stdoutListener (data) {
             case 'openRepo':
               if(result.isReply){
                 if(result.status.code === 'SUCCESS'){
-                  const callback = callbacks.get(result.callbackId)
-                  callback(result.data.repoName, result.data.path)
                   callbacks.delete(result.callbackId)
                 }
                 else {
                   console.error(result.status.message)
+                  const window = windows.get(result.message.sessionId)
+                  if(!window) {
+                    console.error('Window not found from sessionId: ' + result.message.sessionId + ', the whole message is: ' + result)
+                  }
+                  else {
+                    dialog.showMessageBoxSync(window, {
+                      type : 'error',
+                      title : result.status.code,
+                      message : result.status.message,
+                      modal : true
+                    })
+                    window.close()
+                    createWindow()
+                  }
                   callbacks.delete(result.callbackId)
-                }                
+                }
               }
               else {
                 console.error('isReply may be wrong, expected: true, but the result is: ', result)
@@ -355,6 +367,20 @@ async function stdoutListener (data) {
                 console.error('isReply may be wrong, expected: true, but the result is: ', result)
               }
               break
+            case 'getAvailableHardware':
+              if(result.isReply) {
+                const window = windows.get(result.message.windowId)
+                if(!window) {
+                  console.error('Window not found from sessionId: ' + result.message.windowId + ', the whole message is: ' + result)
+                }
+                else {
+                  window.webContents.send('kernelData', result)
+                }
+              }
+              else {
+                console.error('isReply may be wrong, expected: true, but the result is: ', result)
+              }
+              break
 
           }
         }
@@ -409,12 +435,11 @@ async function openRepoCheck(event, repoName) {
 }
 
 
-function openRepo (event, sessionId, repoName){
-  const callbackId = callbackRegister(async (repoName, repoPath) => {
-    BrowserWindow.fromWebContents(event.sender).close()
-    await initializeRepo(sessionId, repoName, repoPath)
-  })
-
+async function openRepo (event, sessionId, repoName, repoPath){
+  const callbackId = callbackRegister()
+  BrowserWindow.fromWebContents(event.sender).close()
+  await initializeRepo(sessionId, repoName, repoPath)
+  
   const openRepo = {
     sessionId : -1,
     toMain : true,
@@ -453,7 +478,7 @@ async function createRepo (event) {
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
 
   if (!canceled) {
-    const callbackId = callbackRegister(() => {})
+    const callbackId = callbackRegister()
     const createRepo = {
       sessionId : -1,
       toMain : true,
@@ -521,7 +546,7 @@ function sessionCrashedHandler(event, error){
 
 function restartSession(event, repoName){
   const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
-  const callbackId = callbackRegister(() => {})
+  const callbackId = callbackRegister()
   const restartSession = {
     sessionId : -1,
     toMain : true,
@@ -599,7 +624,7 @@ async function deleteRepoCheck(event, repoName) {
 
 
 function deleteRepo (event, repoName){
-  const callbackId = callbackRegister(() => {})
+  const callbackId = callbackRegister()
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   const deleteRepo = {
     sessionId : -1,
@@ -661,7 +686,7 @@ function checkSettings(event, callbackId, settings) {
 function updateSettings(event, settings) {
   try {
     fs.writeFileSync(path.join(userDataPath, 'settings.json'), JSON.stringify(settings))
-    const callbackId = callbackRegister(() => {})
+    const callbackId = callbackRegister()
     const updateSettings = {
       sessionId : -1,
       toMain : true,
@@ -681,7 +706,7 @@ function updateSettings(event, settings) {
 }
 
 function setApiKey(event, modelName, apiKey) {
-  const callbackId = callbackRegister(() => {})
+  const callbackId = callbackRegister()
   const setApiKey = {
     sessionId : -1,
     toMain : true,
@@ -756,6 +781,141 @@ function getChunksInfo(event, callbackId) {
   console.log(JSON.stringify(getChunksInfo) + '\n')
 }
 
+function getAvailableHardware(event, callbackId) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  const getAvailableHardware = {
+    sessionId : -1,
+    toMain : true,
+
+    callbackId : callbackId,
+    isReply : false,
+
+    message : {
+      type : 'getAvailableHardware',
+      windowId : windowId
+    }
+  }
+  kernel.stdin.write(JSON.stringify(getAvailableHardware) + '\n')
+  console.log(JSON.stringify(getAvailableHardware) + '\n')
+}
+
+function updateHardwareSettings(event, settings_) {
+  try {
+    const data = fs.readFileSync(path.join(userDataPath, 'settings.json'), 'utf-8')
+    let settings = JSON.parse(data)
+    settings.performance = settings_
+    fs.writeFileSync(path.join(userDataPath, 'settings.json'), JSON.stringify(settings))
+  }catch(err) {
+    console.error('update hardware settings failed: ', err)
+  }
+}
+
+function getSettings(event) {
+  try {
+    const data = fs.readFileSync(path.join(userDataPath, 'settings.json'), 'utf-8')
+    let settings = JSON.parse(data)
+    return settings
+  }catch(err) {
+    console.error('getting settings failed: ', err)
+    throw err
+  }
+}
+
+function AreSettingsRight() {
+  const settings = getSettings()
+  // 顶层对象
+  if (typeof settings !== 'object' || settings === null) return false
+
+  // searchSettings
+  const ss = settings.searchSettings
+  if (!ss || typeof ss !== 'object') return false
+  if (typeof ss.searchLimit !== 'number') return false
+
+  // embeddingConfig
+  if (!ss.embeddingConfig || typeof ss.embeddingConfig !== 'object') return false
+  if (!Array.isArray(ss.embeddingConfig.configs)) return false
+  // unique name 检查
+  const embeddingNames = new Set()
+  for (const cfg of ss.embeddingConfig.configs) {
+    if (typeof cfg.name !== 'string' || !cfg.name) return false
+    if (embeddingNames.has(cfg.name)) return false // unique name
+    embeddingNames.add(cfg.name)
+    if (typeof cfg.modelName !== 'string' || !cfg.modelName) return false
+    if (typeof cfg.inputLength !== 'number') return false
+    if (typeof cfg.selected !== 'boolean') return false
+  }
+
+  // rerankConfig
+  if (!ss.rerankConfig || typeof ss.rerankConfig !== 'object') return false
+  if (!Array.isArray(ss.rerankConfig.configs)) return false
+  let rerankSelectedCount = 0
+  for (const cfg of ss.rerankConfig.configs) {
+    if (typeof cfg.modelName !== 'string' || !cfg.modelName) return false
+    if (typeof cfg.selected !== 'boolean') return false
+    if (cfg.selected) rerankSelectedCount++
+  }
+  // 只能有一个被选中（如果数组非空）
+  if (ss.rerankConfig.configs.length > 0 && rerankSelectedCount !== 1) return false
+
+  // localModelManagement
+  const lm = settings.localModelManagement
+  if (!lm || typeof lm !== 'object') return false
+  if (!Array.isArray(lm.models)) return false
+  // unique name 检查
+  const modelNames = new Set()
+  for (const model of lm.models) {
+    if (typeof model.name !== 'string' || !model.name) return false
+    if (modelNames.has(model.name)) return false // unique name
+    modelNames.add(model.name)
+    if (typeof model.path !== 'string' || !model.path) return false
+    // 路径必须存在
+    if (!fs.existsSync(model.path) || !fs.statSync(model.path).isDirectory()) return false
+    if (!['embedding', 'rerank', 'generation'].includes(model.type)) return false
+    if (typeof model.fileSize !== 'number') return false
+  }
+
+  // embeddingConfig.modelName 必须 refer to localModelManagement.name
+  for (const cfg of ss.embeddingConfig.configs) {
+    if (cfg.modelName && !modelNames.has(cfg.modelName)) return false
+  }
+  // rerankConfig.modelName 必须 refer to localModelManagement.name
+  for (const cfg of ss.rerankConfig.configs) {
+    if (cfg.modelName && !modelNames.has(cfg.modelName)) return false
+  }
+
+  // conversationSettings
+  const cs = settings.conversationSettings
+  if (!cs || typeof cs !== 'object') return false
+  if (!Array.isArray(cs.generationModel)) return false
+  // unique name 检查
+  const genNames = new Set()
+  let lastUsedCount = 0
+  for (const gm of cs.generationModel) {
+    if (typeof gm.name !== 'string' || !gm.name) return false
+    if (genNames.has(gm.name)) return false // unique name
+    genNames.add(gm.name)
+    if (typeof gm.modelName !== 'string' || !gm.modelName) return false
+    if (typeof gm.url !== 'string' || !gm.url) return false
+    if (typeof gm.setApiKey !== 'boolean') return false
+    if (typeof gm.lastUsed !== 'boolean') return false
+    if (gm.lastUsed) lastUsedCount++
+  }
+  // 只能有一个 lastUsed 为 true（如果数组非空）
+  if (cs.generationModel.length > 0 && lastUsedCount !== 1) return false
+  if (typeof cs.historyLength !== 'number') return false
+
+  // performance
+  const pf = settings.performance
+  if (!pf || typeof pf !== 'object') return false
+  if (typeof pf.maxThreads !== 'number') return false
+  if (typeof pf['cuda available'] !== 'boolean') return false
+  if (typeof pf.useCuda !== 'boolean') return false
+  if (typeof pf['coreML available'] !== 'boolean') return false
+  if (typeof pf.useCoreML !== 'boolean') return false
+
+  return true
+}
+
 async function saveWindowState(window, windowType) {
   if (!window) return
   const bounds = window.getBounds()
@@ -796,9 +956,11 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
     case 'main':
       let mainOptions = {
         width: Math.floor(srceenWidth * 0.8),
-        height: Math.floor(screenHeight * 0.9),     
+        height: Math.floor(screenHeight * 0.9),
+        backgroundColor: '#222222',     
         frame: false,
-        autoHideMenuBar: true,   
+        autoHideMenuBar: true,
+        show: false,   
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
         }
@@ -811,8 +973,8 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
       }
       if(platform === 'win32') {
         mainOptions.titleBarOverlay = {
-          color: '#2f3241',
-          symbolColor: '#74b1be',
+          color: '#444444',
+          symbolColor: '#ffffff',
           height: 35
         }
         mainOptions.titleBarStyle = 'hidden'        
@@ -826,7 +988,7 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
         window.maximize()
       }
       window.on('closed', () => {
-        const callbackId = callbackRegister(() => {})
+        const callbackId = callbackRegister()
         const closeRepo = {
           sessionId : -1,
           toMain : true, 
@@ -847,21 +1009,23 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
     
     case 'repoList':
       let repoListOptions = {
-        width: 800,
+        width: 700,
         height: 600,
+        backgroundColor: '#222222',
         frame: false,
         maximizable: false,
         fullscreenable: false,
         resizable: false,
         autoHideMenuBar: true,
+        show: false,
         webPreferences: {
           preload: path.join(__dirname, 'preload.js')
         }
       }
       if(platform === 'win32') {
         repoListOptions.titleBarOverlay = {
-          color: '#2f3241',
-          symbolColor: '#74b1be',
+          color: '#222222',
+          symbolColor: '#ffffff',
           height: 35
         }
         repoListOptions.titleBarStyle = 'hidden'
@@ -882,12 +1046,14 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
         y: Math.floor(screenHeight * 0.1),
         width: Math.floor(srceenWidth * 0.5),
         height: Math.floor(screenHeight * 0.85),
+        backgroundColor: '#222222',
         frame: false,
         minimizable: false,
         maximizable: false,
         fullscreenable: false,
         resizable: false,
         autoHideMenuBar: true,
+        show: false,
         parent : BrowserWindow.fromWebContents(event.sender),
         modal: true,
         webPreferences: {
@@ -921,6 +1087,10 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
 
   window.loadURL(startUrl)
 
+  window.on('ready-to-show', () => {
+    window.show()
+  })
+
   return windowId
 }
 
@@ -941,9 +1111,9 @@ async function createFirstWindow() {
     }
     const windowId = createWindow(null, windowType, lastState)
     if(windowType === 'main') {
-      const callbackId = callbackRegister(async () => {
-        await initializeRepo(windowId, repoName, repoPath)
-      })
+      const callbackId = callbackRegister()
+      await initializeRepo(windowId, repoName, repoPath)
+
       const openRepo = {
         sessionId : -1,
         toMain : true,
@@ -961,7 +1131,7 @@ async function createFirstWindow() {
       kernel.stdin.write(JSON.stringify(openRepo) + '\n')
       console.log(JSON.stringify(openRepo) + '\n')
     }
-  } catch(err) {
+  }catch(err) {
     console.log(err)
     createWindow()
   }
@@ -1135,7 +1305,28 @@ app.whenReady().then(async () => {
   ipcMain.on('getApiKey', getApiKey)
   ipcMain.on('testApi', testApi)
   ipcMain.on('getChunksInfo', getChunksInfo)
+  ipcMain.on('getAvailableHardware', getAvailableHardware)
+  ipcMain.handle('updateHardwareSettings', updateHardwareSettings)
+  ipcMain.handle('getSettings', getSettings)
   //add the event listeners before the window is created
+
+  const defaultSettingsPath = path.join(__dirname, '..', 'public', 'defaultSettings.json')
+  const settingsPath = path.join(userDataPath, 'settings.json')
+  try {
+    if(!fs.existsSync(settingsPath)) {
+      console.log('no settings.json, copying default settings...')
+      fs.copyFileSync(defaultSettingsPath, settingsPath)
+      console.log('copy done')
+    }
+    else if(!AreSettingsRight()) {
+      console.log('settings format wrong, copying default settings...')
+      fs.copyFileSync(defaultSettingsPath, settingsPath)
+    }
+  }catch(err) {
+    console.log(err)
+    console.log('copying default settings due to error...')
+    fs.copyFileSync(defaultSettingsPath, settingsPath)
+  }
 
   kernel = spawn(kernelPath, [], {
     cwd: path.dirname(kernelPath), // set work directory to the same as the kernel path

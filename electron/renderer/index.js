@@ -201,6 +201,15 @@ window.electronAPI.onKernelData((data) => {
         console.error('isReply may be wrong, expected: true, but the result is: ', data)
       }
       break
+    case 'getAvailableHardware':  //isReply check has been done in main.js
+      if(data.status.code === 'SUCCESS') {
+        const getAvailableHardwareResultEvent = new CustomEvent('getAvailableHardwareResult', {detail : data.data})
+        window.dispatchEvent(getAvailableHardwareResultEvent)
+      }
+      else {
+        console.error(data.status.message)
+      }
+      break
 
   }
 })
@@ -214,17 +223,9 @@ window.openSettingsWindow = async () => {
 switch(window.windowType){
   case 'main':
     MainWindowInit()
-    // setTimeout(() => {
-    //   window.beginConversation('deepseek','PocketRAG是什么')
-    // }, 10000);
-    // setTimeout(async () => {
-    //   let a = await window.getApiUsage()
-    //   console.log(a)
-    // }, 90000);
     break
   case 'repoList':
     RepoListWindowInit()
-    // window.openSettingsWindow()
     break
   case 'settings':
     SettingsWindowInit()

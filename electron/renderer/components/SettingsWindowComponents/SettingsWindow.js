@@ -1,7 +1,7 @@
 export function SettingsWindowInit() {
     window.checkSettings = async (settings) => {
         await window.electronAPI.kernelReadyPromise()
-        const callbackId = window.callbackRegister(() => {})
+        const callbackId = window.callbackRegister()
         try {
             const result = await new Promise ((resolve, reject) => {
                 let timeout
@@ -43,7 +43,7 @@ export function SettingsWindowInit() {
 
     window.getApiKey = async (modelName) => {
         await window.electronAPI.kernelReadyPromise()
-        const callbackId = window.callbackRegister(() => {})
+        const callbackId = window.callbackRegister()
         try {
             const result = await new Promise((resolve, reject) => {
                 let timeout
@@ -69,7 +69,7 @@ export function SettingsWindowInit() {
 
     window.testApi = async (modelName, url, api) => {
         await window.electronAPI.kernelReadyPromise()
-        const callbackId = window.callbackRegister(() => {})
+        const callbackId = window.callbackRegister()
         try {
             const result = await new Promise((resolve, reject) => {
                 let timeout
@@ -97,5 +97,35 @@ export function SettingsWindowInit() {
         }finally {
             window.callbacks.delete(callbackId)
         }
+    }
+
+    window.getAvailableHardware = async () => {
+        await window.electronAPI.kernelReadyPromise()
+        const callbackId = window.callbackRegister()
+        try {
+            const result = await new Promise((resolve, reject) => {
+                let timeout
+                const listener = (event) => {
+                    clearTimeout(timeout)
+                    resolve(event.detail)
+                }
+                window.addEventListener('getAvailableHardwareResult', listener, {once : true})
+                window.electronAPI.getAvailableHardware(callbackId)
+                timeout = setTimeout(() => {
+                    window.removeEventListener('getAvailableHardwareResult', listener)
+                    reject(new Error('getAvailableHardware timeout!'))
+                }, window.timeLimit)
+            })
+            await window.electronAPI.updateHardwareSettings(result)
+        }catch(err) {
+            console.error(err)
+            throw err
+        }finally {
+            window.callbacks.delete(callbackId)
+        }
+    }
+
+    window.getSettings = async () => {
+        return await window.electronAPI.getSettings()
     }
 }

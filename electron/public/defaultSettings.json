@@ -1,0 +1,25 @@
+{
+    "searchSettings" : {
+        "searchLimit" : 10,
+        "embeddingConfig": {
+            "configs" : []
+        },
+        "rerankConfig" : {
+            "configs" : []
+        }
+    },
+    "localModelManagement" : {
+        "models" : []
+    },
+    "conversationSettings" : {
+        "generationModel" : [],
+        "historyLength" : 1000
+    },
+    "performance": {
+        "maxThreads" : 0,
+        "cuda available" : false,
+        "useCuda" : false,
+        "coreML available" : false, 
+        "useCoreML" : false
+    }
+}

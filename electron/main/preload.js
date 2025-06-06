@@ -1,10 +1,11 @@
+const { ipcMain } = require('electron')
 const { contextBridge, ipcRenderer} = require('electron/renderer')
 //import electron modules
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getRepos : (callbackId) => ipcRenderer.send('getRepos', callbackId),
 
-  openRepo : (sessionId, repoName) => ipcRenderer.send('openRepo', sessionId, repoName),
+  openRepo : (sessionId, repoName, repoPath) => ipcRenderer.send('openRepo', sessionId, repoName, repoPath),
 
   onRepoInitialized : (callback) => ipcRenderer.on('repoInitialized', callback),
 
@@ -72,7 +73,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   testApi : (callbackId, modelName, url, api) => ipcRenderer.send('testApi', callbackId, modelName, url, api),
 
-  getChunksInfo : (callbackId) => ipcRenderer.send('getChunksInfo', callbackId)
+  getChunksInfo : (callbackId) => ipcRenderer.send('getChunksInfo', callbackId),
+  
+  getAvailableHardware : (callbackId) => ipcRenderer.send('getAvailableHardware', callbackId),
+
+  updateHardwareSettings : (settings) => ipcMain.invoke('updateHardwareSettings', settings),
+
+  getSettings : () => ipcMain.invoke('getSettings')
 
 })
 //expose apis to the renderer process 

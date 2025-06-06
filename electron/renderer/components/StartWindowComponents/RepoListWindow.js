@@ -1,7 +1,7 @@
 export function RepoListWindowInit() {
     window.getRepos = async () => {
       await window.electronAPI.kernelReadyPromise()
-      const callbackId = window.callbackRegister(() => {})
+      const callbackId = window.callbackRegister()
       try{
         const repoList = await new Promise((resolve, reject) => {
           let timeout
@@ -27,7 +27,7 @@ export function RepoListWindowInit() {
       }
     }
 
-    window.openRepo = async (repoName) => {
+    window.openRepo = async (repoName, repoPath) => {
       await window.electronAPI.kernelReadyPromise()
       const hasopened = await window.electronAPI.openRepoCheck(repoName)
       if(hasopened === true) {
@@ -35,7 +35,7 @@ export function RepoListWindowInit() {
         return
       }
       const sessionId = await window.electronAPI.createNewWindow('main')
-      window.electronAPI.openRepo(sessionId, repoName)
+      window.electronAPI.openRepo(sessionId, repoName, repoPath)
     }
 
     window.createRepo = async () => {
