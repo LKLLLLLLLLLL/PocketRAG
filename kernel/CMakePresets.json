@@ -16,6 +16,10 @@
             "name": "base-windows",
             "inherits": "base",
             "hidden": true,
+            "environment": {
+                "CC": "cl.exe",
+                "CXX": "cl.exe"
+            },
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "cl.exe",
                 "CMAKE_CXX_COMPILER": "cl.exe"
@@ -25,6 +29,10 @@
             "name": "base-mac",
             "inherits": "base",
             "hidden": true,
+            "environment": {
+                "CC": "/opt/homebrew/opt/llvm/bin/clang",
+                "CXX": "/opt/homebrew/opt/llvm/bin/clang++"
+            },
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "/opt/homebrew/opt/llvm/bin/clang",
                 "CMAKE_CXX_COMPILER": "/opt/homebrew/opt/llvm/bin/clang++"
@@ -83,6 +91,16 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
+        },
+        {
+            "name": "release-windows-cuda",
+            "inherits": "base-windows",
+            "displayName": "Release Windows with CUDA",
+            "description": "Release build for Windows with CUDA support",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "USE_CUDA": "ON"
+            }
         }
     ],
     "buildPresets": [
@@ -117,6 +135,11 @@
             "name": "relwithdebinfo-mac",
             "inherits": "debug-mac",
             "configurePreset": "relwithdebinfo-mac"
+        },
+        {
+            "name": "release-windows-cuda",
+            "inherits": "debug-windows",
+            "configurePreset": "release-windows-cuda"
         }
     ]
 }

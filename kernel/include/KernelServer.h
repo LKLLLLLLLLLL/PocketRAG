@@ -192,17 +192,6 @@ public:
     std::vector<SettingsCache::SearchSettings::EmbeddingConfig::Config> getEmbeddingConfigs() const;
     std::vector<SettingsCache::SearchSettings::RrankConfig::Config> getRerankConfigs() const;
     std::string getModelPath(const std::string &modelName) const;
-    std::pair<int, ONNXModel::device> getPerfConfig() const
-    {
-        ONNXModel::device dev = ONNXModel::device::cpu;
-        if(settingsCache.performanceSettings.useCoreML)
-            dev = ONNXModel::device::coreML;
-        else if(settingsCache.performanceSettings.useCuda)
-            dev = ONNXModel::device::cuda;
-        return {settingsCache.performanceSettings.maxThreads, dev};
-    }
-    int getHistoryLength() const
-    {
-        return settingsCache.conversationSettings.historyLength;
-    }
+    std::pair<int, ONNXModel::device> getPerfConfig() const;
+    int getHistoryLength() const;
 };

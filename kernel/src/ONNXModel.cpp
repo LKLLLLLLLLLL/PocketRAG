@@ -64,6 +64,33 @@ std::unordered_map<Ort::Session *, std::shared_ptr<std::mutex>> ONNXModel::sessi
 
 std::atomic<int> ONNXModel::instanceCount = 0;
 
+std::string ONNXModel::device_to_string(device dev)
+{
+    switch (dev)
+    {
+    case device::cpu:
+        return "CPU";
+    case device::cuda:
+        return "CUDA";
+    case device::coreML:
+        return "CoreML";
+    default:
+        return "Unknown";
+    }
+}
+
+std::vector<ONNXModel::device> ONNXModel::getAvailableDevices()
+{
+    std::vector<device> devices;
+    if (checkCapability(device::cpu))
+        devices.push_back(device::cpu);
+    if (checkCapability(device::cuda))
+        devices.push_back(device::cuda);
+    if (checkCapability(device::coreML))
+        devices.push_back(device::coreML);
+    return devices;
+}
+
 void ONNXModel::initialize()
 {
     env.reset(new Ort::Env(ORT_LOGGING_LEVEL_WARNING, "ONNXModelEnv")); // ONNX runtime will log warnings and errors

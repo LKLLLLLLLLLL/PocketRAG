@@ -1081,7 +1081,7 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
 
   const startUrl = isDev
       ? `http://localhost:3000?windowType=${windowType}&windowId=${windowId}`
-      : `file://${path.join(__dirname, '..','..','build','index.html')}?windowType=${windowType}&windowId=${windowId}`  
+      : `file://${path.join(__dirname, '..','build','index.html')}?windowType=${windowType}&windowId=${windowId}`  
 
   windows.set(windowId, window)//add the window to the map
 
@@ -1310,7 +1310,9 @@ app.whenReady().then(async () => {
   ipcMain.handle('getSettings', getSettings)
   //add the event listeners before the window is created
 
-  const defaultSettingsPath = path.join(__dirname, '..', 'public', 'defaultSettings.json')
+  const defaultSettingsPath = isDev
+    ? path.join(__dirname, '..', 'public', 'defaultSettings.json')
+    : path.join(process.resourcesPath, 'public', 'defaultSettings.json')
   const settingsPath = path.join(userDataPath, 'settings.json')
   try {
     if(!fs.existsSync(settingsPath)) {

@@ -5,18 +5,24 @@
   "main": "./electron/main/main.js",
   "scripts": {
     "dev:vite": "vite",
+    "dev": "concurrently -k \"npm run dev:vite\" \"electron .\"",
     "build:vite": "vite build",
     "build:kernel": "node ./scripts/build_kernel.js",
-    "dev": "concurrently -k \"npm run dev:vite\" \"electron .\"",
-    "build": "npm run build:vite && npm run build:kernel && electron-builder"
+    "build:kernel:cuda": "node ./scripts/build_kernel.js --cuda",
+    "build": "npm run build:vite && npm run build:kernel && electron-builder",
+    "build:cuda" : "npm run build:vite && npm run build:kernel:cuda && electron-builder"
   },
   "author": "",
   "license": "",
   "devDependencies": {
     "@vitejs/plugin-react": "^4.4.1",
+    "adm-zip": "^0.5.16",
+    "axios": "^1.9.0",
     "concurrently": "^9.1.2",
     "electron": "^35.1.4",
     "electron-builder": "^26.0.12",
+    "progress": "^2.0.3",
+    "tar": "^7.4.3",
     "vite": "^6.3.5"
   },
   "dependencies": {
@@ -41,6 +47,10 @@
       {
         "from": "kernel/bin",
         "to": "bin"
+      },
+      {
+        "from": "electron/public",
+        "to": "public"
       }
     ],
     "directories": {

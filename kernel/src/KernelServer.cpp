@@ -1174,3 +1174,18 @@ std::string KernelServer::Settings::getModelPath(const std::string &modelName) c
     }
     return "";
 }
+
+std::pair<int, ONNXModel::device> KernelServer::Settings::getPerfConfig() const
+{
+    ONNXModel::device dev = ONNXModel::device::cpu;
+    if (settingsCache.performanceSettings.useCoreML)
+        dev = ONNXModel::device::coreML;
+    else if (settingsCache.performanceSettings.useCuda)
+        dev = ONNXModel::device::cuda;
+    return {settingsCache.performanceSettings.maxThreads, dev};
+}
+
+int KernelServer::Settings::getHistoryLength() const
+{
+    return settingsCache.conversationSettings.historyLength;
+}

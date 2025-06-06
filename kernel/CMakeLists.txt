@@ -25,9 +25,6 @@ endif()
 # 设置cuda选项
 if(APPLE)
     set(USE_CUDA OFF)
-elseif(WIN32)
-    # Windows 可以选择是否使用 CUDA
-    option(USE_CUDA "Use CUDA GPU" ON)
 else()
     option(USE_CUDA "Use CUDA GPU" OFF)
 endif()
@@ -158,7 +155,7 @@ endif()
 
 # 导入cuDNN
 if(USE_CUDA)
-    set(CUDNN_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/cudnn-windows-x86_64-9.8.0.87_cuda12-archive/bin")
+    set(CUDNN_DLL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/cudnn/bin")
 endif()
 
 

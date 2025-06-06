@@ -19,29 +19,10 @@ class ONNXModel
 {
 public:
     enum class device{cpu, cuda, coreML}; // only support cpu or cuda now
-    std::string device_to_string(device dev)
-    {
-        switch(dev)
-        {
-            case device::cpu: return "CPU";
-            case device::cuda: return "CUDA";
-            case device::coreML: return "CoreML";
-            default: return "Unknown";
-        }
-    }
+    std::string device_to_string(device dev);
 
 
-    static std::vector<device> getAvailableDevices()
-    {
-        std::vector<device> devices;
-        if(checkCapability(device::cpu))
-            devices.push_back(device::cpu);
-        if(checkCapability(device::cuda))
-            devices.push_back(device::cuda);
-        if(checkCapability(device::coreML))
-            devices.push_back(device::coreML);
-        return devices;
-    }
+    static std::vector<device> getAvailableDevices();
 private:
     static std::mutex mutex;    // mutex for all static variables
 
