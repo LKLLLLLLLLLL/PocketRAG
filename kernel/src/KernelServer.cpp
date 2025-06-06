@@ -201,6 +201,13 @@ void KernelServer::handleMessage(nlohmann::json &json, std::shared_ptr<Utils::Ti
             if(stmt.step())
             {
                 auto repoPath = stmt.get<std::string>(0);
+                if(!std::filesystem::exists(repoPath))
+                {
+                    json["status"]["code"] = "REPO_NOT_EXIST";
+                    json["status"]["message"] = "Repository path does not exist: " + repoPath;
+                    sendBack(json, msgTimer);
+                    return;
+                }
                 try
                 {
                     openSession(windowId, repoName, repoPath);

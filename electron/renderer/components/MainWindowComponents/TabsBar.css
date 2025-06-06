@@ -1,5 +1,6 @@
 .tabsbar-root {
     width: 80%;
+    -webkit-app-region: no-drag;
     height: 35px;
     background-color: #f0f2f5;
     display: flex;
