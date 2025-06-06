@@ -2,7 +2,7 @@
     flex-basis: 50px;
     display: flex;
     flex-direction: column;
-    background-color: #111111;
+    background-color: #444444;
     height: 100vh;
 }
 
@@ -11,13 +11,21 @@
     display: flex;
     height: 100%;
     flex-direction: column;
-    margin-top: 30px;
+    border-right: 2px solid #555555;
+    box-sizing: border-box;
+}
+
+.empty-space{
+    height: 35px;
+    border-bottom: 2px solid #555555;
 }
 
 .leftbar-up {
     gap: 0;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    background-color: #333333;
 }
 
 .leftbar-down {
@@ -42,28 +50,10 @@
     transition: background 0.18s, color 0.18s;
 }
 
-.lb-button:last-child {
-    border-bottom: none;
-}
-
 /* 鼠标悬停高亮 */
-.lb-button:hover, .lb-button:focus {
+.lb-button:hover {
     background-color: #555555;
     color: #999999;
-}
-
-/* 选中高亮（可根据业务为当前按钮加 .active 类） */
-.lb-button.active, .lb-button.selected {
-    background-color: #999999 !important;
-    color: #2563eb !important;
-    border-left: 4px solid #4e8cff;
-    font-weight: bold;
-}
-
-/* 设置按钮单独底部圆角 */
-.leftbar-down .lb-button {
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
 }
 
 /* antd icon-only按钮宽高适配 */
@@ -75,31 +65,21 @@
     padding: 0 !important;
 }
 
-/* 滚动条风格统一 */
-.LeftBar-container,
-.leftbar-main,
-.leftbar-up,
-.leftbar-down {
-    scrollbar-width: thin;
-    scrollbar-color: #00b0b0 #333333;
-}
-.LeftBar-container::-webkit-scrollbar,
-.leftbar-main::-webkit-scrollbar,
-.leftbar-up::-webkit-scrollbar,
-.leftbar-down::-webkit-scrollbar {
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
     width: 8px;
     background: #333333;
 }
-.LeftBar-container::-webkit-scrollbar-thumb,
-.leftbar-main::-webkit-scrollbar-thumb,
-.leftbar-up::-webkit-scrollbar-thumb,
-.leftbar-down::-webkit-scrollbar-thumb {
-    background: #00b0b0;
+
+::-webkit-scrollbar-thumb {
+    background: #555555;
     border-radius: 6px;
 }
-.LeftBar-container::-webkit-scrollbar-thumb:hover,
-.leftbar-main::-webkit-scrollbar-thumb:hover,
-.leftbar-up::-webkit-scrollbar-thumb:hover,
-.leftbar-down::-webkit-scrollbar-thumb:hover {
-    background: #008888;
+
+::-webkit-scrollbar-thumb:hover {
+    background: #444444;
+}
+
+::-webkit-scrollbar-corner {
+    background: #333333;
 }

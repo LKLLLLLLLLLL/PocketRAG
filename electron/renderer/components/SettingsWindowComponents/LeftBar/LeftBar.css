@@ -10,15 +10,17 @@
 }
 
 .leftbar-header {
-    height: 50px;
+    height: 35px;
     display: flex;
     align-items: center;
+    margin-bottom: auto;
+    color: white;
     padding: 0 20px;
-    border-bottom: 1px solid #555555;
+    box-sizing: border-box;
 }
 
 .leftbar-header h3 {
-    color: #00b0b0;
+    /* color: #00b0b0; */
     margin: 0;
     font-size: 18px;
 }
@@ -31,7 +33,6 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    padding: 20px 10px;
     -webkit-app-region: no-drag;
     gap: 8px;
 }
@@ -62,7 +63,7 @@
 
 /* 鼠标悬停 */
 .set-lb-button:hover {
-    background-color: #3a3a3a;
+    background-color: #555555;
     color: #00b0b0;
 }
 

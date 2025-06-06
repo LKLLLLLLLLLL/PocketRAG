@@ -24,7 +24,8 @@ const Option =({others,setOthers})=>{
                 <span>
                     <Button className = 'new-button' 
                             onClick = {handleClick_new}
-                            >
+                            color = 'cyan'
+                            variant = "primary">
                         新建仓库
                     </Button>
                 </span>
@@ -39,7 +40,10 @@ const Option =({others,setOthers})=>{
                     </div>
                 </span>
                 <span>
-                    <Button className = 'other-button' onClick = {()=>setOthers(true)}>
+                    <Button className = 'other-button' 
+                            onClick = {()=>setOthers(true)}
+                            color = 'cyan'
+                            variant = "primary">
                         其他选项
                     </Button>
                 </span>

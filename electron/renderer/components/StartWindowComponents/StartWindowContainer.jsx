@@ -43,7 +43,7 @@ export default function StartWindowContainer(){
     const handleRepoClick = (repo) => {
         const now = Date.now();
         if (now - lastClickTime < 300) {
-            window.openRepo(repo.name);
+            window.openRepo(repo.name,repo.path);
             setSelectedRepo(null);
             return;
         }
@@ -67,7 +67,9 @@ export default function StartWindowContainer(){
                     <div className = 'repo-delete-container'>
                         <Button className = 'repo-delete' 
                                 icon = {<DeleteOutlined style = {{fontSize:20,color: 'white'}}/>}
-                                onClick = {async (e)=>{e.stopPropagation();window.deleteRepo(repo.name);}}>
+                                onClick = {async (e)=>{e.stopPropagation();window.deleteRepo(repo.name);}}
+                                variant = "text"
+                                color = "default">
                         </Button>
                     </div>
                 </div>

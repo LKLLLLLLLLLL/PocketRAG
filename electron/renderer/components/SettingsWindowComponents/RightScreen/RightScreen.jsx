@@ -10,39 +10,50 @@ export default function RightScreen({ content, onClick }) {
         case 'page':
             return (
                 <RightScreenContainer onClick={onClick}>
-                    <h3>页面样式设置</h3>
+                    <div className="settings-header">
+                        <h3>页面样式设置</h3>
+                        <p>自定义应用界面的视觉风格</p>
+                    </div>
                     <div className="settings-form">
-                        <div className="settings-row">
-                            <label>字体颜色：</label>
-                            <Input placeholder="如 #222222" style={{ width: 180 }} />
+                        <div className="settings-group">
+                            <h4 className="settings-group-title">基础设置</h4>
+                            <div className="settings-grid">
+                                <div className="settings-item">
+                                    <label>字体颜色</label>
+                                    <Input placeholder="#222222" style={{ width: '100%' }} />
+                                </div>
+                                <div className="settings-item">
+                                    <label>内边距</label>
+                                    <Input placeholder="16px" style={{ width: '100%' }} />
+                                </div>
+                                <div className="settings-item">
+                                    <label>外边距</label>
+                                    <Input placeholder="8px" style={{ width: '100%' }} />
+                                </div>
+                                <div className="settings-item">
+                                    <label>边框</label>
+                                    <Input placeholder="1px solid #ccc" style={{ width: '100%' }} />
+                                </div>
+                                <div className="settings-item">
+                                    <label>背景色</label>
+                                    <Input placeholder="#f5f5f5" style={{ width: '100%' }} />
+                                </div>
+                                <div className="settings-item">
+                                    <label>字体大小</label>
+                                    <Input placeholder="16px" style={{ width: '100%' }} />
+                                </div>
+                            </div>
                         </div>
-                        <div className="settings-row">
-                            <label>内边距：</label>
-                            <Input placeholder="如 16px" style={{ width: 180 }} />
-                        </div>
-                        <div className="settings-row">
-                            <label>外边距：</label>
-                            <Input placeholder="如 8px" style={{ width: 180 }} />
-                        </div>
-                        <div className="settings-row">
-                            <label>边框：</label>
-                            <Input placeholder="如 1px solid #ccc" style={{ width: 180 }} />
-                        </div>
-                        <div className="settings-row">
-                            <label>背景色：</label>
-                            <Input placeholder="如 #f5f5f5" style={{ width: 180 }} />
-                        </div>
-                        <div className="settings-row">
-                            <label>字体大小：</label>
-                            <Input placeholder="如 16px" style={{ width: 180 }} />
-                        </div>
-                        <div className="settings-row">
-                            <label>风格：</label>
-                            <Select placeholder="请选择风格" style={{ width: 180 }}>
-                                <Option value="light">明亮</Option>
-                                <Option value="dark">暗色</Option>
-                                <Option value="custom">自定义</Option>
-                            </Select>
+                        <div className="settings-group">
+                            <h4 className="settings-group-title">主题设置</h4>
+                            <div className="settings-item-full">
+                                <label>风格</label>
+                                <Select defaultValue="light" style={{ width: '100%' }}>
+                                    <Option value="light">明亮</Option>
+                                    <Option value="dark">暗色</Option>
+                                    <Option value="custom">自定义</Option>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                 </RightScreenContainer>
@@ -50,27 +61,83 @@ export default function RightScreen({ content, onClick }) {
         case 'localModelManagement':
             return (
                 <RightScreenContainer onClick={onClick}>
-                    <h3>本地模型管理</h3>
+                    <div className="settings-header">
+                        <h3>本地模型管理</h3>
+                        <p>管理已下载的本地模型</p>
+                    </div>
                     <div className="settings-form">
-                        <div className="settings-row">
-                            <label>模型名称：</label>
-                            <Input placeholder="模型名称" style={{ width: 200 }} />
+                        <div className="settings-group">
+                            <h4 className="settings-group-title">添加新模型</h4>
+                            <div className="settings-grid">
+                                <div className="settings-item">
+                                    <label>模型名称</label>
+                                    <Input placeholder="模型名称" style={{ width: '100%' }} />
+                                </div>
+                                <div className="settings-item">
+                                    <label>模型路径</label>
+                                    <Input placeholder="模型路径" style={{ width: '100%' }} />
+                                </div>
+                                <div className="settings-item">
+                                    <label>模型类型</label>
+                                    <Select defaultValue="llm" style={{ width: '100%' }}>
+                                        <Option value="llm">LLM</Option>
+                                        <Option value="embedding">Embedding</Option>
+                                        <Option value="rerank">Rerank</Option>
+                                    </Select>
+                                </div>
+                                <div className="settings-item">
+                                    <label>文件大小</label>
+                                    <Input placeholder="1.2GB" style={{ width: '100%' }} />
+                                </div>
+                            </div>
+                            <div className="settings-action">
+                                <Button type="primary" 
+                                        icon={<PlusOutlined />}
+                                        color = "cyan"
+                                        variant='solid'>
+                                            添加模型
+                                </Button>
+                            </div>
                         </div>
-                        <div className="settings-row">
-                            <label>模型路径：</label>
-                            <Input placeholder="模型路径" style={{ width: 200 }} />
-                        </div>
-                        <div className="settings-row">
-                            <label>模型类型：</label>
-                            <Select placeholder="请选择类型" style={{ width: 200 }}>
-                                <Option value="llm">LLM</Option>
-                                <Option value="embedding">Embedding</Option>
-                                <Option value="rerank">Rerank</Option>
-                            </Select>
-                        </div>
-                        <div className="settings-row">
-                            <label>文件大小：</label>
-                            <Input placeholder="如 1.2GB" style={{ width: 200 }} />
+                        
+                        <div className="settings-group">
+                            <h4 className="settings-group-title">已安装模型</h4>
+                            <div className="model-table">
+                                <div className="model-table-header">
+                                    <div className="model-table-cell">模型名称</div>
+                                    <div className="model-table-cell">类型</div>
+                                    <div className="model-table-cell">文件大小</div>
+                                    <div className="model-table-cell">状态</div>
+                                    <div className="model-table-cell">操作</div>
+                                </div>
+                                <div className="model-table-row">
+                                    <div className="model-table-cell">deepseek-7b</div>
+                                    <div className="model-table-cell">LLM</div>
+                                    <div className="model-table-cell">3.8GB</div>
+                                    <div className="model-table-cell"><span className="status-active">已加载</span></div>
+                                    <div className="model-table-cell">
+                                        <Button size="small" danger icon={<DeleteOutlined />} />
+                                    </div>
+                                </div>
+                                <div className="model-table-row">
+                                    <div className="model-table-cell">bge-large</div>
+                                    <div className="model-table-cell">Embedding</div>
+                                    <div className="model-table-cell">1.2GB</div>
+                                    <div className="model-table-cell"><span className="status-active">已加载</span></div>
+                                    <div className="model-table-cell">
+                                        <Button size="small" danger icon={<DeleteOutlined />} />
+                                    </div>
+                                </div>
+                                <div className="model-table-row">
+                                    <div className="model-table-cell">rerank-v1</div>
+                                    <div className="model-table-cell">Rerank</div>
+                                    <div className="model-table-cell">0.8GB</div>
+                                    <div className="model-table-cell"><span className="status-inactive">未加载</span></div>
+                                    <div className="model-table-cell">
+                                        <Button size="small" danger icon={<DeleteOutlined />} />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </RightScreenContainer>
@@ -78,23 +145,31 @@ export default function RightScreen({ content, onClick }) {
         case 'searchSettings':
             return (
                 <RightScreenContainer onClick={onClick}>
-                    <h3>检索设置</h3>
+                    <div className="settings-header">
+                        <h3>检索设置</h3>
+                        <p>配置文档检索的相关参数</p>
+                    </div>
                     <div className="settings-form">
-                        <div className="settings-row">
-                            <label>检索上限：</label>
-                            <Input type="number" min={1} max={100} placeholder="10" style={{ width: 120 }} />
-                        </div>
-                        <div className="settings-row">
-                            <label>嵌入模型：</label>
-                            <EmbeddingModelList />
-                        </div>
-                        <div className="settings-row">
-                            <label>重排模型：</label>
-                            <Select placeholder="请选择Rerank模型" style={{ width: 200 }}>
-                                <Option value="rerank1">rerank1</Option>
-                                <Option value="rerank2">rerank2</Option>
-                                <Option value="none">无</Option>
-                            </Select>
+                        <div className="settings-group">
+                            <h4 className="settings-group-title">基础设置</h4>
+                            <div className="settings-grid">
+                                <div className="settings-item">
+                                    <label>检索上限</label>
+                                    <Input type="number" defaultValue={10} min={1} max={100} style={{ width: '100%' }} />
+                                </div>
+                                <div className="settings-item">
+                                    <label>嵌入模型</label>
+                                    <EmbeddingModelList />
+                                </div>
+                                <div className="settings-item">
+                                    <label>重排模型</label>
+                                    <Select defaultValue="none" style={{ width: '100%' }}>
+                                        <Option value="rerank1">rerank1</Option>
+                                        <Option value="rerank2">rerank2</Option>
+                                        <Option value="none">无</Option>
+                                    </Select>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </RightScreenContainer>
@@ -102,9 +177,17 @@ export default function RightScreen({ content, onClick }) {
         case 'conversationSettings':
             return (
                 <RightScreenContainer onClick={onClick}>
-                    <h3>对话模型设置</h3>
+                    <div className="settings-header">
+                        <h3>对话模型设置</h3>
+                        <p>配置对话模型的相关参数</p>
+                    </div>
                     <div className="settings-form">
-                        <GenerationModelList />
+                        <div className="settings-group">
+                            <h4 className="settings-group-title">模型设置</h4>
+                            <div className="settings-item-full">
+                                <GenerationModelList />
+                            </div>
+                        </div>
                     </div>
                 </RightScreenContainer>
             );
@@ -150,7 +233,7 @@ function RightScreenContainer({ children, onClick }) {
 // 支持多个嵌入模型的输入与选择
 function EmbeddingModelList() {
     const [models, setModels] = useState([
-        { name: '', type: 'bge' }
+        { name: 'bge-large', type: 'bge' }
     ]);
     const handleChange = (idx, key, value) => {
         const arr = [...models];
@@ -160,12 +243,12 @@ function EmbeddingModelList() {
     const addModel = () => setModels([...models, { name: '', type: 'bge' }]);
     const removeModel = idx => setModels(models.filter((_, i) => i !== idx));
     return (
-        <div style={{ width: '100%' }}>
+        <div className="model-list-container">
             {models.map((m, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+                <div key={idx} className="model-list-row">
                     <Select
                         value={m.type}
-                        style={{ width: 120, marginRight: 8 }}
+                        className="model-list-select"
                         onChange={v => handleChange(idx, 'type', v)}
                     >
                         <Option value="bge">bge</Option>
@@ -176,10 +259,11 @@ function EmbeddingModelList() {
                         value={m.name}
                         onChange={e => handleChange(idx, 'name', e.target.value)}
                         placeholder="模型名称"
-                        style={{ width: 120, marginRight: 8 }}
+                        className="model-list-input"
                     />
                     {models.length > 1 && (
                         <Button
+                            className="model-list-delete"
                             icon={<DeleteOutlined />}
                             onClick={() => removeModel(idx)}
                             size="small"
@@ -192,9 +276,11 @@ function EmbeddingModelList() {
                 icon={<PlusOutlined />} 
                 size="small" 
                 onClick={addModel} 
-                style={{ marginTop: 4, background: '#444', color: '#00b0b0', borderColor: '#555' }}
+                className="model-list-add"
+                color = "cyan"
+                variant='solid'
             >
-                添加
+                添加模型
             </Button>
         </div>
     );
@@ -203,7 +289,7 @@ function EmbeddingModelList() {
 // 支持多个生成模型的输入与选择
 function GenerationModelList() {
     const [models, setModels] = useState([
-        { name: '', type: 'deepseek', url: '', apiKey: '' }
+        { name: 'deepseek-7b', type: 'deepseek', url: 'https://api.deepseek.com', apiKey: 'sk-*****' }
     ]);
     const handleChange = (idx, key, value) => {
         const arr = [...models];
@@ -213,55 +299,71 @@ function GenerationModelList() {
     const addModel = () => setModels([...models, { name: '', type: 'deepseek', url: '', apiKey: '' }]);
     const removeModel = idx => setModels(models.filter((_, i) => i !== idx));
     return (
-        <div style={{ width: '100%' }}>
+        <div className="model-table generation-model">
+            <div className="model-table-header">
+                <div className="model-table-cell">类型</div>
+                <div className="model-table-cell">名称</div>
+                <div className="model-table-cell">接口地址</div>
+                <div className="model-table-cell">API Key</div>
+                <div className="model-table-cell">操作</div>
+            </div>
             {models.map((m, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 10, gap: 8 }}>
-                    <Select
-                        value={m.type}
-                        style={{ width: 110 }}
-                        onChange={v => handleChange(idx, 'type', v)}
-                    >
-                        <Option value="deepseek">deepseek</Option>
-                        <Option value="qwen">qwen</Option>
-                        <Option value="glm">glm</Option>
-                        <Option value="custom">自定义</Option>
-                    </Select>
-                    <Input
-                        value={m.name}
-                        onChange={e => handleChange(idx, 'name', e.target.value)}
-                        placeholder="模型名称"
-                        style={{ width: 110 }}
-                    />
-                    <Input
-                        value={m.url}
-                        onChange={e => handleChange(idx, 'url', e.target.value)}
-                        placeholder="接口地址"
-                        style={{ width: 140 }}
-                    />
-                    <Input.Password
-                        value={m.apiKey}
-                        onChange={e => handleChange(idx, 'apiKey', e.target.value)}
-                        placeholder="API Key"
-                        style={{ width: 110 }}
-                    />
-                    {models.length > 1 && (
+                <div key={idx} className="model-table-row">
+                    <div className="model-table-cell">
+                        <Select
+                            value={m.type}
+                            bordered={false}
+                            onChange={v => handleChange(idx, 'type', v)}
+                        >
+                            <Option value="deepseek">deepseek</Option>
+                            <Option value="qwen">qwen</Option>
+                            <Option value="glm">glm</Option>
+                            <Option value="custom">自定义</Option>
+                        </Select>
+                    </div>
+                    <div className="model-table-cell">
+                        <Input
+                            value={m.name}
+                            onChange={e => handleChange(idx, 'name', e.target.value)}
+                            placeholder="模型名称"
+                            bordered={false}
+                        />
+                    </div>
+                    <div className="model-table-cell">
+                        <Input
+                            value={m.url}
+                            onChange={e => handleChange(idx, 'url', e.target.value)}
+                            placeholder="接口地址"
+                            bordered={false}
+                        />
+                    </div>
+                    <div className="model-table-cell">
+                        <Input.Password
+                            value={m.apiKey}
+                            onChange={e => handleChange(idx, 'apiKey', e.target.value)}
+                            placeholder="API Key"
+                            bordered={false}
+                        />
+                    </div>
+                    <div className="model-table-cell">
                         <Button
                             icon={<DeleteOutlined />}
                             onClick={() => removeModel(idx)}
                             size="small"
                             danger
                         />
-                    )}
+                    </div>
                 </div>
             ))}
-            <Button 
-                icon={<PlusOutlined />} 
-                size="small" 
-                onClick={addModel} 
-                style={{ marginTop: 4, background: '#444', color: '#00b0b0', borderColor: '#555' }}
-            >
-                添加
-            </Button>
+            <div className="model-table-action">
+                <Button 
+                    icon={<PlusOutlined />} 
+                    type="primary"
+                    onClick={addModel}
+                >
+                    添加模型
+                </Button>
+            </div>
         </div>
     );
 }

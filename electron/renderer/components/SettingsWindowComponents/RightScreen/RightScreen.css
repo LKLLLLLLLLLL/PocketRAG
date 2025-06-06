@@ -3,117 +3,234 @@
     display: flex;
     flex: 1 1 0%;
     flex-direction: column;
-    background-color: #444444;
+    background-color: #222222;
     color: #fff;
     overflow: hidden;
     min-height: 0;
     box-sizing: border-box;
+    justify-content: center;
+    align-items: center;
 }
 
 .rightscreen-main {
-    flex: 1 1 0%;
-    background-color: #444444;
+    width: 90%;
+    height: 100%;
+    background-color: #222222;
     color: #fff;
     overflow-y: auto;
     min-height: 0;
     box-sizing: border-box;
     -webkit-app-region: no-drag;
-    padding: 36px 0 0 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    padding: 0; /* 调整内边距 */
+    margin-top: 20px;
 }
 
 .closebar-container {
     display: flex;
     justify-content: flex-end;
-    height: 30px;
+    height: 35px;
     width: 100%;
     -webkit-app-region: drag;
-    background-color: #333333;
-    border-bottom: 1px solid #555555;
+    background-color: #222222;
 }
 
 .closebutton {
     -webkit-app-region: no-drag;
     background: transparent;
     border: none;
-    color: #999;
+    color: white;
     transition: color 0.2s;
+    height: 100%;
 }
 
 .closebutton:hover {
     color: #00b0b0;
 }
 
-.settings-form {
-    background: #333333;
-    padding: 28px 36px;
-    border-radius: 8px;
-    max-width: 520px;
+.settings-header {
     width: 100%;
-    margin: 0 auto;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 18px;
-    border: 1px solid #555555;
-}
-.settings-form h3 {
-    color: #00b0b0;
-    margin-bottom: 24px;
-    width: 100%;
-    text-align: left;
-    font-size: 18px;
-    border-bottom: 1px solid #555555;
-    padding-bottom: 12px;
-}
-.settings-row {
-    display: flex;
-    align-items: center;
+    max-width: 800px;
+    margin-left: 0;
     margin-bottom: 16px;
-    width: 100%;
+    box-sizing: border-box;
 }
-.settings-row label {
-    width: 110px;
-    color: #e0e0e0;
-    font-weight: 500;
-    margin-right: 12px;
-    text-align: right;
-    flex-shrink: 0;
+
+.settings-header h3 {
+    color: #00b0b0;
+    margin-bottom: 4px;
+    font-size: 20px;
+}
+
+.settings-header p {
+    color: #aaa;
     font-size: 14px;
 }
-.settings-row input,
-.settings-row .ant-input,
-.settings-row .ant-input-password {
-    background: #222;
-    color: #eee;
-    border: 1px solid #555;
-    transition: border 0.2s;
+
+.settings-form {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
 }
-.settings-row input:focus,
-.settings-row .ant-input:focus,
-.settings-row .ant-input-password:focus {
-    border-color: #00b0b0;
-    box-shadow: 0 0 0 2px rgba(0, 176, 176, 0.2);
+
+.settings-group {
+    background: #333333;
+    border-radius: 8px;
+    padding: 16px 20px;
+    border: 1px solid #555555;
 }
-.settings-row .ant-select {
-    margin-left: 0;
+
+.settings-group-title {
+    color: #00b0b0;
+    font-size: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #555555;
 }
-.settings-row .ant-select-selector {
-    background-color: #222 !important;
-    border: 1px solid #555 !important;
-    color: #eee !important;
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 确保网格列的宽度不会超出 */
+    gap: 16px;
+    margin-bottom: 16px;
+    width: 100%; /* 确保网格宽度不会超出父容器 */
+    box-sizing: border-box;
 }
-.settings-row .ant-select-arrow {
-    color: #999 !important;
+
+.settings-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.settings-item label {
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.settings-item input,
+.settings-item select {
+    width: 100%; /* 确保输入框和选择框不会超出父容器宽度 */
+    box-sizing: border-box;
+}
+
+.settings-item-full {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.settings-item-full label {
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.settings-action {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.model-table {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #555555;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.model-table.generation-model {
+    background: #222222;
+}
+
+.model-table-header {
+    display: flex;
+    background: #444444;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 1px solid #555555;
+}
+
+.model-table-cell {
+    flex: 1;
+    padding: 0 8px;
+}
+
+.model-table-row {
+    display: flex;
+    padding: 12px;
+    border-bottom: 1px solid #555555;
+    align-items: center;
+}
+
+.model-table-row:last-child {
+    border-bottom: none;
+}
+
+.model-table-row:hover {
+    background: #444444;
+}
+
+.model-table-action {
+    padding: 16px;
+    background: #444;
+    display: flex;
+    justify-content: center;
+}
+
+.status-active {
+    color: #00b0b0;
+    background: rgba(0, 176, 176, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.status-inactive {
+    color: #aaa;
+    background: rgba(170, 170, 170, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.model-list-container {
+    width: 100%;
+}
+
+.model-list-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    width: 100%; /* 确保模型列表行不会超出父容器宽度 */
+    box-sizing: border-box;
+}
+
+.model-list-select, .model-list-input {
+    flex: 1;
+}
+
+.model-list-add {
+    margin-top: 8px;
+    background: #444;
+    color: white;
+    border-color: #555;
+}
+
+.model-list-add:hover {
+    background: #555;
+    color: white;
+    border-color: #666;
 }
 
 .welcome-container {
     width: 100%;
     max-width: 800px;
-    padding: 40px;
+    /* padding: 0 20px; 确保内边距不会导致宽度超出 */
 }
 
 .welcome-header {
@@ -137,14 +254,17 @@
 .welcome-content {
     display: flex;
     gap: 30px;
+    width: 100%; /* 确保内容宽度不会超出父容器 */
+    box-sizing: border-box;
 }
 
 .welcome-card {
     background: #333333;
     border-radius: 8px;
     padding: 24px;
-    flex: 1;
-    border: 1px solid #555555;
+    flex: 1; /* 使用 flex 布局确保卡片宽度不会超出 */
+    max-width: 48%; /* 设置最大宽度以防止超出 */
+    box-sizing: border-box;
 }
 
 .welcome-card h4 {
@@ -159,4 +279,43 @@
     color: #ddd;
     margin-bottom: 10px;
     font-size: 14px;
+}
+
+/* Antd 组件样式覆盖 */
+.settings-item .ant-input, 
+.settings-item .ant-select-selector,
+.settings-item-full .ant-input,
+.settings-item-full .ant-select-selector {
+    background: #222222;
+    color: #eee;
+    border: 1px solid #555;
+    transition: border 0.2s;
+}
+
+.settings-item .ant-input:focus, 
+.settings-item .ant-select-selector:focus,
+.settings-item-full .ant-input:focus,
+.settings-item-full .ant-select-selector:focus {
+    border-color: #00b0b0;
+    box-shadow: 0 0 0 2px rgba(0, 176, 176, 0.2);
+}
+
+.settings-item .ant-select-arrow,
+.settings-item-full .ant-select-arrow {
+    color: #999 !important;
+}
+
+.model-table .ant-input, 
+.model-table .ant-input-password,
+.model-table .ant-select-selector {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #eee !important;
+    padding: 0 !important;
+}
+
+.model-table .ant-select-selector {
+    border: none !important;
+    box-shadow: none !important;
 }

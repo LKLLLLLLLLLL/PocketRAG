@@ -43,8 +43,8 @@ export default function LeftBar({ setContent }) {
             </div>
             <div className='leftbar-footer'>
                 <div className="version-info">
-                    <p>版本 v1.0.0</p>
-                    <p>© 2023 MyApp</p>
+                    <p>Version v1.0.0</p>
+                    <p>© 2025 PocketRAG</p>
                 </div>
             </div>
         </div>

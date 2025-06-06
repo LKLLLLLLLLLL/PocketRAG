@@ -211,7 +211,9 @@ export default function MainWindowContents() {
                         maxSize={40}
                         defaultSize={30}
                         className='mainwindow-panel_1'>
-                        <div className='topbar-tools'>工具栏</div>
+                        <div className='topbar-tools'>
+
+                        </div>
                         <Doclist></Doclist>
                     </Panel>
                     <PanelResizeHandle className = 'main-panel-resize-handle'></PanelResizeHandle>
@@ -222,10 +224,10 @@ export default function MainWindowContents() {
                         className='mainwindow-panel_2'>
                         <div className='biaoqian'>
                             <div className="tabsbar-container">
-                                <TabsBar
+                                {/* <TabsBar
                                     onTabEdit={() => setContent('edit')}
                                     onTabChange={() => setContent('edit')}
-                                />
+                                /> */}
                             </div>
                         </div>
                         <MainDemo
@@ -275,7 +277,7 @@ const MainDemo = ({
                 <div className={className}>
                     <div className='maindemo-content'>
                         <PanelGroup direction="vertical" className='conversation-panelgroup'>
-                            <Panel minSize={30} maxSize={80} defaultSize={70} className='conversation-panel_1'>
+                            <Panel minSize={50} maxSize={80} defaultSize={70} className='conversation-panel_1'>
                                 <div className='conversation-container' style={{ height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', marginTop: 24 }}>
                                     <div className="chat-history" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                                         {history.map((item, idx) => (
@@ -387,7 +389,7 @@ const MainDemo = ({
                                 </div>
                             </Panel>
                             <PanelResizeHandle className = 'conversation-panel-resize-handle'/>
-                            <Panel minSize={20} maxSize={70} defaultSize={30} className='conversation-panel_2'>
+                            <Panel minSize={20} maxSize={50} defaultSize={30} className='conversation-panel_2'>
                                 {showInfo && Array.isArray(info) && info.length > 0 && typeof info[0] === 'object' && (
                                     <div className="model-info-panel">
                                         <table>
@@ -413,6 +415,7 @@ const MainDemo = ({
                                             value={inputQuestionValue}
                                             disabled={convLoading}
                                             style={{ fontSize: 16, padding: '12px', minHeight: 48, maxHeight: 120 }}
+                                            showCount="true"
                                         />
                                     </div>
                                     <div className='button-area'>
@@ -420,6 +423,8 @@ const MainDemo = ({
                                             <Button
                                                 className="model-information-button"
                                                 onClick={handleInfoClick}
+                                                color = "cyan"
+                                                variant = 'solid'
                                             >
                                                 {showInfo ? '关闭' : '信息'}
                                             </Button>
@@ -432,10 +437,10 @@ const MainDemo = ({
                                                 style={{
                                                     height: 48,
                                                     fontSize: 16,
-                                                    marginLeft: 12,
-                                                    background: convLoading ? '#ff4d4f' : undefined,
-                                                    color: convLoading ? '#fff' : undefined
-                                                }}>
+                                                    marginLeft: 12
+                                                }}
+                                                color = {convLoading ? '#00aaaa' : 'cyan'}
+                                                variant = 'solid'>
                                                 {convLoading ? '停止' : '发送'}
                                             </Button>
                                         </div>
@@ -457,6 +462,7 @@ const MainDemo = ({
                                 value={inputValue}
                                 onChange={onChange}
                                 onKeyDown={onKeyDown}
+                                color = "cyan"
                                 variant="filled">
                             </Input.Search>
                         </div>
