@@ -81,7 +81,7 @@ void Utils::setupUtf8()
     std::wcout.imbue(utf8_locale);
 
     // set the global locale to UTF-8
-    // std::locale::global(std::locale(".UTF-8"));
+    std::locale::global(std::locale(".UTF-8"));
 #else
     // set locale to UTF-8
     std::locale::global(std::locale("en_US.UTF-8"));
