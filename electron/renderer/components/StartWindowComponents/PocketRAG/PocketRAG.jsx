@@ -7,7 +7,8 @@ export default function PocketRAG(){
             <div className = 'icon-container'>
             </div>
             <div className = 'version-container'>
-                <span><p>version:v1.0</p></span>
+                <div style={{fontSize:'20px'}}>PocketRAG</div>
+                <span style = {{fontSize: '12px',color:'darkgrey'}}><p>Version: v1.0</p></span>
             </div>
         </div>
     )

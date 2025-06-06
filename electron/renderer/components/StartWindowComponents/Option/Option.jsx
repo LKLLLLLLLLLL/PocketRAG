@@ -14,10 +14,10 @@ const Option =({others,setOthers})=>{
         <div className = 'option-container'>
             <div className = 'new-container'>
                 <span className = 'new-description'>
-                    <div style = {{fontWeight: 'bond', fontSize: '20px'}}>
+                    <div style = {{fontWeight: 'bond', fontSize: '16px'}}>
                         新建
                     </div>
-                    <div style ={{fontSize: '15px',color: 'darkgrey'}}>
+                    <div style ={{fontSize: '12px',color: 'darkgrey'}}>
                         点击右侧“新建仓库”按钮，选择文件夹并建立仓库。
                     </div>
                 </span>
@@ -31,10 +31,10 @@ const Option =({others,setOthers})=>{
             </div>
             <div className = 'other-container'>
                 <span className = 'other-description'>
-                    <div style = {{fontWeight: 'bond', fontSize: '20px'}}>
+                    <div style = {{fontWeight: 'bond', fontSize: '16px'}}>
                         其他
                     </div>
-                    <div style ={{fontSize: '15px',color: 'darkgrey'}}>
+                    <div style ={{fontSize: '12px',color: 'darkgrey'}}>
                         点击右侧“其他选项”按钮，展开其他选项。
                     </div>
                 </span>

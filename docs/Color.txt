@@ -1,0 +1,44 @@
+全局样式
+    按钮和滚动条
+        按钮
+        按钮背景：#00b0b0（强调色）
+        按钮悬浮效果：
+        按钮字体
+    滚动条
+        /* 全局滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            background: #333333;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #555555;
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444444;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: #333333;
+        }
+
+开始页面（仓库选择页面）StartWindow
+    左侧
+        背景：#333333
+        仓库栏：#333333
+        仓库悬浮效果：#555555
+        仓库名称：#ffffff
+        仓库路径：darkgrey(#a9a9a9)
+    右侧
+        背景：#222222
+        图标区：#555555
+        功能标题：#ffffff
+        功能描述：darkgrey
+        软件名称：#ffffff
+        软件版本说明：darkgrey
+
+主页面MainWindow
+
+设置页面SettingsWindow

@@ -19,7 +19,7 @@
     margin-bottom: 20px;
     /* background: #444444; */
     /* box-shadow: 0 1px 4px rgba(0,0,0,0.10); */
-    padding: 12px 18px;
+    padding: 2px 18px;
 }
 
 .option-container > .other-container:last-child,
@@ -31,7 +31,7 @@
 .other-description {
     flex-grow: 1;
     color: #fff;
-    font-size: 16px;
+    font-size: 14px;
 }
 
 .new-button,
@@ -40,10 +40,10 @@
     color: #ffffff;
     border: none;
     border-radius: 6px;
-    height: 40px;
-    min-width: 100px;
+    height: 35px;
+    min-width: 80px;
     /* font-weight: bold; */
-    font-size: 16px;
+    font-size: 14px;
     /* box-shadow: 0 1px 4px rgba(0,0,0,0.10); */
     transition: background 0.2s;
 }
