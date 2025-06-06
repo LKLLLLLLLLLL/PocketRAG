@@ -78,7 +78,7 @@ public:
     static void dropTable(SqliteConnection &sqlite, const std::string &tableName);
 
     // highlight keywords in the text
-    static std::string reHighlight(const std::string &text, const std::vector<std::string> &keywords);
+    static std::string reHighlight(const std::string &text, const std::string &query);
 };
 
 

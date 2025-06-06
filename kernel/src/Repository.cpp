@@ -99,56 +99,56 @@ void Repository::updateEmbeddings(const EmbeddingConfigList &configs, bool needL
         sqliteLockPtr = std::make_shared<Utils::LockGuard>(sqliteMutex, true, true);
         repoLockPtr = std::make_shared<Utils::LockGuard>(repoMutex, true, true);
     }
+    bool changed = false;
     auto trans = sqlite->beginTransaction(); // avoid unfinished changes be readed by other threads
-    if (!configs.empty())
+    // get old embedding configs
+    std::map<EmbeddingConfig, std::pair<int, EmbeddingConfig>> oldConfigs; // id and config
+    auto stmt = sqlite->getStatement("SELECT id, config_name, model_name, model_path, input_length FROM embedding_config;");
+    while (stmt.step())
     {
-        // get old embedding configs
-        std::map<EmbeddingConfig, std::pair<int, EmbeddingConfig>> oldConfigs; // id and config
-        auto stmt = sqlite->getStatement("SELECT id, config_name, model_name, model_path, input_length FROM embedding_config;");
-        while (stmt.step())
+        EmbeddingConfig config;
+        int id = stmt.get<int>(0);
+        config.configName = stmt.get<std::string>(1);
+        config.modelName = stmt.get<std::string>(2);
+        config.modelPath = stmt.get<std::string>(3);
+        config.inputLength = stmt.get<int>(4);
+        oldConfigs[config] = {id, config};
+    }
+    // get deleted configs and add new configs
+    for (auto &newconfig : configs)
+    {
+        auto it = oldConfigs.find(newconfig);
+        if (it != oldConfigs.end())
         {
-            EmbeddingConfig config;
-            int id = stmt.get<int>(0);
-            config.configName = stmt.get<std::string>(1);
-            config.modelName = stmt.get<std::string>(2);
-            config.modelPath = stmt.get<std::string>(3);
-            config.inputLength = stmt.get<int>(4);
-            oldConfigs[config] = {id, config};
+            // finded
+            oldConfigs.erase(it);
+            continue;
         }
-        // get deleted configs
-        for (auto &newconfig : configs)
+        else
         {
-            auto it = oldConfigs.find(newconfig);
-            if (it != oldConfigs.end())
-            {
-                // finded
-                oldConfigs.erase(it);
-                continue;
-            }
-            else
-            {
-                // add new config
-                auto insertStmt = sqlite->getStatement("INSERT INTO embedding_config (config_name, model_name, model_path, input_length) VALUES (?, ?, ?, ?);");
-                insertStmt.bind(1, newconfig.configName);
-                insertStmt.bind(2, newconfig.modelName);
-                insertStmt.bind(3, newconfig.modelPath);
-                insertStmt.bind(4, newconfig.inputLength);
-                insertStmt.step();
-            }
+            // add new config
+            changed = true;
+            auto insertStmt = sqlite->getStatement("INSERT INTO embedding_config (config_name, model_name, model_path, input_length) VALUES (?, ?, ?, ?);");
+            insertStmt.bind(1, newconfig.configName);
+            insertStmt.bind(2, newconfig.modelName);
+            insertStmt.bind(3, newconfig.modelPath);
+            insertStmt.bind(4, newconfig.inputLength);
+            insertStmt.step();
         }
-        // set flag for deleted configs
-        for (auto &oldconfig : oldConfigs)
-        {
-            auto updateStmt = sqlite->getStatement("UPDATE embedding_config SET valid = 0 WHERE id = ?;");
-            updateStmt.bind(1, oldconfig.second.first);
-            updateStmt.step();
-        }
+    }
+    // set flag for deleted configs
+    for (auto &oldconfig : oldConfigs)
+    {
+        changed = true;
+        auto updateStmt = sqlite->getStatement("UPDATE embedding_config SET valid = 0 WHERE id = ?;");
+        updateStmt.bind(1, oldconfig.second.first);
+        updateStmt.step();
     }
 
     // create new vectors
     std::vector<std::shared_ptr<VectorTable>> tempVectorTables;
     std::vector<std::shared_ptr<Embedding>> tempEmbeddings;
-    auto stmt = sqlite->getStatement("SELECT id, config_name, model_path, input_length FROM embedding_config WHERE valid = 1;");
+    stmt = sqlite->getStatement("SELECT id, config_name, model_path, input_length FROM embedding_config WHERE valid = 1;");
     while (stmt.step())
     {
         int id = stmt.get<int>(0);
@@ -169,6 +169,13 @@ void Repository::updateEmbeddings(const EmbeddingConfigList &configs, bool needL
     }
     vectorTables = std::move(tempVectorTables);
     embeddings = std::move(tempEmbeddings);
+
+    if (changed)
+    {
+        // flag all documents as unchecked
+        sqlite->execute("UPDATE documents SET last_modified = NULL, last_checked = NULL;");
+    }
+
     trans.commit();
 }
 
@@ -428,11 +435,6 @@ void Repository::removeInvalidEmbedding()
             }
             chunkStmt.reset();
 
-            // set documents which corresponding to these chunks as invalid
-            auto updateDocStmt = sqlite->getStatement("UPDATE documents SET last_checked = NULL, content_hash = NULL WHERE id IN (SELECT doc_id FROM chunks WHERE embedding_id = ?);");
-            updateDocStmt.bind(1, embeddingId);
-            updateDocStmt.step();
-
             // delete invalid chunks
             for (auto chunkId : chunkIds)
             {
@@ -632,12 +634,10 @@ auto Repository::search(const std::string &query, searchAccuracy acc, int limit)
     }
 
     // mark keywords again
-    std::vector<std::string> keyWords;
-    jiebaTokenizer::cut(query, keyWords, false);
     for(auto &result : uniqueResults)
     {
-        result.highlightedContent = TextSearchTable::reHighlight(result.highlightedContent, keyWords);
-        result.highlightedMetadata = TextSearchTable::reHighlight(result.highlightedMetadata, keyWords);
+        result.highlightedContent = TextSearchTable::reHighlight(result.highlightedContent, query);
+        result.highlightedMetadata = TextSearchTable::reHighlight(result.highlightedMetadata, query);
     }
 
     return uniqueResults;
@@ -651,8 +651,8 @@ void Repository::configEmbedding(const EmbeddingConfigList &configs)
     updateEmbeddings(configs); 
     logger.debug("[Repository.configEmbedding] embedding config done");
 
-    // resume the background thread
-    startBackgroundProcess();
+    // // resume the background thread
+    // startBackgroundProcess();
 }
 
 void Repository::configReranker(const std::filesystem::path &modelPath)
@@ -662,7 +662,7 @@ void Repository::configReranker(const std::filesystem::path &modelPath)
     if(!modelPath.empty())
         rerankerModel = std::make_shared<RerankerModel>(modelPath, device, maxThreads);
     logger.debug("[Repository.configReranker] reranker model config done");
-    startBackgroundProcess();
+    // startBackgroundProcess();
 }
 
 void Repository::reConstruct(bool needLock)

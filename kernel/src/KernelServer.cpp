@@ -936,6 +936,10 @@ std::filesystem::path KernelServer::getRerankerConfigs() const
             throw Error{"Model path not found for model: " + config.modelName, Error::Type::Internal};
         }
     }
+    if(selectedCount == 0)
+    {
+        return {};
+    }
     if(selectedCount == 1)
     {
         return selectedPath;
@@ -944,10 +948,7 @@ std::filesystem::path KernelServer::getRerankerConfigs() const
     {
         throw Error{"More than one rerank config selected", Error::Type::Internal};
     }
-    else
-    {
-        throw Error{"No rerank config selected", Error::Type::Internal};
-    }
+    throw Error{"Unexpected rerank config selection state", Error::Type::Internal};
 }
 
 int KernelServer::getSearchLimit() const
@@ -1070,7 +1071,7 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
             selectedCount++;
         }
     }
-    if(selectedCount != 1)
+    if(selectedCount > 1)
     {
         throw Error{"Rerank config must have exactly one selected model.", Error::Type::Input};
     }

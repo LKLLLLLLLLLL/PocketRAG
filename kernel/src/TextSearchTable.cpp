@@ -263,39 +263,43 @@ void TextSearchTable::dropTable(SqliteConnection &sqlite, const std::string &tab
     sqlite.execute("DROP TABLE IF EXISTS " + tableName + ";"); // drop the table if exists
 }
 
-std::string TextSearchTable::reHighlight(const std::string &text, const std::vector<std::string> &keywords)
+std::string TextSearchTable::reHighlight(const std::string &text, const std::string &query)
 {
-    if (text.empty() || keywords.empty())
+    if (text.empty() || query.empty())
     {
         return text;
     }
     std::string result = text;
     
+    // gernerate kerwords
+    std::vector<std::string> keywords{};
+    jiebaTokenizer::cut(query, keywords, false);
+
     // filter kewords
-    std::vector<std::string> safeKeywords;
+    std::vector<std::string> filteredKeywords{};
     for (size_t i = 0; i < keywords.size(); ++i)
     {
-        std::string safeKeyword;
+        std::string keyword;
         for (char c : keywords[i])
         {
             if (std::isalnum(static_cast<unsigned char>(c)) || c > 127u)
             {
-                safeKeyword += c;
+                keyword += c;
             }
         }
-        if (!safeKeyword.empty())
+        if (!keyword.empty())
         {
-            safeKeywords.push_back(safeKeyword);
+            filteredKeywords.push_back(keyword);
         }
     }
-    if(safeKeywords.empty())
+    if(keywords.empty())
     {
         return result;
     }
 
     // remove duplicate and contained keywords
-    std::vector<std::string> uniqueKeywords;
-    for (const auto &keyword : safeKeywords)
+    std::vector<std::string> uniqueKeywords{};
+    for (const auto &keyword : filteredKeywords)
     {
         bool found = false;
         for (auto it = uniqueKeywords.begin(); it != uniqueKeywords.end();)
@@ -323,7 +327,7 @@ std::string TextSearchTable::reHighlight(const std::string &text, const std::vec
     // remove short keywords
     for(auto it = uniqueKeywords.begin(); it != uniqueKeywords.end();)
     {
-        if (Utils::utf8Length(*it) < MIN_KEYWORD_LENGTH)
+        if (Utils::utf8Length(*it) < MIN_KEYWORD_LENGTH && Utils::utf8Length(query) >= MIN_KEYWORD_LENGTH)
         {
             it = uniqueKeywords.erase(it);
         }

@@ -764,7 +764,7 @@ settings.json如下：
             ]
         },
         "rerankConfig" : {
-            "configs" : [ // 注意，只能有一个被选中
+            "configs" : [ // 注意，只能有一个被选中，如果没有被选中的，则默认不进行rerank
                 {
                     "modelName" : "bge-reranker-v2-m3", // refer to localModelManagement.name, NOT modelName
                     "selected" : true
