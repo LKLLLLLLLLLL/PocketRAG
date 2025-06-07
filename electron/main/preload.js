@@ -86,8 +86,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getSettings : () => ipcMain.invoke('getSettings'),
 
-  openDir : () => ipcMain.invoke('openDir')
+  openDir : () => ipcMain.invoke('openDir'),
   // get the directory the user selected
+
+  getVersion : () => ipcMain.invoke('getVersion')
+  // get the app version
 
 })
 //expose apis to the renderer process 

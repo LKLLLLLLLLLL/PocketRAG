@@ -1104,11 +1104,20 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
 
   window.loadURL(startUrl)
 
-  window.on('ready-to-show', () => {
-    console.log('ready-to-show')
-    window.show()
+  let timeout = setTimeout(() => {
+    if(!window.isVisible()) {
+      window.removeAllListeners('ready-to-show')
+      console.log('time-to-show')
+      window.show()
+    }
+  }, 500)
+  window.once('ready-to-show', () => {
+    if(!window.isVisible()) {
+      clearTimeout(timeout)
+      console.log('ready-to-show')
+      window.show()
+    }
   })
-  // window.show()
 
   return windowId
 }
@@ -1327,6 +1336,19 @@ async function openDir(event) {
 }// expose it to the renderer process
 
 
+function getVersion(event) {
+  try {
+    const versionPath = path.join(__dirname, '..', 'public', 'version.json')
+    const data = fs.readFileSync(versionPath, 'utf-8')
+    const version = JSON.parse(data)
+    return version.version
+  }catch(err) {
+    console.error('getVersion failed', err)
+    return "0.0.0"
+  }
+}
+
+
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
@@ -1365,6 +1387,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('updateHardwareSettings', updateHardwareSettings)
   ipcMain.handle('getSettings', getSettings)
   ipcMain.handle('openDir', openDir)
+  ipcMain.handle('getVersion', getVersion)
   //add the event listeners before the window is created
 
   const defaultSettingsPath = isDev
