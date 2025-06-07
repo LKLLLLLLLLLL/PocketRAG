@@ -88,7 +88,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "include": "scripts/uninstaller.nsh"
     },
     "msi": {
       "upgradeCode": "0583356a-9cdc-40ec-8586-39c26e9e8baf",
