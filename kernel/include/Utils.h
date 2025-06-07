@@ -211,11 +211,6 @@ namespace Utils
 
         // block until a message is available
         std::shared_ptr<Message> pop();
-
-        std::shared_ptr<Message> tryPop();
-
-        std::shared_ptr<Message> popFor(std::chrono::milliseconds duration);
-
         // this method will block until a message or argument cv is notified
         // if condition is true, it will return nullptr
         std::shared_ptr<Message> popWithCv(std::condition_variable *cv, std::function<bool()> condition);
@@ -252,6 +247,7 @@ namespace Utils
 
         // called by the writer thread with low priority
         // this function will try to release lock for a while, allowing priority readers to acquire the lock
+        // gurantee that during yielding, no other thread can acquire a write lock
         // if priority writers are waiting, please call hasWriteWaiters() to check if there are any priority writers waiting instead of using this function
         void yield(bool priority, bool write);
 
@@ -276,10 +272,11 @@ namespace Utils
         LockGuard &operator=(const LockGuard &) = delete;
 
         // called by low priority writer thread to yield the lock for high priority readers
+        // gurantee that during yielding, no other thread can acquire a write lock
         void yield();
 
         // called by low priority reader/writer thread to check if there are any priority writers waiting
-        // if return true, it means you have to exit the lock and wait for priority writers to finish
+        // if return true, it means you have to exit to release the lock, wait for priority writers to finish
         bool needRelease();
     };
 
@@ -288,54 +285,56 @@ namespace Utils
     // when error handler is called, the work function will turn to pause state
     class WorkerThread
     {
+    public:
+        enum class State {
+            Running, // work function is running -- the control is in work function
+            Paused, // waiting for wakeup, the control is in workFuncWrapper
+            Return // the workFuncWrapper has returned, or has not been started yet
+        };
     private:
         std::thread thread;
-        mutable std::mutex mutex;
-        std::condition_variable cv;
-        std::atomic<bool> wakeUpFlag = false;
-        std::atomic<bool> shutdownFlag = false;
-        std::atomic<bool> retFlag = false; // flag to notice workfunction to return
-        std::atomic<bool> is_running = false; // flag if std::thread object is not return
-        std::atomic<bool> is_waiting = false; // flag if thread is waiting for wakeup
-
         const std::string threadName;
 
-        std::function<void(std::atomic<bool> &, WorkerThread&)> workFunction;
+        mutable std::mutex mutex;
+        std::condition_variable pauseCondition;
+        State currentState = State::Return;
+        State nextState = State::Running;
+        // std::atomic<bool> retFlag = false; // flag to notice workfunction to return
+
+        std::function<void(std::function<bool()> retFlag, WorkerThread& self)> workFunction;
         std::function<void(const std::exception&)> errorHandler;
 
         std::condition_variable notice; // condition variable used internal work function
-        std::atomic<bool> noticeFlag = false;
+        bool noticeFlag = false;
 
         static thread_local WorkerThread* currentThread;
 
         // wrapper to make work function exception safe and support pause and wakeup
         void workFuncWrapper();
     public:
-        WorkerThread(const std::string& threadName, std::function<void(std::atomic<bool>&, WorkerThread&)> workFunction, std::function<void(const std::exception& e)> errorHandler = nullptr) : workFunction(workFunction), errorHandler(errorHandler), threadName(threadName){}
+        WorkerThread(const std::string& threadName, std::function<void(std::function<bool()> retFlag, WorkerThread& self)> workFunction, std::function<void(const std::exception& e)> errorHandler = nullptr) : workFunction(workFunction), errorHandler(errorHandler), threadName(threadName){}
 
         ~WorkerThread();
 
+        // start to run the workfunction, if paused, it will wake up the thread
         void start();
+        // this method will make work thread return but will not join the thread
+        // can be called in work function to stop itself safely
+        void stop();
         // This method will stop workfunction but will not destroy the thread
         void pause();
-        void wakeUp();
-        // this method will make work thread return but will not join the thread
-        void stop();
-        // this method will make work thread return and destroy the thread
-        void shutdown();
+        // this method will wake up the work the paused thread
+        void wakeUp(bool needLock = true);
+
         void notify();
         void wait();
-        void wait_for(std::chrono::milliseconds duration);
-
-        bool isRunning() const;
-        std::condition_variable& getNotice();
+        std::condition_variable& getNoticeCv();
         bool hasNotice() const;
 
-        static Utils::WorkerThread* getCurrentThread();
-    };
+        bool isActive() const;
 
-    // a non-blocking check for input
-    bool hasInput();
+        static Utils::WorkerThread *getCurrentThread();
+    };
 
     void setThreadName(const std::string &name);
 

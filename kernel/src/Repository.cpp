@@ -12,7 +12,15 @@
 #include "DocPipe.h"
 #include "Utils.h"
 
-Repository::Repository(std::string repoName, std::filesystem::path repoPath, Utils::PriorityMutex& sqliteMutex,  int maxThreads, ONNXModel::device device, std::function<void(std::vector<std::string>)> docStateReporter, std::function<void(std::string, double)> progressReporter, std::function<void(std::string)> doneReporter) : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter), doneReporter(doneReporter), sqliteMutex(sqliteMutex), device(device), maxThreads(maxThreads)
+Repository::Repository(std::string repoName, std::filesystem::path repoPath, Utils::PriorityMutex &sqliteMutex,
+                       int maxThreads, ONNXModel::device device, // ONNX performance config
+                       std::function<void(std::exception_ptr)> errorCallback,
+                       std::function<void(std::vector<std::string>)> docStateReporter,
+                       std::function<void(std::string, double)> progressReporter,
+                       std::function<void(std::string)> doneReporter)
+    : repoName(repoName), repoPath(repoPath), docStateReporter(docStateReporter), progressReporter(progressReporter),
+      doneReporter(doneReporter), sqliteMutex(sqliteMutex), device(device), maxThreads(maxThreads),
+      errorCallback(errorCallback)
 {
     // initialize sqliteDB
     initializeSqlite();
@@ -20,10 +28,7 @@ Repository::Repository(std::string repoName, std::filesystem::path repoPath, Uti
     // open text search table
     textTable = std::make_shared<TextSearchTable>(*sqlite, "text_search");
 
-    // read embeddings config from embeddings table and initialize embedding models
-    // updateEmbeddings();
-
-    // startBackgroundProcess();
+    startBackgroundProcess();
 }
 
 void Repository::initializeSqlite(bool needLock)
@@ -180,15 +185,13 @@ void Repository::updateEmbeddings(const EmbeddingConfigList &configs, bool needL
 }
 
 Repository::~Repository()
-{
-    stopBackgroundProcess();
-}
+{}
 
-void Repository::backgroundProcess(std::atomic<bool>& retFlag)
+void Repository::backgroundProcess(std::function<bool()> retFlag)
 {
     logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process started.");
     jiebaTokenizer::get_jieba_ptr();
-    while (!retFlag)
+    while (!retFlag())
     {
         std::this_thread::sleep_for(std::chrono::seconds(1)); // sleep for 1 second
         Utils::LockGuard sqlitelock(sqliteMutex, false, true);      // lock for writing
@@ -196,7 +199,7 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
 
         sqlitelock.yield();
         repoLock.yield();
-        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag)
+        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag())
         {
             continue;
         }
@@ -212,7 +215,7 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
 
         sqlitelock.yield();
         repoLock.yield();
-        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag)
+        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag())
         {
             continue;
         }
@@ -225,7 +228,7 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
 
         sqlitelock.yield();
         repoLock.yield();
-        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag)
+        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag())
         {
             continue;
         }
@@ -238,7 +241,7 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
 
         sqlitelock.yield();
         repoLock.yield();
-        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag)
+        if (sqlitelock.needRelease() || repoLock.needRelease() || retFlag())
         {
             continue;
         }
@@ -253,25 +256,9 @@ void Repository::backgroundProcess(std::atomic<bool>& retFlag)
     logger.info("[Repository.backgroundProcess] Repository " + repoName + "'s background process stopped.");
 }
 
-void Repository::suspendBackgroundProcess()
-{
-    if(backgroundThread)
-    {
-        backgroundThread->pause();
-    }
-}
-
-void Repository::stopBackgroundProcess()
-{
-    if(backgroundThread)
-    {
-        backgroundThread->shutdown();
-    }
-}
-
 void Repository::startBackgroundProcess()
 {
-    if(backgroundThread && backgroundThread->isRunning())
+    if(backgroundThread && backgroundThread->isActive())
     {
         backgroundThread->start();;
         return;
@@ -293,7 +280,7 @@ void Repository::startBackgroundProcess()
         logger.warning("[Repository.backgroundProcess] Crashed with: " + std::string(e.what()) +
                        ", restart count: " + std::to_string(restartCount) + ", restarting...");
     }; 
-    backgroundThread = std::make_shared<Utils::WorkerThread>(repoName + "-background", [this](std::atomic<bool>& retFlag, Utils::WorkerThread& _){
+    backgroundThread = std::make_shared<Utils::WorkerThread>(repoName + "-background", [this](std::function<bool()> retFlag, Utils::WorkerThread& _){
         backgroundProcess(retFlag); // no need to use condition_variable here, just run in a loop
     }, 
     errorHandler);
@@ -367,7 +354,7 @@ void Repository::checkDoc(std::queue<DocPipe>& docqueue)
         docStateReporter(changedDocs); // report changed documents
 }
 
-void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &sqliteLock, Utils::LockGuard& repoLock, std::atomic<bool> &retFlag)
+void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &sqliteLock, Utils::LockGuard& repoLock, std::function<bool()> retFlag)
 {
     // process each document in the queue
     bool changed = !docqueue.empty(); // check if there are documents to process
@@ -393,10 +380,10 @@ void Repository::refreshDoc(std::queue<DocPipe> &docqueue, Utils::LockGuard &sql
                 }
                 sqliteLock.yield();
                 repoLock.yield();
-                return retFlag;
+                return retFlag();
             }); // pass the stop flag to the process function
 
-        if(retFlag)
+        if(retFlag())
         {
             return;
         }
@@ -650,9 +637,6 @@ void Repository::configEmbedding(const EmbeddingConfigList &configs)
 
     updateEmbeddings(configs); 
     logger.debug("[Repository.configEmbedding] embedding config done");
-
-    // // resume the background thread
-    // startBackgroundProcess();
 }
 
 void Repository::configReranker(const std::filesystem::path &modelPath)
@@ -662,7 +646,6 @@ void Repository::configReranker(const std::filesystem::path &modelPath)
     if(!modelPath.empty())
         rerankerModel = std::make_shared<RerankerModel>(modelPath, device, maxThreads);
     logger.debug("[Repository.configReranker] reranker model config done");
-    // startBackgroundProcess();
 }
 
 void Repository::reConstruct(bool needLock)

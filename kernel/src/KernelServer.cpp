@@ -57,37 +57,10 @@ void KernelServer::initializeSqlite()
 KernelServer::~KernelServer()
 {
     stopAllFlag = true;
-    stopMessageSender();
-    stopMessageReceiver();
-    stopAllSessions(); // stop session threads
-    for(auto& session : sessions) // release session resuorces
-    {
-        session.second.reset();
-    }
-    sessions.clear();
-}
-
-void KernelServer::stopAllSessions()
-{
-    std::unique_lock lock(sessionMutex);
-    for(auto& session : sessions)
-    {
-        if(session.second)
-            session.second->stop();
-    }
-    for(auto& thread : sessionThreads)
-    {
-        if(thread.second)
-            thread.second->shutdown();
-    }
-    while(!crashedThreads.empty())
-    {
-        auto thread = std::move(crashedThreads.front());
-        crashedThreads.pop();
-        if(thread)
-            thread->shutdown();
-    }
     sessionThreads.clear();
+    sessions.clear();
+    sessionIdToWindowId.clear();
+    windowIdToSessionId.clear();
 }
 
 void KernelServer::run()
@@ -131,7 +104,7 @@ void KernelServer::run()
             while(!crashedThreads.empty())
             {
                 auto thread = std::move(crashedThreads.front());
-                thread->shutdown();
+                // thread->shutdown();
             }
         }
         if(message)
@@ -173,8 +146,6 @@ void KernelServer::handleMessage(nlohmann::json &json, std::shared_ptr<Utils::Ti
         auto type = json["message"]["type"].get<std::string>();
         if(stopAllFlag)
         {
-            stopMessageSender();
-            stopMessageReceiver();
             return;
         }
         else if(type == "getRepos") // get repos list
@@ -315,8 +286,7 @@ void KernelServer::handleMessage(nlohmann::json &json, std::shared_ptr<Utils::Ti
             if(it != windowIdToSessionId.end())
             {
                 auto sessionId = it->second;
-                sessions[sessionId]->stop();
-                sessionThreads[sessionId]->shutdown();
+                // sessionThreads[sessionId]->shutdown();
                 sessionThreads.erase(sessionId);
                 sessions.erase(sessionId);
                 windowIdToSessionId.erase(windowId);
@@ -492,13 +462,12 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
         return;
     }
     auto sessionId = Utils::getTimeStamp();
-    auto session = std::make_shared<Session>(sessionId, repoName, repoPath, *this, settings->getHistoryLength());
+    auto session = std::make_shared<Session>(sessionId, repoName, repoPath, *this);
     auto sessionThreadIt = sessionThreads.find(sessionId);
     sessions[sessionId] = session;
     // sessionThreads[sessionId] = std::thread(&Session::run, session);
-    auto perfconfig = settings->getPerfConfig();
     sessionThreads[sessionId] = std::make_shared<Utils::WorkerThread>("Session" + std::to_string(sessionId) + " main", 
-    [this, sessionId, perfconfig](std::atomic<bool>& stopFlag, Utils::WorkerThread& parent)
+    [this, sessionId](std::function<bool()> retFlag, Utils::WorkerThread& parent)
     {
         std::shared_ptr<Session> session;
         {
@@ -509,7 +478,7 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
             }
         }
         if (session) {
-            session->run(stopFlag, parent, perfconfig.first, perfconfig.second);
+            session->run(retFlag, parent);
         }
     },[this, sessionId](const std::exception& e)
     {
@@ -574,9 +543,9 @@ void KernelServer::openSession(int64_t windowId, const std::string &repoName, co
 void KernelServer::startMessageSender()
 {
     // messageSenderThread = std::thread(&KernelServer::messageSender, this);
-    messageSenderThread = std::make_shared<Utils::WorkerThread>("messageSender", [this](std::atomic<bool>& stopFlag, Utils::WorkerThread& parent)
+    messageSenderThread = std::make_shared<Utils::WorkerThread>("messageSender", [this](std::function<bool()> stopFlag, Utils::WorkerThread& parent)
     {
-        messageSender(stopFlag, parent);
+        messageSender(stopFlag);
     },[this](const std::exception& e)
     {
         std::lock_guard<std::mutex> lock(errorMutex);
@@ -591,25 +560,17 @@ void KernelServer::startMessageSender()
     messageSenderThread->start();
 }
 
-void KernelServer::stopMessageSender()
-{
-    kernelMessageQueue->shutdown();
-    if(messageSenderThread)
-    {
-        messageSenderThread->shutdown();
-    }
-}
-
-void KernelServer::messageSender(std::atomic<bool> &stopFlag, Utils::WorkerThread & parent)
+void KernelServer::messageSender(std::function<bool()> stopFlag)
 {
     logger.info("[KernelServer.messageSender] thread started.");
     std::shared_ptr<Utils::MessageQueue::Message> message = nullptr;
     while(true)
     {
-        message = kernelMessageQueue->popWithCv(&parent.getNotice(), [&stopFlag, &parent]() {
-            return parent.hasNotice();
+        auto parent = Utils::WorkerThread::getCurrentThread();
+        message = kernelMessageQueue->popWithCv(&parent->getNoticeCv(), [&stopFlag, &parent]() {
+            return parent->hasNotice();
         });
-        if(stopFlag.load())
+        if(stopFlag())
         {
             break;
         }
@@ -692,7 +653,7 @@ void KernelServer::startMessageReceiver()
 {
     // messageSenderThread = std::thread(&KernelServer::messageSender, this);
     messageReceiverThread= std::make_shared<Utils::WorkerThread>("messageReceiver",
-        [this](std::atomic<bool> &stopFlag, Utils::WorkerThread& _)  
+        [this](std::function<bool()> stopFlag, Utils::WorkerThread& _)  
         { 
             messageReceiver(stopFlag);  // polling std::cin, condition_variable is not used here
         },
@@ -709,22 +670,14 @@ void KernelServer::startMessageReceiver()
     messageReceiverThread->start();
 }
 
-void KernelServer::stopMessageReceiver()
-{
-    if(messageReceiverThread)
-    {
-        messageReceiverThread->shutdown();
-    }
-}
-
-void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
+void KernelServer::messageReceiver(std::function<bool()> stopFlag)
 {
     logger.info("[KernelServer.messageReceiver] thread started.");
     std::string input = "";
     while (true)
     {
         std::getline(std::cin, input);
-        if(stopFlag.load())
+        if(stopFlag())
         {
             break;
         }
@@ -780,7 +733,7 @@ void KernelServer::messageReceiver(std::atomic<bool> &stopFlag)
             inputJson["status"]["message"] = "Invalid message format, parser error: " + std::string(e.what());
             sendBack(inputJson);
         }
-        if (stopFlag)
+        if (stopFlag())
         {
             break;
         }
@@ -961,6 +914,16 @@ std::filesystem::path KernelServer::getRerankerConfigs() const
 int KernelServer::getSearchLimit() const
 {
     return settings->getSearchLimit();
+}
+
+int KernelServer::getHistoryLength() const
+{
+    return settings->getHistoryLength();
+}
+
+std::pair<int, ONNXModel::device> KernelServer::getPerfConfig() const
+{
+    return settings->getPerfConfig();
 }
 
 //--------------------------Settings--------------------------//

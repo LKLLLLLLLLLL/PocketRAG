@@ -10,8 +10,8 @@
     "build:kernel": "node ./scripts/buildKernel.js",
     "build": "node ./scripts/build.js"
   },
-  "author": "",
-  "license": "",
+  "author": "LKLLLLLLLLLL",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@vitejs/plugin-react": "^4.4.1",
     "adm-zip": "^0.5.16",
@@ -40,12 +40,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/PocketRAG.git"
+    "url": "https://github.com/LKLLLLLLLLLL/PocketRAG.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/PocketRAG/issues"
+    "url": "https://github.com/LKLLLLLLLLLL/PocketRAG/issues"
   },
-  "homepage": "https://github.com/yourusername/PocketRAG#readme",
+  "homepage": "https://github.com/LKLLLLLLLLLL/PocketRAG#readme",
   "build": {
     "appId": "io.github.LKLLLLLLLLLL.PocketRAG",
     "productName": "PocketRAG",

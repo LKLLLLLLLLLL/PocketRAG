@@ -57,7 +57,6 @@ private:
     void sendBack(nlohmann::json& json, std::shared_ptr<Utils::Timer> msgTimer = nullptr); // send message from server to frontend, will set "isReply" to true
 
     void openSession(int64_t windowId, const std::string &repoName, const std::string &repoPath);
-    void stopAllSessions(); // stop all session threads, but not deconstruct them
 
     std::mutex errorMutex;
     std::exception_ptr error = nullptr; // error from other threads
@@ -69,14 +68,12 @@ private:
     // this thread will transmit all messages to the frontend
     std::shared_ptr<Utils::WorkerThread> messageSenderThread;
     void startMessageSender();
-    void stopMessageSender();
-    void messageSender(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent);
+    void messageSender(std::function<bool()> stopFlag);
 
     // this thread will receive messages from frontend
     std::shared_ptr<Utils::WorkerThread> messageReceiverThread;
     void startMessageReceiver();
-    void stopMessageReceiver();
-    void messageReceiver(std::atomic<bool> &stopFlag);
+    void messageReceiver(std::function<bool()> stopFlag);
 
     class Settings;
     friend class Settings;
@@ -108,6 +105,8 @@ public:
     Repository::EmbeddingConfigList getEmbeddingConfigs() const;
     std::filesystem::path getRerankerConfigs() const;
     int getSearchLimit() const;
+    int getHistoryLength() const;
+    std::pair<int, ONNXModel::device> getPerfConfig() const;
 };
    
 /*

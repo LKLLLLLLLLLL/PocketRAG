@@ -117,3 +117,9 @@ npm run dev
 - 正确安装Nvidia驱动，并且CUDA版本为12.0或以上
 - 系统已安装CUDA运行时
 - 下载了支持CUDA加速的PocketRAG版本，或者在构建时使用了`--cuda`参数。
+
+## 许可证
+
+本项目基于 [Apache License 2.0](LICENSE) 许可证开源。
+
+使用CUDA加速版本时包含NVIDIA cuDNN库，该组件受NVIDIA软件许可协议约束。

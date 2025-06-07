@@ -59,16 +59,14 @@ void Session::doneReporter(std::string path)
 }
 
 // lazy initialization
-Session::Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer &kernelServer, int historyLength) : sessionId(sessionId), kernelServer(kernelServer), repoName(repoName), repoPath(repoPath), historyLength(historyLength)
+Session::Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer &kernelServer) : sessionId(sessionId), kernelServer(kernelServer), repoName(repoName), repoPath(repoPath)
 {
-    conversation = std::make_shared<AugmentedConversation>(repoPath / ".PocketRAG" / "conversation", *this, historyLength);
+    conversation = std::make_shared<AugmentedConversation>(repoPath / ".PocketRAG" / "conversation", *this);
     lastprintTime.store(std::chrono::steady_clock::now());
 }
 
 Session::~Session()
-{
-    stop();
-}
+{}
 
 void Session::sendBack(nlohmann::json &json, std::shared_ptr<Utils::Timer> msgTimer)
 {
@@ -91,24 +89,24 @@ void Session::execCallback(nlohmann::json &json, int64_t callbackId)
     callbackManager->callCallback(callbackId, json);
 }
 
-void Session::run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent, int maxThreads, ONNXModel::device device)
+void Session::run(std::function<bool()> stopFlag, Utils::WorkerThread &parent)
 {
     Utils::Timer timer("Session " + std::to_string(sessionId) + " started");
     // open repo
     auto docStateReporter_wrap = [this](std::vector<std::string> docs) { docStateReporter(docs); };
     auto progressReporter_wrap = [this](std::string path, double progress) { progressReporter(path, progress); };
     auto doneReporter_wrap = [this](std::string path) { doneReporter(path); };
-    repository = std::make_shared<Repository>(repoName, repoPath, mutex, maxThreads, device, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
-    config();
-    repository->setErrorCallback([this](std::exception_ptr e) {
+    auto errorCallback = [this](std::exception_ptr e) {
         {
             std::lock_guard<std::mutex> lock(errorMutex);
             repoThreadError = e;
         }
         sessionMessageQueue->shutdown();
         Utils::WorkerThread::getCurrentThread()->notify();
-    });
-    repository->startBackgroundProcess();
+    };
+    auto [maxThreads, device] = kernelServer.getPerfConfig();
+    repository = std::make_shared<Repository>(repoName, repoPath, mutex, maxThreads, device, errorCallback, docStateReporter_wrap, progressReporter_wrap, doneReporter_wrap);
+    config();
     // initialize sqlite
     auto dbPath = repoPath / ".PocketRAG" / "db";
     sqlite = std::make_shared<SqliteConnection>(dbPath.string(), repoName);
@@ -127,13 +125,13 @@ void Session::run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent, int 
     std::shared_ptr<Utils::MessageQueue::Message> message = nullptr;
     while (true)
     {
-        message = sessionMessageQueue->popWithCv(&parent.getNotice(), 
+        message = sessionMessageQueue->popWithCv(&parent.getNoticeCv(), 
             [&stopFlag, &parent]()
             {
-                return parent.hasNotice() || stopFlag.load();
+                return parent.hasNotice() || stopFlag();
             }
         );
-        if(stopFlag.load())
+        if(stopFlag())
         {
             break;
         }
@@ -264,7 +262,7 @@ void Session::handleMessage(Utils::MessageQueue::Message &message)
             };
             try
             {
-                conversation->openConversation(kernelServer.getLLMConv(modelName), sendBack, query, conversationId);
+                conversation->openConversation(kernelServer.getLLMConv(modelName), sendBack, query, conversationId, kernelServer.getHistoryLength());
                 json["status"]["code"] = "SUCCESS";
                 json["status"]["message"] = "";
             }
@@ -412,22 +410,6 @@ void Session::initializeSqlite()
 
 }
 
-void Session::stop()
-{
-    if(conversation)
-    {
-        conversation->stopConversation();
-    }
-    if(repository)
-    {
-        repository->stopBackgroundProcess();
-    }
-    if(sessionMessageQueue)
-    {
-        sessionMessageQueue->shutdown();
-    }
-}
-
 void Session::config()
 {
     // update embedding config
@@ -445,7 +427,7 @@ void Session::sendMessage(const std::shared_ptr<Utils::MessageQueue::Message>& m
 }
 
 //--------------------------AugmentedConversaion--------------------------//
-Session::AugmentedConversation::AugmentedConversation(std::filesystem::path historyDirPath, Session& session, int maxHistoryLength) : historyDirPath(historyDirPath), session(session), maxHistoryLength(maxHistoryLength)
+Session::AugmentedConversation::AugmentedConversation(std::filesystem::path historyDirPath, Session& session) : historyDirPath(historyDirPath), session(session)
 {
     if(!std::filesystem::exists(historyDirPath))
     {
@@ -458,14 +440,14 @@ Session::AugmentedConversation::~AugmentedConversation()
     stopConversation();
 }
 
-void Session::AugmentedConversation::conversationProcess(std::atomic<bool> &stopFlag)
+void Session::AugmentedConversation::conversationProcess(std::function<bool()> stopFlag)
 {
     HistoryManager historyManager(*this); // defiene history manager to make sure its destructor is called at the end of conversation
     LLMConv::TokenUsage tokenUsage = {0, 0, 0};
     try
     {
         logger.info("[Conversation] Conversation id" + std::to_string(conversationId) + " thread started.");
-        if(stopFlag)
+        if(stopFlag())
             return;
 
         // read history from disk if exists
@@ -487,7 +469,7 @@ You are a search query optimizer. Generate the most effective search keywords fo
         {
             // 2. search the documents
             historyManager.beginRetrieval("Retrieving information: " + std::to_string(searchCount + 1));
-            if (stopFlag)
+            if (stopFlag())
                 return;
             std::string toolContent = "```retieved_information\n";
             std::unordered_set<int64_t> chunkIds{}; // to avoid duplicate chunks
@@ -504,7 +486,7 @@ You are a search query optimizer. Generate the most effective search keywords fo
                     historyManager.push(Type::result, result);
                     chunkIds.insert(result.chunkId);
                 }
-                if (stopFlag)
+                if (stopFlag())
                     return;
             }
             toolContent += "```\n";
@@ -529,7 +511,7 @@ If the information is sufficient, respond with "YES". If not, respond with "NO" 
             }
             searchCount++;
         }
-        if(stopFlag)
+        if(stopFlag())
             return;
         // 4. generate the final answer
         conversation->setOptions("max_tokens", 2000);
@@ -574,24 +556,24 @@ std::string Session::AugmentedConversation::extractSearchword(const std::string 
     return answer.substr(iterQuery, iterEnd - iterQuery);
 }
 
-void Session::AugmentedConversation::openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int64_t conversationId)
+void Session::AugmentedConversation::openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int64_t conversationId, int historyLength)
 {
     conversation = conv;
     this->sendBack = sendBack;
     this->conversationId = conversationId;
     this->query = prompt;
-    if (conversationThread && conversationThread->isRunning())
+    this->maxHistoryLength = historyLength;
+    if (conversationThread && conversationThread->isActive())
     {
         conversationThread->start();
         return;
     }
     conversationThread = std::make_shared<Utils::WorkerThread>(
-        "Conversaion",
-        [this](std::atomic<bool> &stopFlag, Utils::WorkerThread & _) {
+        "Conversaion_" + std::to_string(conversationId),
+        [this](std::function<bool()> stopFlag, Utils::WorkerThread &_) {
             conversationProcess(stopFlag); // no need to use condition_variable here
         },
-        nullptr
-    );
+        nullptr);
     conversationThread->start();
 }
 
@@ -603,7 +585,7 @@ void Session::AugmentedConversation::stopConversation()
     }
     if(conversationThread)
     {
-        conversationThread->shutdown();
+        conversationThread->pause();
     }
 }
 

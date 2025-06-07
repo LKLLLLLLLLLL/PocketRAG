@@ -28,6 +28,10 @@ private:
     mutable Utils::PriorityMutex mutex; // mutex for sqlite operations
 
     std::shared_ptr<Repository> repository = nullptr; // repository instance
+    KernelServer &kernelServer;
+
+    std::mutex errorMutex;
+    std::exception_ptr repoThreadError = nullptr;
 
     std::shared_ptr<Utils::MessageQueue> sessionMessageQueue = std::make_shared<Utils::MessageQueue>(); // for session and kernel server communication
 
@@ -39,9 +43,7 @@ private:
 
     class AugmentedConversation;
     std::shared_ptr<AugmentedConversation> conversation = nullptr; // conversation instance
-    int historyLength;
 
-    KernelServer& kernelServer;
     std::shared_ptr<Utils::CallbackManager> callbackManager = std::make_shared<Utils::CallbackManager>();
     void sendBack(nlohmann::json& json, std::shared_ptr<Utils::Timer> msgTimer = nullptr);
     void send(nlohmann::json& json, Utils::CallbackManager::Callback callback);
@@ -49,20 +51,14 @@ private:
 
     void handleMessage(Utils::MessageQueue::Message& message);
 
-    std::mutex errorMutex;
-    std::exception_ptr repoThreadError = nullptr;
-
     void initializeSqlite();
 
 public:
-    Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer, int historyLength);
+    Session(int64_t sessionId, std::string repoName, std::filesystem::path repoPath, KernelServer& kernelServer);
     ~Session();
 
     // this method can only be called in one thread
-    void run(std::atomic<bool> &stopFlag, Utils::WorkerThread &parent, int maxThreads, ONNXModel::device device);
-
-    // this function can be called by another thread, it will shuddown all threads under this session
-    void stop();
+    void run(std::function<bool()> stopFlag, Utils::WorkerThread &parent);
 
     // called by kernel server, will automatically get embedding config and reranker config from kernel server
     void config();
@@ -86,19 +82,18 @@ private:
 
     std::shared_ptr<Utils::WorkerThread> conversationThread = nullptr;
 
-    // only read maxHistoryLength characters from conversation history
-    const int maxHistoryLength;
+    int maxHistoryLength = 0;
 
-    void conversationProcess(std::atomic<bool>& stopFlag);
+    void conversationProcess(std::function<bool()> stopFlag);
 
     static std::string extractSearchword(const std::string& answer);
     struct HistoryManager;
     friend struct HistoryManager;
 public:
-    AugmentedConversation(std::filesystem::path historyDirPath, Session& session, int maxHistoryLength);
+    AugmentedConversation(std::filesystem::path historyDirPath, Session& session);
     ~AugmentedConversation();
     // open a new conversation
-    void openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int64_t conversationId);
+    void openConversation(std::shared_ptr<LLMConv> conv, std::function<void(std::string, Type)> sendBack, std::string prompt, int64_t conversationId, int historyLength);
     // stop conversation and destroy conversation thread
     void stopConversation();
 };
