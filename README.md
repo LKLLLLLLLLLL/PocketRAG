@@ -13,15 +13,25 @@ PocketRAG是一个轻量的本地化RAG（检索-增强-生成）应用。不需
 
 ### 从源码构建
 
-#### Windows
+#### 环境要求
 
-环境要求：
+##### Windows：
 - Visual Studio with C++工具链
 - CMake
 - Ninja
 - Node.js
 
-为了使用MSVC工具链，请确保在**Developer Command Prompt for VS**中运行以下命令。
+为了使用MSVC工具链，请确保在**Visual Studio Developer PowerShell**中执行以下操作。
+
+##### MacOS：
+- llvm/clang++编译器
+- CMake
+- Ninja
+- Node.js
+
+为了启用OpenMP支持，请确保已通过homebrew安装llvm/clang编译器。
+
+#### 具体步骤
 
 1. 克隆仓库
     ```shell
@@ -48,66 +58,25 @@ PocketRAG是一个轻量的本地化RAG（检索-增强-生成）应用。不需
 
     ```shell
     cd .. # 返回到项目根目录
-    npm run build # 构建不使用CUDA加速的版本
+    npm run build -- 
     ```
 
-    或者
+    **可选参数**：
+    - `--cuda`：构建使用CUDA加速的版本，默认构建不使用CUDA加速。
+    - `--win [target]`：为Windows指定构建的目标格式，支持`nsis`, `msi`, `portable`。默认将以全部格式打包。
+    - `--mac [target]`：为Mac指定构建的目标格式，支持`dmg`, `zip`。默认将以全部格式打包。
 
-    ```shell
-    npm run build:cuda # 构建使用CUDA加速的版本
-    ```
+    例如：`npm run build -- --cuda --win nsis` 将构建一个使用CUDA加速的Windows NSIS安装包。
 
-    该脚本会自动下载预编译的`ONNX Runtime`库，如果使用CUDA加速版本，还会下载`cuDNN`库。
+    *注意: 由于C++内核需要在目标平台上编译，不支持跨平台构建。*
 
-    若脚本执行失败，请参考[Dependencies.md](./docs/Dependencies.md)手动安装依赖，之后再次执行构建脚本。
+5. 构建完成后，安装包将位于`dist/`目录下。
 
-#### MacOS X
+#### Troubleshooting
+关于**构建脚本**：
+- 构建脚本中将自动下载预编译的`ONNX Runtime`库，如果使用CUDA加速版本，还会下载`cuDNN`库。
 
-环境要求：
-- llvm/clang++编译器
-- CMake
-- Ninja
-- Node.js
-
-为了启用OpenMP支持，请确保已通过homebrew安装llvm/clang编译器。
-
-1. 克隆仓库
-    ```shell
-    git clone https://github.com/LKLLLLLLLLLL/PocketRAG
-    cd PocketRAG
-    ```
-
-2. 获取依赖
-
-    ```shell
-    npm install
-    git submodule update --init --recursive
-    ```
-
-3. 通过vcpkg编译依赖：
-
-    ```shell
-    ./vcpkg/bootstrap-vcpkg.sh
-    cd kernel
-    ../vcpkg/vcpkg install
-    ```
-
-4. 执行构建脚本
-
-    ```shell
-    cd .. # 返回到项目根目录
-    npm run build # 构建不使用CUDA加速的版本
-    ```
-
-    或者
-
-    ```shell
-    npm run build:cuda # 构建使用CUDA加速的版本
-    ```
-
-    该脚本会自动下载预编译的`ONNX Runtime`库。
-
-    若脚本执行失败，请参考[Dependencies.md](./docs/Dependencies.md)手动安装依赖，之后再次执行构建脚本。
+- 若脚本执行失败，请参考[Dependencies.md](./docs/Dependencies.md)手动安装依赖，之后再次执行构建脚本。
 
 ## 开发指南
 
@@ -141,3 +110,10 @@ npm run dev
 一般而言，只要是ONNX格式的模型都可以使用。目前已经测试过以下模型：
 - `BGE-m3`：适用于中文和英文的嵌入模型
 - `BGE-reranker-v2-m3`：适用于中文和英文的重排序模型
+
+### 为何无法使用CUDA加速？
+使用CUDA加速需要确保以下几点：
+- 系统是Windows平台
+- 正确安装Nvidia驱动，并且CUDA版本为12.0或以上
+- 系统已安装CUDA运行时
+- 下载了支持CUDA加速的PocketRAG版本，或者在构建时使用了`--cuda`参数。

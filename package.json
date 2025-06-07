@@ -7,10 +7,8 @@
     "dev:vite": "vite",
     "dev": "concurrently -k \"npm run dev:vite\" \"electron .\"",
     "build:vite": "vite build",
-    "build:kernel": "node ./scripts/build_kernel.js",
-    "build:kernel:cuda": "node ./scripts/build_kernel.js --cuda",
-    "build": "npm run build:vite && npm run build:kernel && electron-builder",
-    "build:cuda" : "npm run build:vite && npm run build:kernel:cuda && electron-builder"
+    "build:kernel": "node ./scripts/buildKernel.js",
+    "build": "node ./scripts/build.js"
   },
   "author": "",
   "license": "",
@@ -37,8 +35,20 @@
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^3.0.2"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/PocketRAG.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/PocketRAG/issues"
+  },
+  "homepage": "https://github.com/yourusername/PocketRAG#readme",
   "build": {
-    "appId": "com.example.pocketrag",
+    "appId": "io.github.LKLLLLLLLLLL.PocketRAG",
+    "productName": "PocketRAG",
     "files": [
       "electron/build/**/*",
       "electron/main/**/*"
@@ -61,9 +71,34 @@
       "main": "electron/main/main.js"
     },
     "compression": "normal",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "darkModeSupport": true
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "msi",
+        "portable"
+      ]
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "msi": {
+      "upgradeCode": "0583356a-9cdc-40ec-8586-39c26e9e8baf",
+      "perMachine": true,
+      "oneClick": false, 
+      "shortcutName": "PocketRAG",
+      "artifactName": "${productName}-Installer-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-v${version}-${arch}.${ext}"
     }
   }
 }
