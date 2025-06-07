@@ -16,6 +16,7 @@ const windows = new Map()
 const callbacks = new Map()
 const eventEmitter = new EventEmitter()
 console.log('stateFile is: ', stateFile)
+// define global constants such as isDev -- is developer mode, dateNow -- to generate timestamp, callbacks -- to manage callbacks(may be redundant), windows -- to manage electron windows and eventEmitter -- to communicate with main.js itself
 
 function getBackendPath() {
   const exeName = process.platform === 'win32' ? 'PocketRAG_kernel.exe' : 'PocketRAG_kernel'
@@ -28,19 +29,18 @@ function getBackendPath() {
 }
 
 let kernelPath = getBackendPath()
-
-let restartTime = 0
+let restartTime = 0 // once > 3, quit the whole app
 let kernel
 let isKernelRunning
-let isKernelManualKill = false
-let hasShownErrorDialog = false
+let isKernelManualKill = false // avoid kernel.kill() method in restartKernel method quitting the whole app
+let hasShownErrorDialog = false // avoid showing error dialog more than once
 let readyPromise = new Promise((resolve, reject) => {
   const kernelReadyListener = () => {
     eventEmitter.off('kernelReady', kernelReadyListener)
     resolve()
   }
   eventEmitter.on('kernelReady', kernelReadyListener)
-})
+}) // define variables to manage the kernel process
 
 
 function restartKernel (isKernelError){
@@ -401,7 +401,7 @@ async function stdoutListener (data) {
   }
 
 }
-//define the stdout listener for the kernel process
+//define the stdout listener for the kernel process and communicate with the renderer process if necessary
 
 
 function getRepos (event, callbackId) {
@@ -432,13 +432,13 @@ async function openRepoCheck(event, repoName) {
     }
   }
   return false
-}
+}// avoid opening the window opened
 
 
 async function openRepo (event, sessionId, repoName, repoPath){
   const callbackId = callbackRegister()
   BrowserWindow.fromWebContents(event.sender).close()
-  await initializeRepo(sessionId, repoName, repoPath)
+  await initializeRepo(sessionId, repoName, repoPath)// initialize repo before session preparation
   
   const openRepo = {
     sessionId : -1,
@@ -470,7 +470,7 @@ async function initializeRepo (sessionId, repoName, repoPath){
   else {
     console.error('Window not found from sessionId: ', sessionId)
   }
-}
+}// add repoName and repoPath attributes to the window
 
 
 async function createRepo (event) {
@@ -620,7 +620,7 @@ async function deleteRepoCheck(event, repoName) {
     }
   }
   return false
-}
+}// avoid deleting the opened window
 
 
 function deleteRepo (event, repoName){
@@ -643,6 +643,7 @@ function deleteRepo (event, repoName){
   console.log(JSON.stringify(deleteRepo) + '\n')
 }
 
+
 function getApiUsage(event, callbackId) {
   const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   const getApiUsage = {
@@ -659,6 +660,7 @@ function getApiUsage(event, callbackId) {
   kernel.stdin.write(JSON.stringify(getApiUsage) + '\n')
   console.log(JSON.stringify(getApiUsage) + '\n')
 }
+
 
 function checkSettings(event, callbackId, settings) {
   try {
@@ -683,6 +685,7 @@ function checkSettings(event, callbackId, settings) {
   }
 }
 
+
 function updateSettings(event, settings) {
   try {
     fs.writeFileSync(path.join(userDataPath, 'settings.json'), JSON.stringify(settings))
@@ -705,6 +708,7 @@ function updateSettings(event, settings) {
   }
 }
 
+
 function setApiKey(event, modelName, apiKey) {
   const callbackId = callbackRegister()
   const setApiKey = {
@@ -724,6 +728,7 @@ function setApiKey(event, modelName, apiKey) {
   console.log(JSON.stringify(setApiKey) + '\n')
 }
 
+
 function getApiKey(event, callbackId, modelName) {
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   const getApiKey = {
@@ -742,6 +747,7 @@ function getApiKey(event, callbackId, modelName) {
   kernel.stdin.write(JSON.stringify(getApiKey) + '\n')
   console.log(JSON.stringify(getApiKey) + '\n')
 }
+
 
 function testApi(event, callbackId, modelName, url, api) {
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
@@ -764,6 +770,7 @@ function testApi(event, callbackId, modelName, url, api) {
   console.log(JSON.stringify(testApi) + '\n')
 }
 
+
 function getChunksInfo(event, callbackId) {
   const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   const getChunksInfo = {
@@ -780,6 +787,7 @@ function getChunksInfo(event, callbackId) {
   kernel.stdin.write(JSON.stringify(getChunksInfo) + '\n')
   console.log(JSON.stringify(getChunksInfo) + '\n')
 }
+
 
 function getAvailableHardware(event, callbackId) {
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
@@ -799,6 +807,7 @@ function getAvailableHardware(event, callbackId) {
   console.log(JSON.stringify(getAvailableHardware) + '\n')
 }
 
+
 function updateHardwareSettings(event, settings_) {
   try {
     const data = fs.readFileSync(path.join(userDataPath, 'settings.json'), 'utf-8')
@@ -810,6 +819,7 @@ function updateHardwareSettings(event, settings_) {
   }
 }
 
+
 function getSettings(event) {
   try {
     const data = fs.readFileSync(path.join(userDataPath, 'settings.json'), 'utf-8')
@@ -820,6 +830,7 @@ function getSettings(event) {
     throw err
   }
 }
+
 
 function AreSettingsRight() {
   const settings = getSettings()
@@ -914,7 +925,7 @@ function AreSettingsRight() {
   if (typeof pf.useCoreML !== 'boolean') return false
 
   return true
-}
+}// check if the user needs default settings
 
 async function saveWindowState(window, windowType) {
   if (!window) return
@@ -931,9 +942,13 @@ async function saveWindowState(window, windowType) {
     repoName: repoName,
     repoPath: repoPath
   }
-  fs.writeFileSync(stateFile, JSON.stringify(state))
-  console.log('Window state saved:', state)  
-}
+  try {
+    fs.writeFileSync(stateFile, JSON.stringify(state))
+    console.log('Window state saved:', state)
+  }catch(err) {
+    console.error(err)
+  }
+}// record the last opened repo
 
 
 async function checkRepoList() {
@@ -945,7 +960,7 @@ async function checkRepoList() {
     }
   }
   return false
-}
+} // check if the repoList has been opened
 
 
 function createWindow (event, windowType = 'repoList', windowState = null) {
@@ -1135,7 +1150,7 @@ async function createFirstWindow() {
     console.log(err)
     createWindow()
   }
-}
+}// read the windowState file to open the last opened repo if it exactly is a repo
 
 
 function getWindowId (window) {
@@ -1146,21 +1161,24 @@ function getWindowId (window) {
   }
   return null
 }
-//get the windowId from the window object
+//get the windowId from the BrowserWindow object
 
 
 async function getReadyPromise() {
   return readyPromise
 }
 
+
 async function pathJoin(event, ...paths) {
   return path.join(...paths)
-}
+}// expose path.join to the renderer process
+
 
 function closeWindow(event) {
   const window = BrowserWindow.fromWebContents(event.sender)
   window.close()
 }
+
 
 function maximizeWindow(event) {
   const window = BrowserWindow.fromWebContents(event.sender)
@@ -1172,15 +1190,18 @@ function maximizeWindow(event) {
   }
 }
 
+
 function minimizeWindow(event) {
   const window = BrowserWindow.fromWebContents(event.sender)
   window.minimize()
 }
 
+
 function showMessageBoxSync(event, content) {
   const window = BrowserWindow.fromWebContents(event.sender)
   dialog.showMessageBoxSync(window, content)
-}
+}// expose showMessageBoxSync to the renderer process
+
 
 function generateTree(dir) {
     const items = fs.readdirSync(dir, { withFileTypes: true }).filter(item => !item.name.startsWith('.'))
@@ -1200,19 +1221,32 @@ function generateTree(dir) {
           }
         }
       }).filter(Boolean)
-}
+}// to generate the tree of files in the repo
+
 
 function getRepoFileTree(event, repoPath) {
-  let fileTreeData = generateTree(repoPath)
-  fileTreeData = [
-    {
-      title: path.basename(repoPath),
-      key: repoPath,
-      children: fileTreeData
-    }
-  ]
-  return fileTreeData
-}
+  try {
+    let fileTreeData = generateTree(repoPath)
+    fileTreeData = [
+      {
+        title: path.basename(repoPath),
+        key: repoPath,
+        children: fileTreeData
+      }
+    ]
+    return fileTreeData
+  }catch(err) {
+    console.error(err)
+    return [
+      {
+        title: path.basename(repoPath),
+        key: repoPath,
+        children: []
+      }
+    ]
+  }
+}// add the root node
+
 
 const repoWatchers = new Map()
 function watchRepoDir(event, repoPath) {
@@ -1234,7 +1268,8 @@ function watchRepoDir(event, repoPath) {
   }catch(err) {
     console.log('监听失败', err)
   }
-}
+}// listen the change of the repo files
+
 
 function unwatchRepoDir(repoPath) {
   if(repoWatchers.has(repoPath)) {
@@ -1244,32 +1279,49 @@ function unwatchRepoDir(repoPath) {
   }
 }
 
+
 function getConversation(event, repoPath) {
   const convDir = path.join(repoPath, '.PocketRAG', 'conversation')
-  if(!fs.existsSync(convDir)) return []
-  return fs.readdirSync(convDir).filter(name => name.endsWith('.json') && !name.includes('_full')).map(name => {
-    const match = name.match(/^conversation-(\d+)\.json$/)
-    return match ? match[1] : null
-  }).filter(Boolean)
-}
+  try {
+    if(!fs.existsSync(convDir)) return []
+    return fs.readdirSync(convDir).filter(name => name.endsWith('.json') && !name.includes('_full')).map(name => {
+      const match = name.match(/^conversation-(\d+)\.json$/)
+      return match ? match[1] : null
+    }).filter(Boolean)
+  }catch(err) {
+    console.error('getConversation failed: ', err)
+    return []
+  }
+}// get conversation history
+
 
 function updateFile(event, path, data) {
   try {
-    console.log('文本编辑器更新文件内容')
+    console.log('更新文件内容')
     fs.writeFileSync(path, data, {encoding: 'utf-8'})
   }catch (err) {
     console.error('更新文件失败:', err)
   }
-}
+}// expose it to the renderer process
+
 
 function getFile(event, filePath) {
   try {
     const res = fs.readFileSync(filePath, {encoding: 'utf-8'})
     return res
   }catch(err) {
-    console.err('读取文件失败:', err)
+    console.error('读取文件失败:', err)
   }
-}
+}// expose it to the renderer process
+
+
+async function openDir(event) {
+  const {canceled, filePaths} = await dialog.showOpenDialog({properties: ['openDirectory']})
+  if(!canceled) {
+    return filePaths[0]
+  }
+}// expose it to the renderer process
+
 
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
@@ -1308,12 +1360,15 @@ app.whenReady().then(async () => {
   ipcMain.on('getAvailableHardware', getAvailableHardware)
   ipcMain.handle('updateHardwareSettings', updateHardwareSettings)
   ipcMain.handle('getSettings', getSettings)
+  ipcMain.handle('openDir', openDir)
   //add the event listeners before the window is created
 
   const defaultSettingsPath = isDev
     ? path.join(__dirname, '..', 'public', 'defaultSettings.json')
     : path.join(process.resourcesPath, 'public', 'defaultSettings.json')
   const settingsPath = path.join(userDataPath, 'settings.json')
+  console.log('settings path: ', settingsPath)
+  console.log('default settings path: ', defaultSettingsPath)
   try {
     if(!fs.existsSync(settingsPath)) {
       console.log('no settings.json, copying default settings...')
@@ -1329,6 +1384,7 @@ app.whenReady().then(async () => {
     console.log('copying default settings due to error...')
     fs.copyFileSync(defaultSettingsPath, settingsPath)
   }
+  // use default settings if needed
 
   kernel = spawn(kernelPath, [], {
     cwd: path.dirname(kernelPath), // set work directory to the same as the kernel path

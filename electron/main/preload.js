@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openRepo : (sessionId, repoName, repoPath) => ipcRenderer.send('openRepo', sessionId, repoName, repoPath),
 
   onRepoInitialized : (callback) => ipcRenderer.on('repoInitialized', callback),
+  //listen repoInitialized event
 
   createRepo : () => ipcRenderer.send('createRepo'),
 
@@ -16,12 +17,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createNewWindow : (windowType) => ipcRenderer.invoke('createNewWindow', windowType),
 
   onKernelData : (callback) => ipcRenderer.on('kernelData', (_, result) => callback(result)),
+  //receive data from kernel
 
   sendSessionPreparedReply : (reply) => ipcRenderer.send('sessionPreparedReply', reply),
 
   sendEmbeddingStatusReply : (reply) => ipcRenderer.send('embeddingStatusReply', reply),
 
   kernelReadyPromise : () => ipcRenderer.invoke('kernelReadyPromise'),
+  //get kernelReadyPromise
 
   sendSessionCrashed : (error) => ipcRenderer.send('sessionCrashed', error),
 
@@ -34,6 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteRepo : (repoName) => ipcRenderer.send('deleteRepo', repoName),
 
   pathJoin : (...paths) => ipcRenderer.invoke('pathJoin', ...paths),
+  //expose path.join
 
   close : () => ipcRenderer.invoke('closeWindow'),
 
@@ -60,6 +64,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateFile : (path, data) => ipcRenderer.send('updateFile', path, data),
 
   getFile : (filePath) => ipcRenderer.invoke('getFile', filePath),
+  //get the file content
 
   deleteRepoCheck : (repoName) => ipcRenderer.invoke('deleteRepoCheck', repoName),
 
@@ -79,7 +84,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   updateHardwareSettings : (settings) => ipcMain.invoke('updateHardwareSettings', settings),
 
-  getSettings : () => ipcMain.invoke('getSettings')
+  getSettings : () => ipcMain.invoke('getSettings'),
+
+  openDir : () => ipcMain.invoke('openDir')
+  // get the directory the user selected
 
 })
 //expose apis to the renderer process 
