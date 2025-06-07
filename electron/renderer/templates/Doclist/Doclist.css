@@ -50,3 +50,65 @@
 .doclist-refresh-btn button:hover {
     background-color: #444444; /* 调整为深浅灰悬停颜色 */
 }
+
+/* 移除所有边框和轮廓线 */
+.custom-directory-tree.ant-tree,
+.custom-directory-tree .ant-tree-node-content-wrapper,
+.custom-directory-tree .ant-tree-treenode {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* 基础样式 */
+.custom-directory-tree.ant-tree {
+  background: transparent;
+  color: white;
+  padding: 0;
+}
+
+/* 目录树整行背景控制 */
+.custom-directory-tree.ant-tree-directory .ant-tree-treenode::before {
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+/* 节点文字颜色 */
+.custom-directory-tree .ant-tree-node-content-wrapper {
+  color: white !important;
+  background: transparent !important;
+  padding: 0 4px !important;
+}
+
+/* 选中节点的文字样式 */
+.custom-directory-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  color: white !important;
+  background: transparent !important;
+}
+
+/* 修复图标颜色 */
+.custom-directory-tree .ant-tree-switcher-icon svg,
+.custom-directory-tree .ant-tree-indent-unit::before {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* 移除节点展开时的背景色 */
+.custom-directory-tree .ant-tree-treenode:not(.ant-tree-treenode-selected):hover .ant-tree-node-content-wrapper {
+  background: transparent !important;
+}
+
+/* 移除树节点之间的连接线 */
+.custom-directory-tree .ant-tree-indent-unit::before {
+  border-right: none !important;
+}
+
+/* 移除树节点的折叠/展开图标背景 */
+.custom-directory-tree .ant-tree-switcher {
+  background: transparent !important;
+}
+
+/* 移除树容器的内部边框 */
+.custom-directory-tree .ant-tree-list-holder-inner {
+  border: none !important;
+}
+

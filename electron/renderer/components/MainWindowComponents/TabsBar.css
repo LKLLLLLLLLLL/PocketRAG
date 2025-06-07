@@ -7,11 +7,12 @@
 }
 
 .tabsbar {
-    width: 80%;
+    width: 90%;
     height: 35px;
-    background-color: #f0f2f5;
+    background-color: #444444;
     flex: 1;
     display: flex;
+    /* -webkit-app-region: drag; */
 }
 
 .new-tab-btn {
@@ -25,3 +26,47 @@
 .new-tab-btn:hover {
     background-color: #e6f7ff;
 }
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card >.ant-tabs-nav .ant-tabs-tab, :where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card >div>.ant-tabs-nav .ant-tabs-tab{
+    border: none;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab {
+    color: white;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab-remove{
+    color: white;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+    color : white;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card.ant-tabs-small.ant-tabs-top >.ant-tabs-nav .ant-tabs-tab {
+    border-radius: 10px 10px 0 0;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card >.ant-tabs-nav .ant-tabs-tab-active{
+    background-color: #222222;
+}
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-nav > .ant-tabs-nav-wrap{
+    height: 100%;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs >.ant-tabs-nav{
+    height: 100%;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-top >.ant-tabs-nav::before{
+    border-bottom: none;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card.ant-tabs-small >.ant-tabs-nav .ant-tabs-tab {
+    padding: none;
+}
+
+/*:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card.ant-tabs-top >.ant-tabs-nav .ant-tabs-tab+.ant-tabs-tab{
+    margin-left: none;
+} */
+

@@ -17,16 +17,19 @@
     background: none;
     color: white;
     height: 35px;
-    display: flex;
     margin-left: 0;
-    width: 80%;
-    max-width: 700px;
+    width: 100%;
     display: flex;
     align-items: center;
-    padding: 0 12px;
     margin-left: 0;
     /* border-bottom: 2px solid #555555; */
     box-sizing: border-box;
+    -webkit-app-region: drag;
+}
+.control-space{
+    width: 137px;
+    height: 100%;
+    -webkit-app-region: no-drag;
 }
 .maindemo {
     background-color: #222222;

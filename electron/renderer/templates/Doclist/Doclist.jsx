@@ -1,10 +1,44 @@
+// Doclist.jsx
 import { useState, useEffect, useRef } from 'react';
 import { Dropdown, Tree, message} from 'antd';
 import './Doclist.css';
 
 const { DirectoryTree } = Tree;
 
-export default function Doclist({ children, setSelectNode }) {
+export default function Doclist({ children, setSelectNode, selectNode, treeData, setTreeData }) {
+    const [selectedKeys, setSelectedKeys] = useState([]);
+    
+    // 当外部选择的节点变化时，更新选中状态
+    useEffect(() => {
+        if (selectNode && selectNode.key) {
+            setSelectedKeys([selectNode.key]);
+        } else {
+            setSelectedKeys([]);
+        }
+    }, [selectNode]);
+
+    // 文件树自动刷新功能
+    useEffect(() => {
+        const fetchTreeData = () => {
+            const repoPath = window.repoPath;
+            if (!repoPath) return;
+            window.electronAPI.getRepoFileTree(repoPath).then((data) => {
+                setTreeData(data);
+            });
+        };
+
+        // 设置定时刷新
+        const refreshInterval = setInterval(fetchTreeData, 5000); // 每5秒刷新一次
+
+        // 监听文件变化事件
+        window.electronAPI.onRepoFileChanged(fetchTreeData);
+
+        return () => {
+            clearInterval(refreshInterval);
+            // window.electronAPI.removeRepoFileChangedListener(fetchTreeData);
+        };
+    }, [setTreeData]);
+
     return (
         <div className="Doclist-container">
             <div className="doclist_top-container">
@@ -13,7 +47,12 @@ export default function Doclist({ children, setSelectNode }) {
                 </span>
             </div>
             <div className="doclist_main-container">
-                <RepoFileTree setSelectNode={setSelectNode} />
+                <RepoFileTree 
+                    setSelectNode={setSelectNode} 
+                    treeData={treeData} 
+                    selectedKeys={selectedKeys}
+                    setSelectedKeys={setSelectedKeys}
+                />
                 {children}
             </div>
             <div className="doclist_tools-container">
@@ -23,35 +62,10 @@ export default function Doclist({ children, setSelectNode }) {
     );
 }
 
-const RepoFileTree = ({ setSelectNode }) => {
-    const [treeData, setTreeData] = useState([]);
+const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys }) => {
     const [expandedKeys, setExpandedKeys] = useState([]);
     const [rightMenus, setRightMenus] = useState([]);
     const rightTriggerRef = useRef(null);
-
-    // 获取文件树数据
-    const fetchTreeData = (needExpand = false) => {
-        const repoPath = window.repoPath;
-        if (!repoPath) return;
-        window.electronAPI.getRepoFileTree(repoPath).then((data) => {
-            setTreeData(data);
-            if (needExpand && data && data.length > 0) {
-                setExpandedKeys([data[0].key]);
-            }
-        });
-    };
-
-    useEffect(() => {
-        let isMounted = true;
-        window.repoInitializePromise.then(() => {
-            if (!isMounted) return;
-            fetchTreeData(true);
-            window.electronAPI.onRepoFileChanged(() => fetchTreeData(false));
-            window.electronAPI.watchRepoDir(window.repoPath);
-        });
-        return () => { isMounted = false; };
-    }, []);
-
     const firstNodeKey = treeData.length > 0 ? treeData[0].key : null;
 
     // 右键菜单处理
@@ -89,10 +103,8 @@ const RepoFileTree = ({ setSelectNode }) => {
     
     // 处理左键点击
     const handleLeftClick = (keys, { node, nativeEvent }) => {
-        // 只处理文件节点（叶子节点）
-        if (node.isLeaf) {
-            setSelectNode(node);
-        }
+        setSelectNode(node);
+        setSelectedKeys([node.key]);
     };
 
     return (
@@ -103,6 +115,8 @@ const RepoFileTree = ({ setSelectNode }) => {
                 treeData={treeData}
                 onRightClick={handleRightClick}
                 onSelect={handleLeftClick}
+                selectedKeys={selectedKeys}
+                className="custom-directory-tree"
             />
             <Dropdown menu={{ items: rightMenus }} trigger={['contextMenu']}>
                 <div ref={rightTriggerRef} style={{ position: 'absolute' }} />

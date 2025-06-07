@@ -40,6 +40,32 @@ export default function MainWindowContents() {
     const [tabs, setTabs] = useState([])
     const [activeKey, setActiveKey] = useState('')
     const [fileContentMap, setFileContentMap] = useState({}); // 存储文件内容
+    const [treeData, setTreeData] = useState([]); // 存储文件树数据
+
+    // 添加文件树自动刷新功能
+    useEffect(() => {
+        const fetchTreeData = () => {
+            const repoPath = window.repoPath;
+            if (!repoPath) return;
+            window.electronAPI.getRepoFileTree(repoPath).then((data) => {
+                setTreeData(data);
+            });
+        };
+
+        // 初始加载文件树
+        fetchTreeData();
+
+        // 设置定时刷新
+        const refreshInterval = setInterval(fetchTreeData, 5000); // 每5秒刷新一次
+
+        // 监听文件变化事件
+        window.electronAPI.onRepoFileChanged(fetchTreeData);
+
+        return () => {
+            clearInterval(refreshInterval);
+            // window.electronAPI.removeRepoFileChangedListener(fetchTreeData);
+        };
+    }, []);
 
     //information related
     const handleInfoClick = async () => {
@@ -65,7 +91,8 @@ export default function MainWindowContents() {
                     key: node.key,
                     label: node.title,
                     isLeaf: node.isLeaf,
-                    filePath: node.filePath || node.key
+                    filePath: node.filePath || node.key,
+                    node: node // 存储完整的节点对象
                 }
             ]);
         }
@@ -75,10 +102,16 @@ export default function MainWindowContents() {
         setContent('edit'); // 切换到编辑模式
     };
 
-    // 处理标签切换
+    // 处理标签切换 - 同步到文件树
     const handleTabChange = (key) => {
         setActiveKey(key);
         setContent('edit'); // 切换到编辑模式
+        
+        // 找到标签对应的节点并选中
+        const tab = tabs.find(t => t.key === key);
+        if (tab && tab.node) {
+            setSelectNode(tab.node);
+        }
     };
 
     // 处理标签关闭
@@ -336,7 +369,12 @@ export default function MainWindowContents() {
                         <div className='topbar-tools'>
 
                         </div>
-                        <Doclist setSelectNode={handleFileSelect}></Doclist>
+                        <Doclist 
+                            setSelectNode={handleFileSelect} 
+                            selectNode={selectNode} 
+                            treeData={treeData}
+                            setTreeData={setTreeData}
+                        ></Doclist>
                     </Panel>
                     <PanelResizeHandle className = 'main-panel-resize-handle'></PanelResizeHandle>
                     <Panel
@@ -354,6 +392,7 @@ export default function MainWindowContents() {
                                     onNewTab={handleNewTab}
                                 />
                             </div>
+                            <div className = "control-space"></div>
                         </div>
                         <MainDemo
                             className='maindemo'
