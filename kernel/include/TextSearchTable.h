@@ -5,9 +5,6 @@
 #include <cppjieba/Jieba.hpp>
 
 #include "SqliteConnection.h"
-#include "Utils.h"
-
-extern Logger logger;
 
 /*
 This class manages a Sqlite FTS5 table for text search.

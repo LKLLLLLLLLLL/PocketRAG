@@ -57,6 +57,9 @@ models/
 # cudnn precompiled files
 **/cudnn*/
 
+# version file generated automatically
+electron/public/version.json
+
 # ------------- node.ignore --------------------
 # Logs
 logs

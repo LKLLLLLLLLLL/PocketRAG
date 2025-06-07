@@ -10,7 +10,9 @@ const enableCuda = process.argv.includes('--cuda');
 const isWin = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 
-// 目录和版本配置
+const version = require('../package.json').version;
+
+// Directory and version configuration
 const binDir = path.join(__dirname, '..', 'kernel', 'bin');
 const externalDir = path.join(__dirname, '..', 'kernel', 'external');
 const onnxruntimeDir = path.join(externalDir, 'onnxruntime');
@@ -21,7 +23,7 @@ const ONNXRUNTIME_BASE_URL = 'https://github.com/microsoft/onnxruntime/releases/
 const CUDNN_VERSION = '9.8.0.87';
 const CUDNN_CUDA_VERSION = '12';
 
-// 格式化下载速度显示
+// Format download speed display
 function formatSpeed(bytes) {
     if (bytes === 0) return '0 B/s';
     const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
@@ -178,11 +180,12 @@ async function installDependency(name, getInfo, targetDir) {
 }
 
 function getBuildCommand() {
+    const versionArgs = `-DAPP_VERSION="${version}"`
     if (isWin) {
         const preset = enableCuda ? 'release-windows-cuda' : 'release-windows';
-        return `cmake -B build --preset ${preset} && cmake --build build`;
+        return `cmake -B build --preset ${preset} ${versionArgs} && cmake --build build`;
     } else {
-        return 'cmake -B build --preset release-mac && cmake --build build';
+        return `cmake -B build --preset release-mac ${versionArgs} && cmake --build build`;
     }
 }
 

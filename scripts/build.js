@@ -5,21 +5,21 @@ const args = process.argv.slice(2);
 const useCuda = args.includes('--cuda');
 const kernelArgs = useCuda ? ['--cuda'] : [];
 
-// 保留传递给electron-builder的参数
+// Keep arguments passed to electron-builder
 const electronBuilderArgs = args.filter(arg => arg !== '--cuda');
 
-// 构建
+// Build
 async function build() {
-  console.log('📦 构建前端...');
+  console.log('\n📦 Building frontend...\n');
   await runCommand('npm', ['run', 'build:vite']);
   
-  console.log('📦 构建内核' + (useCuda ? ' (CUDA支持)' : '') + '...');
+  console.log('\n📦 Building kernel' + (useCuda ? ' (CUDA support)' : '') + '...\n');
   await runCommand('node', [path.join(__dirname, 'buildKernel.js'), ...kernelArgs]);
   
-  console.log('📦 打包应用...');
+  console.log('\n📦 Packaging application...\n');
   await runCommand('electron-builder', electronBuilderArgs);
   
-  console.log('✅ 构建完成!');
+  console.log('\n✅ Build completed!\n');
 }
 
 function runCommand(cmd, args) {
@@ -28,12 +28,12 @@ function runCommand(cmd, args) {
     
     process.on('close', code => {
       if (code === 0) resolve();
-      else reject(new Error(`命令失败: ${cmd} ${args.join(' ')}`));
+      else reject(new Error(`Command failed: ${cmd} ${args.join(' ')}`));
     });
   });
 }
 
 build().catch(err => {
-  console.error('❌ 构建失败:', err);
+  console.error('\n❌ Build failed:', err + '\n');
   process.exit(1);
 });

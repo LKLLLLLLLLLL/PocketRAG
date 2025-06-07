@@ -1,14 +1,15 @@
 {
   "name": "pocketrag",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "main": "./electron/main/main.js",
   "scripts": {
+    "gen_version": "node ./scripts/generateVersionFile.js",
     "dev:vite": "vite",
-    "dev": "concurrently -k \"npm run dev:vite\" \"electron .\"",
+    "dev": "npm run gen_version && concurrently -k \"npm run dev:vite\" \"electron .\"",
     "build:vite": "vite build",
     "build:kernel": "node ./scripts/buildKernel.js",
-    "build": "node ./scripts/build.js"
+    "build": "npm run gen_version && node ./scripts/build.js"
   },
   "author": "LKLLLLLLLLLL",
   "license": "Apache-2.0",
@@ -89,7 +90,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "include": "scripts/uninstaller.nsh"
+      "include": "electron/public/uninstaller.nsh"
     },
     "msi": {
       "upgradeCode": "0583356a-9cdc-40ec-8586-39c26e9e8baf",

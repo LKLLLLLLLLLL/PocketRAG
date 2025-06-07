@@ -574,6 +574,7 @@ Logger::Logger(const std::filesystem::path &logFileDir, bool toConsole, Level lo
         std::cerr << "Failed to open log file: " << logFilePath << ", may not record logs." << std::endl;
     }
     log("[Logger] Logger initialized with log level: " + levelToString(logLevel), Level::INFO);
+    log("Kernel version: " + std::string(KERNEL_VERSION), Level::INFO);
     cleanOldLogFiles(logFileDir);
 }
 
@@ -820,7 +821,6 @@ thread_local Utils::WorkerThread *Utils::WorkerThread::currentThread = nullptr;
 
 Utils::WorkerThread::~WorkerThread()
 {
-    // join();
     stop();
     if(thread.joinable())
     {
@@ -851,6 +851,7 @@ void Utils::WorkerThread::stop()
 
 void Utils::WorkerThread::pause()
 {
+    std::lock_guard<std::mutex> lock(mutex);
     nextState = State::Paused;
     notify();
 }

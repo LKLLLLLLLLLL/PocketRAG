@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(PocketRAG_kernel VERSION 0.0.1)
+if(NOT DEFINED APP_VERSION)
+    set(APP_VERSION "0.0.0")
+endif()
+
+project(PocketRAG_kernel VERSION ${APP_VERSION})
+
+message(STATUS "Building ${PROJECT_NAME} v${PROJECT_VERSION}")
 
 # 设置输出目录
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin) # 可执行文件输出目录
@@ -36,6 +42,10 @@ set(BUILD_SHARED_LIBS OFF)
 # 设置vcpkg工具链文件
 include(${CMAKE_CURRENT_SOURCE_DIR}/../vcpkg/scripts/buildsystems/vcpkg.cmake)
 include(CMakeFindDependencyMacro)
+
+add_compile_definitions(
+    KERNEL_VERSION="${PROJECT_VERSION}"
+)
 
 # --------------导入依赖项---------------
 # 添加自定义 SQLite 构建

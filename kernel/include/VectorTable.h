@@ -7,9 +7,6 @@
 #include <sqlite3.h>
 
 #include "SqliteConnection.h"
-#include "Utils.h"
-
-extern Logger logger;
 
 /*
 This class manages a SQLite database and several vector tables.
