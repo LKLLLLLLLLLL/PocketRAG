@@ -1083,7 +1083,8 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
 
   }
 
-  window.on('close', async () => {
+  window.on('close', async (event) => {
+    event.preventDefault() // prevent window closing immediately 
     saveWindowState(window, windowType)
     const repoPath = await window.webContents.executeJavaScript('window.repoPath')
     if(repoPath) {
@@ -1091,6 +1092,7 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
     }
     const windowCallbacks = await window.webContents.executeJavaScript('window.callbacks')
     console.log('windowCallbacks\' final size: ', windowCallbacks.size)
+    window.destroy() // skip close event and trigger closed event
   })
   console.log('create window with windowId: ', windowId, ' and windowType: ', windowType)
 
@@ -1103,8 +1105,10 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
   window.loadURL(startUrl)
 
   window.on('ready-to-show', () => {
+    console.log('ready-to-show')
     window.show()
   })
+  // window.show()
 
   return windowId
 }
