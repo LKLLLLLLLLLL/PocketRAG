@@ -10,33 +10,33 @@ export default function LeftBar({handleConversation,handleSearch,handleEdit}){
             <div className = 'leftbar'>
                 <div className = 'leftbar-up'>
                     <Button className = 'lb-button search'
-                            icon = {<SearchOutlined style = {{fontSize: 20}}></SearchOutlined>}
+                            icon = {<SearchOutlined style = {{fontSize: 20,color: 'white'}}></SearchOutlined>}
                             onClick = {handleSearch}
                             color = "default"
                             variant = 'text'>
                     </Button>
                     <Button className = 'lb-button conversation'
-                            icon = {<MessageOutlined style = {{fontSize: 20}}></MessageOutlined>}
+                            icon = {<MessageOutlined style = {{fontSize: 20,color: 'white'}}></MessageOutlined>}
                             onClick = {handleConversation}
                             color = "default"
                             variant = 'text'>
                     </Button>
                     <Button className = 'lb-button new'
                             onClick = {async() => {await window.openRepoListWindow()}}
-                            icon = {<PlusCircleOutlined style = {{fontSize: 20}}/>}
+                            icon = {<PlusCircleOutlined style = {{fontSize: 20,color: 'white'}}/>}
                             color = "default"
                             variant = 'text'>
                     </Button>
                     <Button className = 'lb-button edit'
                             onClick = {handleEdit}
-                            icon = {<EditOutlined style = {{fontSize: 20}}/>}
+                            icon = {<EditOutlined style = {{fontSize: 20,color: 'white'}}/>}
                             color = "default"
                             variant = 'text'>
                     </Button>
                 </div>
                 <div className = 'leftbar-down'>
                     <Button className = 'lb-button setting'
-                            icon = {<SettingOutlined style = {{fontSize: 20}}></SettingOutlined>}
+                            icon = {<SettingOutlined style = {{fontSize: 20,color: 'white'}}></SettingOutlined>}
                             onClick = {async() => {await window.openSettingsWindow()}}
                             color = "default"
                             variant = 'text'>

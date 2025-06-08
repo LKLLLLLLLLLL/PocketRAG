@@ -2,26 +2,27 @@ import React, { useState } from 'react';
 import { Button } from 'antd';
 import './LeftBar.css';
 import { 
-    FileOutlined, 
+    DesktopOutlined, 
     CodeOutlined, 
     SearchOutlined, 
     MessageOutlined,
+    DashboardOutlined,
     SettingOutlined
 } from '@ant-design/icons';
 
 export default function LeftBar({ setContent }) {
-    const [active, setActive] = useState('page');
+    const [active, setActive] = useState('localModelManagement');
     const handleClick = (key) => {
         setActive(key);
         setContent(key);
     };
     
     const menuItems = [
-        { key: 'page', label: '页面', icon: <FileOutlined /> },
-        { key: 'localModelManagement', label: '模型', icon: <CodeOutlined /> },
-        { key: 'searchSettings', label: '搜索', icon: <SearchOutlined /> },
-        { key: 'conversationSettings', label: '对话', icon: <MessageOutlined /> },
-        { key: 'settings', label: '高级设置', icon: <SettingOutlined /> }
+        { key: 'localModelManagement', label: '模型管理', icon: <CodeOutlined /> },
+        { key: 'searchSettings', label: '检索设置', icon: <SearchOutlined /> },
+        { key: 'conversationSettings', label: '对话设置', icon: <MessageOutlined /> },
+        { key: 'performance', label: '性能设置', icon: <DashboardOutlined /> },
+        { key: 'page', label: '页面样式', icon: <DesktopOutlined /> },
     ];
     
     return (

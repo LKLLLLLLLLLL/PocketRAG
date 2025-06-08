@@ -66,7 +66,10 @@
     padding: none;
 }
 
-/*:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card.ant-tabs-top >.ant-tabs-nav .ant-tabs-tab+.ant-tabs-tab{
-    margin-left: none;
-} */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs >.ant-tabs-nav .ant-tabs-nav-list{
+    -webkit-app-region: no-drag;
+}
 
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs >.ant-tabs-nav .ant-tabs-nav-wrap{
+    -webkit-app-region: drag;
+}

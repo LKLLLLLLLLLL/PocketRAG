@@ -112,3 +112,43 @@
   border: none !important;
 }
 
+.ant-tree-treenode:hover {
+    background-color: #444444; /* 修改悬浮时的背景颜色 */
+    color: #ffffff; /* 修改悬浮时的文本颜色 */
+}
+
+.ant-tree-treenode-selected {
+    background-color: #444444; /* 修改背景颜色 */
+    color: #ffffff; /* 修改文本颜色 */
+}
+
+.ant-tree-treenode-leave-last-selected {
+    background-color: #444444; /* 修改背景颜色 */
+    color: #ffffff; /* 修改文本颜色 */
+}
+.ant-tree-treenode-switcher-open .ant-tree-treenode-selected {
+    background-color: #444444; /* 如果节点嵌套在展开的父节点中，可以单独设置背景颜色 */
+    color: #ffffff; /* 修改文本颜色 */
+}
+.ant-tree-treenode-leave-last:hover{
+    background-color: #444444;
+}
+.ant-tree-treenode-last:hover{
+    background-color: #444444;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tree .ant-tree-treenode{
+    margin-bottom: 0;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tree .ant-tree-switcher {
+    width: 0;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tree .ant-tree-switcher .ant-tree-switcher-icon {
+    margin-left: 2px;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-tree.ant-tree-directory .ant-tree-treenode-selected .ant-tree-node-content-wrapper:before{
+    background: #444444;
+}

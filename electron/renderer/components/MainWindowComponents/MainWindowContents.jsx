@@ -80,26 +80,32 @@ export default function MainWindowContents() {
         
         setSelectNode(node);
         
-        // 检查是否已存在相同标签
-        const exists = tabs.some(tab => tab.key === node.key);
-        
-        if (!exists) {
-            // 添加新标签
-            setTabs(prev => [
-                ...prev,
-                {
-                    key: node.key,
-                    label: node.title,
-                    isLeaf: node.isLeaf,
-                    filePath: node.filePath || node.key,
-                    node: node // 存储完整的节点对象
-                }
-            ]);
+        // 只有当节点是文件（叶子节点）时才创建标签页
+        if (node.isLeaf) {
+            // 检查是否已存在相同标签
+            const exists = tabs.some(tab => tab.key === node.key);
+            
+            if (!exists) {
+                // 添加新标签
+                setTabs(prev => [
+                    ...prev,
+                    {
+                        key: node.key,
+                        label: node.title,
+                        isLeaf: node.isLeaf,
+                        filePath: node.filePath || node.key,
+                        node: node // 存储完整的节点对象
+                    }
+                ]);
+            }
+            
+            // 激活该标签
+            setActiveKey(node.key);
+            setContent('edit'); // 切换到编辑模式
+        } else {
+            // 对于文件夹节点，只更新选中状态但不创建标签页
+            // 可以在这里添加文件夹特定的处理逻辑（如果需要）
         }
-        
-        // 激活该标签
-        setActiveKey(node.key);
-        setContent('edit'); // 切换到编辑模式
     };
 
     // 处理标签切换 - 同步到文件树

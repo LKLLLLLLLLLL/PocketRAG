@@ -31,6 +31,7 @@
 .leftbar-down {
     display: flex;
     margin-top: auto;
+    background-color: #333333;
 }
 
 .lb-button {

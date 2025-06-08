@@ -319,3 +319,80 @@
     border: none !important;
     box-shadow: none !important;
 }
+
+/* 在原有CSS基础上添加以下样式 */
+.settings-hint {
+    color: #888;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.settings-warning {
+    color: #ff4d4f;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.model-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.model-name {
+    font-weight: 500;
+}
+
+.model-details {
+    font-size: 12px;
+    color: #888;
+}
+
+.model-list-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #444;
+}
+
+.model-list-row:last-child {
+    border-bottom: none;
+}
+
+.model-actions {
+    display: flex;
+    align-items: center;
+}
+
+.settings-grid .settings-item .ant-input-number {
+    width: 100%;
+}
+
+.model-table-cell .ant-switch {
+    transform: scale(0.8);
+}
+
+.settings-save-container {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 0;
+    margin-top: 20px;
+    border-top: 1px solid #444;
+}
+
+.save-button {
+    background-color: #00b0b0;
+    border-color: #00b0b0;
+}
+
+.save-button:hover {
+    background-color: #008080;
+    border-color: #008080;
+}
+
+.model-table-action {
+    padding: 16px;
+    background: #444;
+    display: flex;
+    justify-content: center;
+}
