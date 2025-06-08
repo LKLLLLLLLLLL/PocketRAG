@@ -59,6 +59,11 @@
     color: #00b0b0;
     margin-bottom: 4px;
     font-size: 20px;
+    text-align: center;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    display: flex;
 }
 
 .settings-header p {
@@ -87,15 +92,25 @@
     margin-bottom: 16px;
     padding-bottom: 8px;
     border-bottom: 1px solid #555555;
+    text-align: center;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    display: flex;
 }
 
 .settings-grid {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 16px;
     margin-bottom: 16px;
     width: 100%;
     box-sizing: border-box;
+}
+
+label{
+    width: 120px;
 }
 
 .settings-item {
@@ -141,6 +156,39 @@
     padding: 0 8px;
     display: flex;
     align-items: center;
+}
+
+.model-table-cell.cell-name {
+    flex: 1.2 1 0;
+    min-width: 80px;
+    max-width: 140px;
+}
+.model-table-cell.cell-model {
+    flex: 1.2 1 0;
+    min-width: 100px;
+    max-width: 160px;
+}
+.model-table-cell.cell-url {
+    flex: 2.5 1 0;
+    min-width: 180px;
+    max-width: 320px;
+}
+.model-table-cell.cell-apikey {
+    flex: 1.5 1 0;
+    min-width: 120px;
+    max-width: 180px;
+}
+.model-table-cell.cell-action {
+    flex: 0.8 1 0;
+    min-width: 80px;
+    max-width: 120px;
+    justify-content: center;
+}
+.model-table-cell.cell-status {
+    flex: 0.7 1 0;
+    min-width: 60px;
+    max-width: 80px;
+    justify-content: center;
 }
 
 .model-table-row {
@@ -265,6 +313,11 @@
     font-size: 18px;
     border-bottom: 1px solid #555555;
     padding-bottom: 10px;
+    text-align: center;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    display: flex;
 }
 
 .welcome-card p {
@@ -424,4 +477,50 @@
 .delete-button:hover {
     background-color: rgba(255, 77, 79, 0.1) !important;
     border-color: #ff4d4f !important;
+}
+
+/* label-div样式和label居中 */
+.label-div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 120px;
+    min-width: 80px;
+}
+.label-div label {
+    text-align: center;
+    width: 100%;
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* 表格宽度限制 */
+.model-table,
+.model-table.generation-model {
+    max-width: 900px;
+    min-width: 600px;
+    margin: 0 auto;
+    overflow-x: auto;
+    box-sizing: border-box;
+}
+.model-table-header,
+.model-table-row {
+    min-width: 600px;
+    max-width: 900px;
+    box-sizing: border-box;
+}
+
+/* 保证内容自适应且不溢出 */
+.settings-header,
+.settings-form,
+.settings-group,
+.welcome-container,
+.welcome-content {
+    width: 100%;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+    overflow-x: auto;
 }

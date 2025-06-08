@@ -74,9 +74,21 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
         updateFile(v);
     };
 
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Windows/Linux: Ctrl+S，Mac: Meta+S
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                handleSave();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleSave]);
+
     return (
         <div className="dark-editor-container">
-            <div className="editor-toolbar dark-toolbar">
+            {/* <div className="editor-toolbar dark-toolbar">
                 <div className="file-info">
                     {filePath && (
                         <span className="file-path">
@@ -95,7 +107,7 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
                 >
                     保存
                 </Button>
-            </div>
+            </div> */}
             
             <div className="editor-content">
                 {isLoading ? (

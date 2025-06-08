@@ -12,7 +12,7 @@ export default function RightScreen({ content, onClick }) {
     const [performance, setPerformance] = useState([]);
     const [searchSettings, setSearchSettings] = useState([]);
     const [tempApiKeys, setTempApiKeys] = useState([]);
-    const [isSaving, setIsSaving] = useState([]);
+    const [isSaving, setIsSaving] = useState(false); // 应为false
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -409,7 +409,7 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
                 <h4 className="settings-group-title">添加新模型</h4>
                 <div className="settings-grid">
                     <div className="settings-item">
-                        <label>模型名称</label>
+                        <div className="label-div"><label>模型名称</label></div>
                         <Input 
                             placeholder="模型名称" 
                             value={newModel.name}
@@ -417,7 +417,7 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
                         />
                     </div>
                     <div className="settings-item">
-                        <label>模型路径</label>
+                        <div className="label-div"><label>模型路径</label></div>
                         <div className="path-selector">
                             <Input 
                                 readOnly
@@ -435,7 +435,7 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
                         </div>
                     </div>
                     <div className="settings-item">
-                        <label>模型类型</label>
+                        <div className="label-div"><label>模型类型</label></div>
                         <Select 
                             value={newModel.type}
                             onChange={value => handleInputChange('type', value)}
@@ -446,7 +446,7 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
                         </Select>
                     </div>
                     <div className="settings-item">
-                        <label>文件大小 (MB)</label>
+                        <div className="label-div"><label>文件大小 (MB)</label></div>
                         <Input 
                             type="number" 
                             placeholder="2200" 
@@ -521,7 +521,7 @@ function SearchSettings({
                 <h4 className="settings-group-title">基础设置</h4>
                 <div className="settings-grid">
                     <div className="settings-item">
-                        <label>检索上限</label>
+                        <div className="label-div"><label>检索上限</label></div>
                         <Input 
                             type="number" 
                             value={settings.searchLimit} 
@@ -531,7 +531,7 @@ function SearchSettings({
                         />
                     </div>
                     <div className="settings-item">
-                        <label>嵌入模型</label>
+                        <div className="label-div"><label>嵌入模型</label></div>
                         <EmbeddingModelList 
                             configs={settings.embeddingConfig?.configs} 
                             onSelect={onEmbeddingSelect}
@@ -540,7 +540,7 @@ function SearchSettings({
                         />
                     </div>
                     <div className="settings-item">
-                        <label>重排模型</label>
+                        <div className="label-div"><label>重排模型</label></div>
                         <Select 
                             style={{ width: '100%' }}
                             value={settings.rerankConfig?.configs?.find(c => c.selected)?.modelName || 'none'}
@@ -630,7 +630,7 @@ function ConversationSettings({
             <div className="settings-group">
                 <h4 className="settings-group-title">对话历史</h4>
                 <div className="settings-item">
-                    <label>历史对话长度（字符数）</label>
+                    <div className="label-div"><label>历史对话长度（字符数）</label></div>
                     <Input 
                         type="number"
                         value={settings.historyLength}
@@ -659,42 +659,42 @@ function GenerationModelList({
     return (
         <div className="model-table generation-model">
             <div className="model-table-header">
-                <div className="model-table-cell">名称</div>
-                <div className="model-table-cell">模型名称</div>
-                <div className="model-table-cell">接口地址</div>
-                <div className="model-table-cell">API Key</div>
-                <div className="model-table-cell">操作</div>
-                <div className="model-table-cell">使用中</div>
+                <div className="model-table-cell cell-name">名称</div>
+                <div className="model-table-cell cell-model">模型名称</div>
+                <div className="model-table-cell cell-url">接口地址</div>
+                <div className="model-table-cell cell-apikey">API Key</div>
+                <div className="model-table-cell cell-action">操作</div>
+                <div className="model-table-cell cell-status">使用中</div>
             </div>
             
             {models.map((model, idx) => (
                 <div key={idx} className="model-table-row">
-                    <div className="model-table-cell">
+                    <div className="model-table-cell cell-name">
                         <Input
                             value={model.name}
                             onChange={e => onSelect(model.name)}
                         />
                     </div>
-                    <div className="model-table-cell">
+                    <div className="model-table-cell cell-model">
                         <Input
                             value={model.modelName}
                             onChange={e => onSelect(model.name)}
                         />
                     </div>
-                    <div className="model-table-cell">
+                    <div className="model-table-cell cell-url">
                         <Input
                             value={model.url}
                             onChange={e => onSelect(model.name)}
                         />
                     </div>
-                    <div className="model-table-cell">
+                    <div className="model-table-cell cell-apikey">
                         <Input.Password
                             value={tempApiKeys[model.name] || ''}
                             onChange={e => onApiKeyChange(model.name, e.target.value)}
                             placeholder="输入API Key"
                         />
                     </div>
-                    <div className="model-table-cell">
+                    <div className="model-table-cell cell-action">
                         <Button 
                             onClick={() => onTestApi(model)}
                             className="test-button"
@@ -710,7 +710,7 @@ function GenerationModelList({
                             />
                         )}
                     </div>
-                    <div className="model-table-cell">
+                    <div className="model-table-cell cell-status">
                         <Switch 
                             checked={model.lastUsed} 
                             onChange={() => onSelect(model.name)}
@@ -741,7 +741,7 @@ function PerformanceSettings({ settings, onChange, onToggle }) {
             <h4 className="settings-group-title">计算资源</h4>
             <div className="settings-grid">
                 <div className="settings-item">
-                    <label>最大线程数</label>
+                    <div className="label-div"><label>最大线程数</label></div>
                     <Input 
                         type="number" 
                         value={settings.maxThreads} 
@@ -751,7 +751,7 @@ function PerformanceSettings({ settings, onChange, onToggle }) {
                     <p className="settings-hint">0 表示使用所有可用线程</p>
                 </div>
                 <div className="settings-item">
-                    <label style = {{width: '100px'}}>使用 CUDA</label>
+                    <div className="label-div"><label>使用 CUDA</label></div>
                     <Switch 
                         checked={settings.useCuda} 
                         disabled={!settings['cuda available']}
@@ -762,7 +762,7 @@ function PerformanceSettings({ settings, onChange, onToggle }) {
                     )}
                 </div>
                 <div className="settings-item">
-                    <label style = {{width: '100px'}}>使用 CoreML</label>
+                    <div className="label-div"><label>使用 CoreML</label></div>
                     <Switch 
                         checked={settings.useCoreML} 
                         disabled={!settings['coreML available']}

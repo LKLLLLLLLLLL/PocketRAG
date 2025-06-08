@@ -2,8 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './LeftBar.css';
 import {Button} from 'antd';
-import {SettingOutlined, SearchOutlined, MessageOutlined, PlusCircleOutlined, EditOutlined} from '@ant-design/icons';
-export default function LeftBar({handleConversation,handleSearch,handleEdit}){
+import {SettingOutlined, SearchOutlined, MessageOutlined, PlusCircleOutlined, EditOutlined,DatabaseOutlined} from '@ant-design/icons';
+export default function LeftBar({handleConversation,handleSearch,handleEdit,handleChunkInfo}){
     return(
         <div className = 'LeftBar-container'>
             <div className = 'empty-space'></div>
@@ -27,11 +27,17 @@ export default function LeftBar({handleConversation,handleSearch,handleEdit}){
                             color = "default"
                             variant = 'text'>
                     </Button>
-                    <Button className = 'lb-button edit'
+                    {/* <Button className = 'lb-button edit'
                             onClick = {handleEdit}
                             icon = {<EditOutlined style = {{fontSize: 20,color: 'white'}}/>}
                             color = "default"
                             variant = 'text'>
+                    </Button> */}
+                    <Button className='lb-button chunkinfo'
+                            onClick={handleChunkInfo}
+                            icon={<DatabaseOutlined style={{ fontSize: 20, color: 'white' }} />}
+                            color="default"
+                            variant='text'>
                     </Button>
                 </div>
                 <div className = 'leftbar-down'>

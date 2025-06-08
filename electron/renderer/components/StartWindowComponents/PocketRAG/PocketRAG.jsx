@@ -25,7 +25,7 @@ export default function PocketRAG() {
             <div className='version-container'>
                 <div style={{ fontSize: '20px' }}>PocketRAG</div>
                 <span style={{ fontSize: '12px', color: 'darkgrey' }}>
-                    <p>Version: {version || 'v1.0'}</p> {/* 如果 version 为空，显示默认值 */}
+                    <p>Version v{version || 'v1.0'}</p> {/* 如果 version 为空，显示默认值 */}
                 </span>
             </div>
         </div>

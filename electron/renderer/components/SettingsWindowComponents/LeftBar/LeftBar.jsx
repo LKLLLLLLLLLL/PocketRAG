@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { Button } from 'antd';
 import './LeftBar.css';
 import { 
@@ -12,6 +12,20 @@ import {
 
 export default function LeftBar({ setContent }) {
     const [active, setActive] = useState('localModelManagement');
+    const [version, setVersion] = useState('v1.0'); // 初始化版本号
+
+    useEffect(() => {
+        const fetchVersion = async () => {
+            try {
+                const data = await window.electronAPI.getVersion();
+                setVersion(data);
+            } catch (err) {
+                console.error('Error fetching version:', err);
+            }
+        };
+        fetchVersion();
+    }, []);
+
     const handleClick = (key) => {
         setActive(key);
         setContent(key);
@@ -36,7 +50,7 @@ export default function LeftBar({ setContent }) {
                         key={item.key}
                         className={`set-lb-button${active === item.key ? ' selected' : ''}`}
                         onClick={() => handleClick(item.key)}
-                        color="cyan"
+                        color="default"
                         variant='text'
                     >
                         <span className="button-icon">{item.icon}</span>
@@ -46,7 +60,7 @@ export default function LeftBar({ setContent }) {
             </div>
             <div className='leftbar-footer'>
                 <div className="version-info">
-                    <p>Version v1.0.0</p>
+                    <p>Version v{version}</p>
                     <p>© 2025 PocketRAG</p>
                 </div>
             </div>
