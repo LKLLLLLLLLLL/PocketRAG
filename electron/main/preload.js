@@ -1,4 +1,3 @@
-const { ipcMain } = require('electron')
 const { contextBridge, ipcRenderer} = require('electron/renderer')
 //import electron modules
 
@@ -82,14 +81,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   getAvailableHardware : (callbackId) => ipcRenderer.send('getAvailableHardware', callbackId),
 
-  updateHardwareSettings : (settings) => ipcMain.invoke('updateHardwareSettings', settings),
+  updateHardwareSettings : (settings) => ipcRenderer.invoke('updateHardwareSettings', settings),
 
-  getSettings : () => ipcMain.invoke('getSettings'),
+  getSettings : () => ipcRenderer.invoke('getSettings'),
 
-  openDir : () => ipcMain.invoke('openDir'),
+  openDir : () => ipcRenderer.invoke('openDir'),
   // get the directory the user selected
 
-  getVersion : () => ipcMain.invoke('getVersion')
+  getVersion : () => ipcRenderer.invoke('getVersion')
   // get the app version
 
 })
