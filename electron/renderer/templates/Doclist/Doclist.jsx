@@ -42,7 +42,7 @@ export default function Doclist({ children, setSelectNode, selectNode, treeData,
     return (
         <div className="Doclist-container">
             <div className="doclist_top-container">
-                <span>项目</span>
+                <span style = {{color: 'white'}}>{window.repoName}</span>
                 <span className="doclist-refresh-btn" style = {{float:'right'}}>
                 </span>
             </div>
