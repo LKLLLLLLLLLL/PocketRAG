@@ -3,7 +3,8 @@ const path = require('node:path')
 const {spawn} = require('node:child_process')
 const EventEmitter = require('events')
 const fs = require('node:fs')
-//import electron and node modules
+const {getInstallationTime, generateInstallationId} = require('./getInstallationId.js')
+//import electron and node modules and self-defined modules
 
 const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
 const userDataPath = isDev
@@ -15,8 +16,10 @@ const dateNow = Date.now()
 const windows = new Map()
 const callbacks = new Map()
 const eventEmitter = new EventEmitter()
+const installationId = generateInstallationId()
 console.log('stateFile is: ', stateFile)
-// define global constants such as isDev -- is developer mode, dateNow -- to generate timestamp, callbacks -- to manage callbacks(may be redundant), windows -- to manage electron windows and eventEmitter -- to communicate with main.js itself
+console.log('installationId: ', installationId)
+// define global constants such as isDev -- is developer mode, dateNow -- to generate timestamp, callbacks -- to manage callbacks(may be redundant), windows -- to manage electron windows, installationId -- to avoid opening windows out-of-date and eventEmitter -- to communicate with main.js itself
 
 function getBackendPath() {
   const exeName = process.platform === 'win32' ? 'PocketRAG_kernel.exe' : 'PocketRAG_kernel'
@@ -933,6 +936,7 @@ async function saveWindowState(window, windowType) {
   const repoName = await window.webContents.executeJavaScript('window.repoName')
   const repoPath = await window.webContents.executeJavaScript('window.repoPath')
   const state = {
+    installationId: installationId,
     x: bounds.x,
     y: bounds.y,
     width: bounds.width,
@@ -1059,7 +1063,7 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
       let settingsOptions = {
         x: Math.floor(srceenWidth * 0.25),
         y: Math.floor(screenHeight * 0.1),
-        width: 800,
+        width: 1000,
         height: 800,
         backgroundColor: '#222222',
         frame: false,
@@ -1128,6 +1132,9 @@ async function createFirstWindow() {
     const data = fs.readFileSync(stateFile, 'utf-8')
     let lastState = JSON.parse(data)
     console.log('lastState is: ', lastState)
+    if(lastState.installationId !== installationId){
+      throw new Error('installationId wrong!')
+    }
     const windowType = lastState.windowType
     const repoName = lastState.repoName
     const repoPath = lastState.repoPath
@@ -1349,6 +1356,34 @@ function getVersion(event) {
 }
 
 
+function getDirSize(event, dir) {
+  // 初始化总大小为0
+  let totalSize = 0
+
+  // 递归函数用于遍历目录
+  const walk = (currentDir) => {
+    fs.readdirSync(currentDir).forEach((item) => {
+      const itemPath = path.join(currentDir, item)
+      const stats = fs.statSync(itemPath)
+
+      if (stats.isFile()) {
+        // 累加文件大小（字节）
+        totalSize += stats.size
+      } else if (stats.isDirectory()) {
+        // 递归处理子目录
+        walk(itemPath)
+      }
+    })
+  }
+
+  // 开始遍历目录
+  walk(dir)
+
+  // 转换大小为MB并返回
+  return Math.floor(totalSize / (1024 * 1024))
+}
+
+
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
@@ -1388,6 +1423,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('getSettings', getSettings)
   ipcMain.handle('openDir', openDir)
   ipcMain.handle('getVersion', getVersion)
+  ipcMain.handle('getDirSize', getDirSize)
   //add the event listeners before the window is created
 
   const defaultSettingsPath = isDev

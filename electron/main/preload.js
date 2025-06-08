@@ -88,8 +88,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDir : () => ipcRenderer.invoke('openDir'),
   // get the directory the user selected
 
-  getVersion : () => ipcRenderer.invoke('getVersion')
+  getVersion : () => ipcRenderer.invoke('getVersion'),
   // get the app version
+
+  getDirSize : (dir) => ipcRenderer.invoke('getDirSize', dir)
+  // get the size of certain directory
 
 })
 //expose apis to the renderer process 
