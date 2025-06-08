@@ -930,6 +930,7 @@ function AreSettingsRight() {
   return true
 }// check if the user needs default settings
 
+
 async function saveWindowState(window, windowType) {
   if (!window) return
   const bounds = window.getBounds()
