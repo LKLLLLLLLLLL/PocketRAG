@@ -13,10 +13,11 @@
 
 .new-container,
 .other-container {
-    min-height: 80px;
+    margin-top: 10px;
+    min-height: 70px;
     display: flex;
     align-items: center;
-    margin-bottom: 20px;
+    /* margin-bottom: 20px; */
     /* background: #444444; */
     /* box-shadow: 0 1px 4px rgba(0,0,0,0.10); */
     padding: 2px 18px;
@@ -34,21 +35,36 @@
     font-size: 14px;
 }
 
-.new-button,
-.other-button {
+.new-button {
     background-color: #00b0b0;
     color: #ffffff;
     border: none;
     border-radius: 6px;
     height: 35px;
-    min-width: 80px;
+    min-width: 90px;
     /* font-weight: bold; */
     font-size: 14px;
     /* box-shadow: 0 1px 4px rgba(0,0,0,0.10); */
     transition: background 0.2s;
 }
 
-.new-button:hover,
-.other-button:hover {
+.other-button {
+    background-color: #555;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    height: 35px;
+    min-width: 90px;
+    /* font-weight: bold; */
+    font-size: 14px;
+    /* box-shadow: 0 1px 4px rgba(0,0,0,0.10); */
+    transition: background 0.2s;
+}
+
+.new-button:hover {
     background-color: #008888;
+}
+
+.other-button:hover {
+    background-color: #444;
 }

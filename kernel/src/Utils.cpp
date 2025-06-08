@@ -955,3 +955,140 @@ void Utils::WorkerThread::workFuncWrapper()
     }
     currentState = State::Return;
 }
+
+//---------------------------- Jieba Tokenizer -----------------------------//
+namespace jiebaTokenizer
+{
+cppjieba::Jieba *jieba = nullptr; // Global Jieba tokenizer instance
+std::mutex jiebaMutex;            // to protect jieba pointer
+}; // namespace jiebaTokenizer
+
+// FTS5 tokenizer interface functions
+int jiebaTokenizer::jieba_tokenizer_create(void *sqlite3_api, const char **azArg, int nArg, Fts5Tokenizer **ppOut)
+{
+    *ppOut = (Fts5Tokenizer *)jieba;
+    return SQLITE_OK;
+}
+void jiebaTokenizer::jieba_tokenizer_delete(Fts5Tokenizer *pTokenizer)
+{
+    // no need to free here
+}
+int jiebaTokenizer::jieba_tokenizer_tokenize(Fts5Tokenizer *pTokenizer, void *pCtx, int flags, const char *pText,
+                                             int nText, int (*xToken)(void *, int, const char *, int, int, int))
+{
+    get_jieba_ptr();
+
+    cppjieba::Jieba *jieba = (cppjieba::Jieba *)pTokenizer;
+    std::string text(pText, nText);
+    std::vector<std::string> words;
+
+    // tokenize
+    cut(text, words);
+
+    // output each token result
+    int offset = 0;
+    for (const auto &word : words)
+    {
+        size_t pos = text.find(word, offset);
+        if (pos != std::string::npos)
+        {
+            offset = pos + word.length();
+            int rc = xToken(pCtx, 0, word.c_str(), word.length(), pos, pos + word.length());
+            if (rc != SQLITE_OK)
+                return rc;
+        }
+    }
+
+    return SQLITE_OK;
+}
+
+// register jieba tokenizer to specified SQLite database
+void jiebaTokenizer::register_jieba_tokenizer(sqlite3 *db)
+{
+    static fts5_tokenizer tokenizer = {jieba_tokenizer_create, jieba_tokenizer_delete, jieba_tokenizer_tokenize};
+
+    fts5_api *fts5api = nullptr;
+    sqlite3_stmt *stmt = nullptr;
+
+    try
+    {
+        auto statement = sqlite3_prepare_v2(db, "SELECT fts5(?)", -1, &stmt, nullptr);
+        if (statement != SQLITE_OK)
+        {
+            throw Error{"Failed to prepare statement, sql error" + std::string(sqlite3_errmsg(db)),
+                        Error::Type::Database};
+        }
+        sqlite3_bind_pointer(stmt, 1, (void *)&fts5api, "fts5_api_ptr",
+                             nullptr); // bind the fts5_api pointer to the statement
+        sqlite3_step(stmt);            // execute the statement
+        sqlite3_finalize(stmt);        // finalize the statement
+
+        // register the tokenizer to the SQLite database
+        auto rc = fts5api->xCreateTokenizer(fts5api, "jieba", (void *)jieba, &tokenizer, nullptr);
+        if (rc != SQLITE_OK)
+        {
+            throw Error{"Failed to register jieba tokenizer, sql error" + std::string(sqlite3_errmsg(db)),
+                        Error::Type::Database};
+        }
+    }
+    catch (const Error &e)
+    {
+        throw Error{"Failed to register jieba tokenizer: ", Error::Type::Database} + e;
+    }
+}
+
+cppjieba::Jieba *jiebaTokenizer::get_jieba_ptr()
+{
+    if (jieba != nullptr)
+        return jieba;
+    {
+        std::lock_guard<std::mutex> lock(jiebaMutex);
+        Utils::Timer timer("[Jieba] jieba initialization");
+        if (jieba == nullptr) // initialize jieba object
+        {
+            jieba = new cppjieba::Jieba(DICT_PATH, HMM_PATH, USER_DICT_PATH, IDF_PATH,
+                                        STOP_WORD_PATH); // PATH has been defined in the cmakefile
+        }
+        timer.stop();
+    }
+    return jieba;
+}
+
+void jiebaTokenizer::cut(const std::string &text, std::vector<std::string> &words, bool needLower)
+{
+    get_jieba_ptr();
+
+    auto ltext = text;
+    if (needLower)
+        ltext = Utils::toLower(text);
+    jieba->Cut(ltext, words);
+}
+
+void jiebaTokenizer::cutForSearch(const std::string &text, std::vector<std::string> &words, bool needLower)
+{
+    get_jieba_ptr();
+
+    auto ltext = text;
+    if (needLower)
+        ltext = Utils::toLower(text);
+    jieba->CutForSearch(ltext, words);
+}
+
+void jiebaTokenizer::extractKeyword(const std::string &text, std::vector<std::string> &keywords, int topK)
+{
+    get_jieba_ptr();
+
+    std::vector<std::pair<std::string, double>> keywordWeights{};
+    jieba->extractor.Extract(text, keywordWeights, topK);
+
+    keywords.clear();
+    keywords.reserve(keywordWeights.size());
+
+    for (const auto &kw : keywordWeights)
+    {
+        if (Utils::utf8Length(kw.first) >= 2)
+        {
+            keywords.push_back(kw.first);
+        }
+    }
+}

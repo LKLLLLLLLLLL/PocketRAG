@@ -4,6 +4,7 @@
     height: 100vh;
     background: #111111;
     -webkit-app-region: drag;
+    user-select: none;
 }
 
 .sw-left {
@@ -83,7 +84,7 @@
 }
 
 .repo-delete-container {
-    width: 35px;
+    width: 15px;
     margin-right: 0;
     flex-shrink: 0;
     display: flex;

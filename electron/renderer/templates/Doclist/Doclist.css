@@ -80,7 +80,7 @@
 
 /* 调整节点的字体大小 */
 .custom-directory-tree .ant-tree-treenode .ant-tree-node-content-wrapper {
-    font-size: 16px;
+    font-size: 14px;
 }
 
 /* 减少每层缩进 */
@@ -90,13 +90,14 @@
 
 /* 调整箭头容器宽度 */
 .custom-directory-tree .ant-tree-switcher {
-    width: 15px !important; /* 默认24px */
+    width: 20px !important; /* 默认24px */
+    margin-top: 1px;
 }
 
 /* 调整箭头容器位置 */
 .custom-directory-tree .ant-tree-switcher {
     position: relative;
-    left: 7px; /* 向右移动4px */
+    left: 4px; /*向右移动4px*/
 }
 
 /* 禁止选择树节点上的文本 */

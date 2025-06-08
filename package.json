@@ -27,8 +27,11 @@
   "dependencies": {
     "@ant-design/icons": "^5.6.1",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
+    "@bytemd/plugin-breaks": "^1.22.0",
+    "@bytemd/plugin-gemoji": "^1.22.0",
     "@bytemd/plugin-gfm": "^1.22.0",
     "@bytemd/plugin-highlight": "^1.22.0",
+    "@bytemd/plugin-math": "^1.22.0",
     "@bytemd/react": "^1.22.0",
     "antd": "^5.25.2",
     "react": "^19.1.0",
@@ -94,17 +97,18 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": true,
-      "include": "electron/public/uninstaller.nsh"
+      "include": "electron/public/uninstaller.nsh",
+      "artifactName": "${productName}-Installer-${version}.${ext}"
     },
     "msi": {
       "upgradeCode": "0583356a-9cdc-40ec-8586-39c26e9e8baf",
       "perMachine": true,
-      "oneClick": false, 
+      "oneClick": false,
       "shortcutName": "PocketRAG",
       "artifactName": "${productName}-Installer-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "${productName}-v${version}-${arch}.${ext}"
+      "artifactName": "${productName}-v${version}-${arch}-portable.${ext}"
     }
   }
 }

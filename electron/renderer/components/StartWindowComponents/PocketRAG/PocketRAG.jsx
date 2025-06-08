@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import './PocketRAG.css';
+import logoPath from '../../../../public/icon.png';
 
 export default function PocketRAG() {
     const [version, setVersion] = useState('v1.0'); // 初始化版本号
@@ -8,7 +9,7 @@ export default function PocketRAG() {
     useEffect(() => {
         const fetchVersion = async () => {
             try {
-                const data = await window.electronAPI.getVersion();
+                const data = await window. electronAPI.getVersion();
                 setVersion(data);
             } catch (err) {
                 console.error('Error fetching version:', err);
@@ -20,7 +21,7 @@ export default function PocketRAG() {
     return (
         <div className='pocketrag-container'>
             <div className='icon-container'>
-                <img src="electron\public\icon.png" alt="PocketRAG Logo" width="256" />
+                <img src={logoPath} alt="PocketRAG Logo" width="160px" />
             </div>
             <div className='version-container'>
                 <div style={{ fontSize: '20px' }}>PocketRAG</div>

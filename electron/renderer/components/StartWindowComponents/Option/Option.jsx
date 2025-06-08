@@ -15,10 +15,10 @@ const Option =({others,setOthers})=>{
             <div className = 'new-container'>
                 <span className = 'new-description'>
                     <div style = {{fontWeight: 'bond', fontSize: '16px'}}>
-                        新建
+                        导入仓库
                     </div>
                     <div style ={{fontSize: '12px',color: 'darkgrey'}}>
-                        点击右侧“新建仓库”按钮，选择文件夹并建立仓库。
+                        选择一个文件夹作为仓库。
                     </div>
                 </span>
                 <span>
@@ -26,25 +26,25 @@ const Option =({others,setOthers})=>{
                             onClick = {handleClick_new}
                             color = 'cyan'
                             variant = "primary">
-                        新建仓库
+                        导入仓库
                     </Button>
                 </span>
             </div>
             <div className = 'other-container'>
                 <span className = 'other-description'>
                     <div style = {{fontWeight: 'bond', fontSize: '16px'}}>
-                        其他
+                        设置
                     </div>
                     <div style ={{fontSize: '12px',color: 'darkgrey'}}>
-                        点击右侧“其他选项”按钮，展开其他选项。
+                        打开设置页面。
                     </div>
                 </span>
                 <span>
                     <Button className = 'other-button' 
-                            onClick = {()=>setOthers(true)}
+                            onClick = {() => window.openSettingsWindow()}
                             color = 'cyan'
                             variant = "primary">
-                        其他选项
+                        设置
                     </Button>
                 </span>
             </div>
