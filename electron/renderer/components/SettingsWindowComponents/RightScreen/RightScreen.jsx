@@ -6,18 +6,18 @@ import { CloseOutlined, PlusOutlined, DeleteOutlined, CheckOutlined, FolderOpenO
 const { Option } = Select;
 
 export default function RightScreen({ content, onClick }) {
-    const [settings, setSettings] = useState(null);
-    const [conversationSettings, setConversationSettings] = useState(null);
-    const [localModelManagement, setLocalModelManagement] = useState(null);
-    const [performance, setPerformance] = useState(null);
-    const [searchSettings, setSearchSettings] = useState(null);
-    const [tempApiKeys, setTempApiKeys] = useState({});
-    const [isSaving, setIsSaving] = useState(false);
+    const [settings, setSettings] = useState([]);
+    const [conversationSettings, setConversationSettings] = useState([]);
+    const [localModelManagement, setLocalModelManagement] = useState([]);
+    const [performance, setPerformance] = useState([]);
+    const [searchSettings, setSearchSettings] = useState([]);
+    const [tempApiKeys, setTempApiKeys] = useState([]);
+    const [isSaving, setIsSaving] = useState([]);
 
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const result = await window.electronAPI.getSettings();
+                const result = await window.getSettings();
                 setSettings(result);
                 setConversationSettings(result?.conversationSettings);
                 setLocalModelManagement(result?.localModelManagement);
@@ -86,15 +86,15 @@ export default function RightScreen({ content, onClick }) {
         setIsSaving(true);
         try {
             // 首先验证设置
-            await window.electronAPI.checkSettings(settings);
+            await window.checkSettings(settings);
             
             // 保存设置
-            await window.electronAPI.updateSettings(settings);
+            await window.updateSettings(settings);
             
             // 保存所有API Key
             for (const [modelName, apiKey] of Object.entries(tempApiKeys)) {
                 if (apiKey) {
-                    await window.electronAPI.setApiKey(modelName, apiKey);
+                    await window.setApiKey(modelName, apiKey);
                 }
             }
             
@@ -111,14 +111,14 @@ export default function RightScreen({ content, onClick }) {
     const testApiConnection = async (model) => {
         try {
             // 使用临时API Key或已保存的API Key
-            const apiKey = tempApiKeys[model.name] || await window.electronAPI.getApiKey(model.name);
+            const apiKey = tempApiKeys[model.name] || await window.getApiKey(model.name);
             
             if (!apiKey) {
                 message.warning('请先设置API Key');
                 return;
             }
             
-            await window.electronAPI.testApi(model.name, model.url, apiKey);
+            await window.testApi(model.name, model.url, apiKey);
             message.success('API连接测试成功');
         } catch (err) {
             console.error('API连接测试失败:', err);
@@ -751,7 +751,7 @@ function PerformanceSettings({ settings, onChange, onToggle }) {
                     <p className="settings-hint">0 表示使用所有可用线程</p>
                 </div>
                 <div className="settings-item">
-                    <label>使用 CUDA</label>
+                    <label style = {{width: '100px'}}>使用 CUDA</label>
                     <Switch 
                         checked={settings.useCuda} 
                         disabled={!settings['cuda available']}
@@ -762,7 +762,7 @@ function PerformanceSettings({ settings, onChange, onToggle }) {
                     )}
                 </div>
                 <div className="settings-item">
-                    <label>使用 CoreML</label>
+                    <label style = {{width: '100px'}}>使用 CoreML</label>
                     <Switch 
                         checked={settings.useCoreML} 
                         disabled={!settings['coreML available']}
@@ -776,7 +776,7 @@ function PerformanceSettings({ settings, onChange, onToggle }) {
             
             <div className="settings-action" style={{ marginTop: 16 }}>
                 <Button 
-                    onClick={() => window.electronAPI.getAvailableHardware()}
+                    onClick={() => window.getAvailableHardware()}
                     className="hardware-button"
                 >
                     更新硬件信息
