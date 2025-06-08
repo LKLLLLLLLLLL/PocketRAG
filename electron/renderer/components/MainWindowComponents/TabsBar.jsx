@@ -7,8 +7,17 @@ import './TabsBar.css';
 function TabsBar({ tabs, activeKey, onTabChange, onTabEdit, onNewTab }) {
     const items = tabs.map(tab => ({
         key: tab.key,
-        label: tab.label,
-        closable: tabs.length > 1,
+        label: (
+            <span
+                className="tab-label-text"
+                title={tab.label} // 添加tooltip显示完整文本
+            >
+                {tab.label}
+                <span className="tab-bottom-left"></span>
+                <span className="tab-bottom-right"></span>
+            </span>
+        ),
+        closable: true, // 所有标签都可以关闭，包括最后一个
     }));
 
     return (

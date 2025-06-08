@@ -75,6 +75,36 @@ export default function MainWindowContents() {
         setInfo(usage);
     };
 
+    // 添加系统标签配置
+    const systemTabs = {
+        'conversation': { label: '对话', closable: true },
+        'search': { label: '搜索', closable: true },
+        'chunkInfo': { label: '分块信息', closable: true }
+    };
+
+    // 修改内容切换逻辑，同时管理标签
+    const handleContentChange = (newContent) => {
+        setContent(newContent);
+        
+        // 如果是系统标签，添加到标签栏
+        if (systemTabs[newContent]) {
+            const tabExists = tabs.some(tab => tab.key === newContent);
+            
+            if (!tabExists) {
+                const newTab = {
+                    key: newContent,
+                    label: systemTabs[newContent].label,
+                    isSystem: true, // 标记为系统标签
+                    closable: systemTabs[newContent].closable,
+                };
+                
+                setTabs(prev => [...prev, newTab]);
+            }
+            
+            setActiveKey(newContent);
+        }
+    };
+
     // 处理文件选择 - 当文件树中选择文件时调用
     const handleFileSelect = (node) => {
         if (!node || !node.key) return;
@@ -94,8 +124,10 @@ export default function MainWindowContents() {
                         key: node.key,
                         label: node.title,
                         isLeaf: node.isLeaf,
+                        isSystem: false, // 标记为文件标签
                         filePath: node.filePath || node.key,
-                        node: node // 存储完整的节点对象
+                        node: node,
+                        closable: true
                     }
                 ]);
             }
@@ -103,21 +135,25 @@ export default function MainWindowContents() {
             // 激活该标签
             setActiveKey(node.key);
             setContent('edit'); // 切换到编辑模式
-        } else {
-            // 对于文件夹节点，只更新选中状态但不创建标签页
-            // 可以在这里添加文件夹特定的处理逻辑（如果需要）
         }
     };
 
     // 处理标签切换 - 同步到文件树
     const handleTabChange = (key) => {
         setActiveKey(key);
-        setContent('edit'); // 切换到编辑模式
-
-        // 找到标签对应的节点并选中
+        
+        // 找到标签对应的内容类型
         const tab = tabs.find(t => t.key === key);
-        if (tab && tab.node) {
-            setSelectNode(tab.node);
+        if (tab) {
+            if (tab.isSystem) {
+                setContent(key); // 系统标签的key就是content类型
+            } else {
+                setContent('edit'); // 文件标签切换到编辑模式
+                // 找到标签对应的节点并选中
+                if (tab.node) {
+                    setSelectNode(tab.node);
+                }
+            }
         }
     };
 
@@ -126,16 +162,40 @@ export default function MainWindowContents() {
         const newTabs = tabs.filter(tab => tab.key !== targetKey);
         setTabs(newTabs);
 
-        // 清除关闭标签的文件内容缓存
-        setFileContentMap(prev => {
-            const newMap = { ...prev };
-            delete newMap[targetKey];
-            return newMap;
-        });
+        const removedTab = tabs.find(tab => tab.key === targetKey);
+        
+        // 如果关闭的是文件标签，清除文件内容缓存
+        if (removedTab && !removedTab.isSystem) {
+            setFileContentMap(prev => {
+                const newMap = { ...prev };
+                delete newMap[targetKey];
+                return newMap;
+            });
+        }
 
+        // 处理激活标签切换
         if (targetKey === activeKey) {
-            setActiveKey(newTabs.length > 0 ? newTabs[0].key : '');
-            setContent(newTabs.length > 0 ? 'edit' : content);
+            if (newTabs.length > 0) {
+                const newActiveKey = newTabs[newTabs.length - 1].key;
+                setActiveKey(newActiveKey);
+                
+                // 如果新激活的是系统标签，更新 content
+                const newActiveTab = newTabs.find(tab => tab.key === newActiveKey);
+                if (newActiveTab?.isSystem) {
+                    setContent(newActiveKey);
+                } else {
+                    setContent('edit');
+                    // 更新选中的文件节点
+                    if (newActiveTab?.node) {
+                        setSelectNode(newActiveTab.node);
+                    }
+                }
+            } else {
+                // 没有标签时显示欢迎界面
+                setActiveKey('');
+                setContent('welcome');
+                setSelectNode(null);
+            }
         }
     };
 
@@ -190,7 +250,9 @@ export default function MainWindowContents() {
             key: newTabKey,
             label: '新文件',
             isLeaf: true,
-            filePath: newTabKey
+            isSystem: false,
+            filePath: newTabKey,
+            closable: true
         };
 
         setTabs(prev => [...prev, newTab]);
@@ -429,10 +491,10 @@ export default function MainWindowContents() {
     return (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
             <LeftBar
-                handleConversation={() => setContent('conversation')}
-                handleSearch={() => setContent('search')}
-                handleEdit={() => setContent('edit')}
-                handleChunkInfo={() => setContent('chunkInfo')}
+                handleConversation={() => handleContentChange('conversation')}
+                handleSearch={() => handleContentChange('search')}
+                handleEdit={() => handleContentChange('edit')}
+                handleChunkInfo={() => handleContentChange('chunkInfo')}
             />
             <div style={{ flex: 1, display: 'flex' }}>
                 <PanelGroup direction="horizontal" autoSaveId="main-window-horizontal">
@@ -471,7 +533,7 @@ export default function MainWindowContents() {
                         </div>
                         <MainDemo
                             className='maindemo'
-                            // search related
+                            // 传递所有必要的 props
                             content={content}
                             inputValue={inputValue}
                             isLoading={isLoading}
@@ -481,7 +543,6 @@ export default function MainWindowContents() {
                             onChange={handleOnChange}
                             onKeyDown={handleKeyPress}
                             onSearchClick={handleSearchClick}
-                            // conversation related
                             history={history}
                             streaming={streaming}
                             inputQuestionValue={inputQuestionValue}
@@ -494,11 +555,9 @@ export default function MainWindowContents() {
                             onClick_Conv={onClick_Conv}
                             stopped={stopped}
                             onStop={handleStop}
-                            //information related
                             handleInfoClick={handleInfoClick}
                             info={info}
                             showInfo={showInfo}
-                            // edit related
                             activeKey={activeKey}
                             tabs={tabs}
                             fileContentMap={fileContentMap}
@@ -513,28 +572,23 @@ export default function MainWindowContents() {
     );
 }
 
-const MainDemo = ({
-    content, inputValue, resultItem, onChange, onKeyDown, onSearchClick, isLoading, showResult, isTimeout, className,
-    history, streaming, inputQuestionValue, setInputQuestionValue, onSendConversation, onConvKeyDown, convLoading,
-    onChange_Conv, onPressEnter_Conv, onClick_Conv, stopped, onStop, handleInfoClick, showInfo, info,
-    activeKey, tabs, fileContentMap, loadFileContent, updateFileContent, saveFileContent
-}) => {
+const MainDemo = ({ content, ...otherProps }) => {
     switch (content) {
         case 'conversation':
             return (
-                <div className={className}>
+                <div className={otherProps.className}>
                     <div className='maindemo-content'>
                         <PanelGroup direction="vertical" className='conversation-panelgroup'>
                             <Panel minSize={50} maxSize={80} defaultSize={70} className='conversation-panel_1'>
                                 <div className='conversation-container' style={{ height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', marginTop: 24 }}>
                                     <div className="chat-history" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-                                        {history.map((item, idx) => (
+                                        {otherProps.history.map((item, idx) => (
                                             <div key={idx} className="chat-history-item" style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <div className="chat-row chat-row-question">
                                                     <div className="chat-bubble chat-bubble-question">{item.query}</div>
                                                 </div>
-                                                {item.pending && idx === history.length - 1 ? (
-                                                    stopped ? (
+                                                {item.pending && idx === otherProps.history.length - 1 ? (
+                                                    otherProps.stopped ? (
                                                         <div className="chat-row chat-row-answer">
                                                             <div className="chat-bubble chat-bubble-answer chat-loading" style={{ color: '#ff4d4f' }}>
                                                                 对话已停止
@@ -543,7 +597,7 @@ const MainDemo = ({
                                                     ) : (
                                                         <>
                                                             {/* 显示检索过程 */}
-                                                            {streaming.reduce((acc, msg) => {
+                                                            {otherProps.streaming.reduce((acc, msg) => {
                                                                 if (msg.type === 'annotation') {
                                                                     acc.push({ annotation: msg.content, search: [], result: [] });
                                                                 } else if (msg.type === 'search') {
@@ -596,11 +650,11 @@ const MainDemo = ({
                                                             ))}
 
                                                             {/* 显示实时答案 */}
-                                                            {streaming.some(msg => msg.type === 'answer') && (
+                                                            {otherProps.streaming.some(msg => msg.type === 'answer') && (
                                                                 <div className="chat-row chat-row-answer">
                                                                     <div className="chat-bubble chat-bubble-answer">
                                                                         <ReactMarkdown>
-                                                                            {streaming
+                                                                            {otherProps.streaming
                                                                                 .filter(msg => msg.type === 'answer')
                                                                                 .map(msg => msg.content)
                                                                                 .join('')}
@@ -610,7 +664,7 @@ const MainDemo = ({
                                                             )}
 
                                                             {/* 显示加载状态 */}
-                                                            {!streaming.some(msg => msg.type === 'answer') && (
+                                                            {!otherProps.streaming.some(msg => msg.type === 'answer') && (
                                                                 <div className="chat-row chat-row-answer">
                                                                     <div className="chat-bubble chat-bubble-answer chat-loading">
                                                                         <LoadingOutlined /> 正在生成回答...
@@ -671,11 +725,11 @@ const MainDemo = ({
                             </Panel>
                             <PanelResizeHandle className='conversation-panel-resize-handle' />
                             <Panel minSize={20} maxSize={50} defaultSize={30} className='conversation-panel_2'>
-                                {showInfo && Array.isArray(info) && info.length > 0 && typeof info[0] === 'object' && (
+                                {otherProps.showInfo && Array.isArray(otherProps.info) && otherProps.info.length > 0 && typeof otherProps.info[0] === 'object' && (
                                     <div className="model-info-panel">
                                         <table>
                                             <tbody>
-                                                {Object.entries(info[0]).map(([key, value]) => (
+                                                {Object.entries(otherProps.info[0]).map(([key, value]) => (
                                                     <tr key={key}>
                                                         <td>{key}</td>
                                                         <td>{value}</td>
@@ -691,10 +745,10 @@ const MainDemo = ({
                                             placeholder='请输入问题'
                                             rows={5}
                                             className='conversation-question-input'
-                                            onChange={onChange_Conv}
-                                            onPressEnter={onPressEnter_Conv}
-                                            value={inputQuestionValue}
-                                            disabled={convLoading}
+                                            onChange={otherProps.onChange_Conv}
+                                            onPressEnter={otherProps.onPressEnter_Conv}
+                                            value={otherProps.inputQuestionValue}
+                                            disabled={otherProps.convLoading}
                                             style={{ fontSize: 16, padding: '12px', minHeight: 48, maxHeight: 120 }}
                                             showCount="true"
                                         />
@@ -703,26 +757,26 @@ const MainDemo = ({
                                         <div className="model-information-area">
                                             <Button
                                                 className="model-information-button"
-                                                onClick={handleInfoClick}
+                                                onClick={otherProps.handleInfoClick}
                                                 color="cyan"
                                                 variant='solid'
                                             >
-                                                {showInfo ? '关闭' : '信息'}
+                                                {otherProps.showInfo ? '关闭' : '信息'}
                                             </Button>
                                         </div>
                                         <div className="conversation-control-area">
                                             <Button
-                                                onClick={convLoading ? onStop : onClick_Conv}
-                                                disabled={convLoading ? false : !inputQuestionValue.trim()}
-                                                className={convLoading ? 'stop-button' : 'send-button'}
+                                                onClick={otherProps.convLoading ? otherProps.onStop : otherProps.onClick_Conv}
+                                                disabled={otherProps.convLoading ? false : !otherProps.inputQuestionValue.trim()}
+                                                className={otherProps.convLoading ? 'stop-button' : 'send-button'}
                                                 style={{
                                                     height: 48,
                                                     fontSize: 16,
                                                     marginLeft: 12
                                                 }}
-                                                color={convLoading ? '#00aaaa' : 'cyan'}
+                                                color={otherProps.convLoading ? '#00aaaa' : 'cyan'}
                                                 variant='solid'>
-                                                {convLoading ? '停止' : '发送'}
+                                                {otherProps.convLoading ? '停止' : '发送'}
                                             </Button>
                                         </div>
                                     </div>
@@ -734,36 +788,36 @@ const MainDemo = ({
             );
         case 'search':
             return (
-                <div style={{ flexDirection: 'column' }} className={className}>
+                <div style={{ flexDirection: 'column' }} className={otherProps.className}>
                     <div className='maindemo-content'>
                         <div className='searchinput-container'>
                             <Input.Search
                                 type='text'
                                 placeholder='请输入内容，按回车或点击搜索'
                                 className='searchinput'
-                                value={inputValue}
-                                onChange={onChange}
-                                onKeyDown={onKeyDown}
-                                onSearch={onSearchClick}
+                                value={otherProps.inputValue}
+                                onChange={otherProps.onChange}
+                                onKeyDown={otherProps.onKeyDown}
+                                onSearch={otherProps.onSearchClick}
                                 enterButton
                                 size="large"
-                                loading={isLoading}
-                                disabled={isLoading}
+                                loading={otherProps.isLoading}
+                                disabled={otherProps.isLoading}
                             />
                         </div>
                         <div className='searchresult-container'>
                             <div className='explanation-container'>
                                 <div className="explanation">
-                                    {isTimeout ? <div>请求超时</div>
-                                        : isLoading ? <div><LoadingOutlined /> 搜索中...</div>
-                                            : showResult ? <div>结果如下</div>
+                                    {otherProps.isTimeout ? <div>请求超时</div>
+                                        : otherProps.isLoading ? <div><LoadingOutlined /> 搜索中...</div>
+                                            : otherProps.showResult ? <div>结果如下</div>
                                                 : <div>请进行搜索</div>}
                                 </div>
                             </div>
                             <div className='result-ul-container'>
-                                {!isLoading && showResult &&
+                                {!otherProps.isLoading && otherProps.showResult &&
                                     <ul className='result-ul'>
-                                        {resultItem.length > 0 ? resultItem : <li>未找到结果</li>}
+                                        {otherProps.resultItem.length > 0 ? otherProps.resultItem : <li>未找到结果</li>}
                                     </ul>
                                 }
                             </div>
@@ -772,47 +826,62 @@ const MainDemo = ({
                 </div>
             );
         case 'edit':
-            const activeTab = tabs.find(tab => tab.key === activeKey);
-            const filePath = activeTab?.filePath || activeKey;
-            const fileContent = fileContentMap[filePath] || '';
+            const activeTab = otherProps.tabs.find(tab => tab.key === otherProps.activeKey);
+            const filePath = activeTab?.filePath || otherProps.activeKey;
+            const fileContent = otherProps.fileContentMap[filePath] || '';
 
             return (
-                <div className={className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div className={otherProps.className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <div className="maindemo-content" style={{ flex: 1, minHeight: 0}}>
                         <TextEditor
-                            activeKey={activeKey}
+                            activeKey={otherProps.activeKey}
                             filePath={filePath}
                             content={fileContent}
-                            loadFileContent={loadFileContent}
-                            updateFileContent={updateFileContent}
-                            saveFileContent={saveFileContent}
+                            loadFileContent={otherProps.loadFileContent}
+                            updateFileContent={otherProps.updateFileContent}
+                            saveFileContent={otherProps.saveFileContent}
                         />
                     </div>
                 </div>
             );
         case 'chunkInfo':
             return (
-                <div className={className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div className={otherProps.className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <div className="maindemo-content" style={{ width: "100%",flex: 1, minHeight: 0}}>
                         <ChunkInfo />
                     </div>
                 </div>
             );
+        case 'welcome':
         default:
             return (
-                <div className={className}>
+                <div className={otherProps.className}>
                     <div className='maindemo-content'>
-                        <h2>Welcome</h2>
-                        <p>Select a feature from the left bar.</p>
+                        <h2>Welcome to PocketRAG</h2>
+                        <p>请从左侧栏选择功能，或从文件树打开文件。</p>
+                        <div style={{ marginTop: '20px', color: '#999' }}>
+                            <ul style={{ textAlign: 'left', maxWidth: '400px', margin: '0 auto' }}>
+                                <li>💬 对话：与AI进行智能对话</li>
+                                <li>🔍 搜索：在文档中搜索内容</li>
+                                <li>📝 编辑：编辑和查看文件</li>
+                                <li>📊 分块信息：查看文档分块详情</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             );
     }
 };
 
+// ChunkInfo 组件保持不变，但需要修复 handleExpand 函数
 const ChunkInfo = () => {
     const [chunkInfo, setChunkInfo] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // 添加handleExpand函数
+    const handleExpand = (key, expanded) => {
+        console.log(`${key} ${expanded ? '展开' : '收起'}`);
+    };
 
     // 获取分块信息
     useEffect(() => {
@@ -1028,7 +1097,7 @@ const ChunkInfo = () => {
             >
                 <Text
                     style={{
-                        color: '#999', // 标题改为灰色
+                        color: '#fff', // 标题改为灰色
                         fontSize: '16px',
                         fontWeight: 'bold'
                     }}

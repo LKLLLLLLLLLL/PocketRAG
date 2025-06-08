@@ -1,18 +1,22 @@
+/* 基础样式 */
 .tabsbar-root {
     width: 80%;
     -webkit-app-region: no-drag;
     height: 35px;
-    background-color: #f0f2f5;
+    background-color: transparent;
     display: flex;
+    overflow: hidden;
 }
 
 .tabsbar {
-    width: 90%;
+    width: 100%;
     height: 35px;
     background-color: #444444;
     flex: 1;
     display: flex;
-    /* -webkit-app-region: drag; */
+    min-width: 0;
+    /* 允许flex收缩 */
+    overflow: hidden;
 }
 
 .new-tab-btn {
@@ -23,158 +27,215 @@
     box-shadow: none;
 }
 
-
-/* 标签悬浮字体颜色 */
-:where(.ant-tabs) .ant-tabs-tab:hover .custom-tab-label {
-    color: #ffffff !important;
-    /* 悬浮时的字体颜色 */
-    background: #00b0b0;
-    border-radius: 6px 6px 0 0;
-    transition: all 0.2s;
+/* 标签容器样式 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-nav {
+    height: 100%;
+    overflow: hidden;
+    margin-bottom: 0;
 }
 
-/* 激活状态的标签字体颜色 */
-:where(.ant-tabs) .ant-tabs-tab.ant-tabs-tab-active .custom-tab-label {
-    color: #00b0b0 !important;
-    /* 激活时的字体颜色 */
-}
-
-/* 普通状态的标签字体颜色 */
-.custom-tab-label {
-    color: #ffffff;
-    /* 普通状态的字体颜色 */
-    transition: color 0.2s;
-}
-
-/* .new-tab-btn:hover {
-    background-color: #e6f7ff;
-} */
-
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card >.ant-tabs-nav .ant-tabs-tab, :where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card >div>.ant-tabs-nav .ant-tabs-tab{
-    border: none;
-}
-
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab {
-    color: white;
-}
-
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab-remove{
-    color: white;
-}
-
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
-    color : white;
-}
-
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card.ant-tabs-small.ant-tabs-top >.ant-tabs-nav .ant-tabs-tab {
-    border-radius: 10px 10px 0 0;
-}
-
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card >.ant-tabs-nav .ant-tabs-tab-active{
-    background-color: #222222;
-}
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-nav > .ant-tabs-nav-wrap{
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-nav>.ant-tabs-nav-wrap {
     height: 100%;
 }
 
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs >.ant-tabs-nav{
-    height: 100%;
-}
-
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-top >.ant-tabs-nav::before{
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-top>.ant-tabs-nav::before {
     border-bottom: none;
 }
 
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card.ant-tabs-small >.ant-tabs-nav .ant-tabs-tab {
-    padding: none;
+/* 移除选中标签底部的ink bar白线 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs>.ant-tabs-nav .ant-tabs-ink-bar {
+    display: none !important;
 }
 
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs >.ant-tabs-nav .ant-tabs-nav-list{
+/* 标签导航列表 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs>.ant-tabs-nav .ant-tabs-nav-list {
     -webkit-app-region: no-drag;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    width: 100%;
+    /* 占满容器宽度 */
 }
 
-:where(.css-dev-only-do-not-override-vrrzze).ant-tabs >.ant-tabs-nav .ant-tabs-nav-wrap{
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs>.ant-tabs-nav .ant-tabs-nav-wrap {
     -webkit-app-region: drag;
+    overflow: hidden !important;
+    /* 不需要滚动条，宽度会自动调整 */
 }
 
-/* 文本编辑器光标和选中样式 */
-.monaco-editor .cursor {
-    color: #ffffff !important;
-    background-color: #ffffff !important;
+/* 标签样式 - 自适应宽度 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab {
+    width: 150px;
+    /* 默认宽度，不超出时保持固定宽度 */
+    min-width: 80px;
+    /* 最小宽度 */
+    max-width: 150px;
+    /* 最大宽度 */
+    flex: 1 1 auto;
+    /* 允许伸缩 */
+    color: white;
+    display: flex;
+    justify-content: flex-start;
+    /* 左对齐 */
+    box-sizing: border-box;
+    position: relative;
+    transition: background-color 0.2s;
 }
 
-.monaco-editor .cursors-layer .cursor {
-    background-color: #ffffff !important;
-    border-left: 2px solid #ffffff !important;
+/* 设置标签样式 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>.ant-tabs-nav .ant-tabs-tab,
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>div>.ant-tabs-nav .ant-tabs-tab {
+    border: none;
 }
 
-/* Monaco Editor 选中文本样式 */
-.monaco-editor .selected-text {
-    background-color: #4a90e2 !important;
-    color: #ffffff !important;
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card.ant-tabs-small.ant-tabs-top>.ant-tabs-nav .ant-tabs-tab {
+    border-radius: 10px 10px 0 0;
 }
 
-.monaco-editor .view-lines .view-line span.mtk1 {
-    color: #ffffff !important;
+/* 标签内容区域 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    /* 内容左对齐 */
+    width: 100%;
+    max-width: calc(100% - 24px);
+    /* 为关闭按钮留出空间 */
+    padding: 0;
+    color: white;
 }
 
-/* 通用文本输入框光标和选中样式 */
-textarea, input[type="text"], .ant-input {
-    caret-color: #ffffff !important;
+/* 标签文字样式 */
+.tab-label-text {
+    display: inline-block;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    text-align: left;
+    /* 文字左对齐 */
+    flex: 1;
+    color: #ffffff;
+    transition: color 0.2s;
+    padding-left: 8px;
+    /* 左侧添加内边距 */
 }
 
-textarea::selection, 
-input[type="text"]::selection, 
-.ant-input::selection {
-    background-color: #4a90e2 !important;
-    color: #ffffff !important;
+/* 标签关闭按钮样式 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab-remove {
+    margin-left: 4px;
+    color: white;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    position: absolute;
+    right: 4px;
 }
 
-/* Monaco Editor 特定样式 */
-.monaco-editor .margin {
-    background-color: #1e1e1e !important;
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab-remove:hover {
+    opacity: 1;
+    color: #ff4d4f;
 }
 
-.monaco-editor .monaco-editor-background {
-    background-color: #222222 !important;
+/* 标签容器相对定位 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>.ant-tabs-nav .ant-tabs-tab {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 4px 24px 4px 8px;
+    /* 右侧留出关闭按钮空间 */
 }
 
-/* 行号颜色 */
-.monaco-editor .line-numbers {
-    color: #858585 !important;
+/* 激活的标签样式 - 移除直线边框 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>.ant-tabs-nav .ant-tabs-tab-active {
+    background-color: #222222;
+    position: relative;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
-/* 活动行高亮 */
-.monaco-editor .current-line {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+/* 添加底部边框样式 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>.ant-tabs-nav .ant-tabs-tab-active::after,
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>.ant-tabs-nav .ant-tabs-tab-active::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    height: 2px;
+    background-color: #222;
 }
 
-/* 选中行背景 */
-.monaco-editor .selected-text,
-.monaco-editor .focused .selected-text {
-    background-color: #264f78 !important;
+/* 底部边框主体部分 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>.ant-tabs-nav .ant-tabs-tab-active::after {
+    left: 4px;
+    /* 从左边预留空间 */
+    right: 4px;
+    /* 从右边预留空间 */
 }
 
-/* 光标行高亮 */
-.monaco-editor .view-overlays .current-line {
-    background-color: rgba(255, 255, 255, 0.08) !important;
-    border: none !important;
+/* 左侧圆角部分 - 增强圆角效果 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>.ant-tabs-nav .ant-tabs-tab-active .tab-bottom-left {
+    position: absolute;
+    bottom: 0;
+    left: -8px;
+    /* 增大负偏移 */
+    width: 12px;
+    /* 增加尺寸 */
+    height: 12px;
+    /* 增加尺寸 */
+    border-radius: 0 0 12px 0;
+    /* 增大圆角 */
+    box-shadow: 4px 2px 0 0 #222;
+    /* 增大阴影偏移并使用#333灰色 */
+    background-color: transparent;
 }
 
-/* 确保光标在所有情况下都可见 */
-.monaco-editor .cursors-layer > .cursor {
-    background-color: #ffffff !important;
-    border-left: 2px solid #ffffff !important;
-    opacity: 1 !important;
+/* 右侧圆角部分 - 增强圆角效果 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>.ant-tabs-nav .ant-tabs-tab-active .tab-bottom-right {
+    position: absolute;
+    bottom: 0;
+    right: -8px;
+    /* 增大负偏移 */
+    width: 12px;
+    /* 增加尺寸 */
+    height: 12px;
+    /* 增加尺寸 */
+    border-radius: 0 0 0 12px;
+    /* 增大圆角 */
+    box-shadow: -4px 2px 0 0 #222;
+    /* 增大阴影偏移并使用#333灰色 */
+    background-color: transparent;
 }
 
-/* 搜索高亮 */
-.monaco-editor .findMatch {
-    background-color: #ea5c00 !important;
-    color: #ffffff !important;
+/* 悬停状态样式 - 只对非激活标签应用 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab:not(.ant-tabs-tab-active):hover {
+    background-color: #555555;
+    /* 悬停时略深的背景色 */
 }
 
-.monaco-editor .currentFindMatch {
-    background-color: #f39c12 !important;
-    color: #ffffff !important;
+:where(.ant-tabs) .ant-tabs-tab:not(.ant-tabs-tab-active):hover .tab-label-text {
+    color: darkgrey !important;
+    /* 悬浮时文字颜色固定为darkgrey */
+}
+
+/* 激活状态的标签字体颜色 */
+:where(.ant-tabs) .ant-tabs-tab.ant-tabs-tab-active .tab-label-text {
+    color: #00b0b0 !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+    .tab-label-text {
+        max-width: 90px;
+    }
+}
+
+@media (max-width: 768px) {
+    .tab-label-text {
+        max-width: 70px;
+    }
 }

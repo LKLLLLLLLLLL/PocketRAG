@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './RightScreen.css'
-import { Button, Input, Select, Switch, Table, message } from 'antd';
+import { Button, Input, Select, Switch, Table, message, Space } from 'antd';
 import { CloseOutlined, PlusOutlined, DeleteOutlined, CheckOutlined, FolderOpenOutlined } from '@ant-design/icons';
 
 const { Option } = Select;
@@ -403,6 +403,66 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
         });
     };
 
+    // 本地模型表格列配置
+    const columns = [
+        {
+            title: '模型名称',
+            dataIndex: 'name',
+            key: 'name',
+            width: 200,
+        },
+        {
+            title: '类型',
+            dataIndex: 'type',
+            key: 'type',
+            width: 120,
+            render: (type) => {
+                const typeMap = {
+                    'embedding': '嵌入模型',
+                    'rerank': 'Rerank',
+                    'generation': '生成模型'
+                };
+                return typeMap[type] || type;
+            }
+        },
+        {
+            title: '文件大小',
+            dataIndex: 'fileSize',
+            key: 'fileSize',
+            width: 120,
+            render: (size) => `${size} MB`
+        },
+        {
+            title: '路径',
+            dataIndex: 'path',
+            key: 'path',
+            ellipsis: {
+                showTitle: true,
+            },
+        },
+        {
+            title: '操作',
+            key: 'action',
+            width: 100,
+            render: (_, record) => (
+                <Button 
+                    size="small" 
+                    danger 
+                    icon={<DeleteOutlined />}
+                    onClick={() => onRemove(record.name)}
+                >
+                    删除
+                </Button>
+            ),
+        },
+    ];
+
+    // 为表格数据添加key
+    const dataSource = models.map((model, index) => ({
+        ...model,
+        key: model.name || index,
+    }));
+
     return (
         <>
             <div className="settings-group">
@@ -470,35 +530,22 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
             
             <div className="settings-group">
                 <h4 className="settings-group-title">已安装模型</h4>
-                <div className="model-table">
-                    <div className="model-table-header">
-                        <div className="model-table-cell">模型名称</div>
-                        <div className="model-table-cell">类型</div>
-                        <div className="model-table-cell">文件大小</div>
-                        <div className="model-table-cell">路径</div>
-                        <div className="model-table-cell">操作</div>
-                    </div>
-                    
-                    {models.map((model, index) => (
-                        <div key={index} className="model-table-row">
-                            <div className="model-table-cell">{model.name}</div>
-                            <div className="model-table-cell">{model.type}</div>
-                            <div className="model-table-cell">{model.fileSize} MB</div>
-                            <div className="model-table-cell path-cell" title={model.path}>
-                                {model.path}
-                            </div>
-                            <div className="model-table-cell">
-                                <Button 
-                                    size="small" 
-                                    danger 
-                                    icon={<DeleteOutlined />}
-                                    onClick={() => onRemove(model.name)}
-                                    className="delete-button"
-                                />
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <Table
+                    columns={columns}
+                    dataSource={dataSource}
+                    pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total, range) =>
+                            `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+                    }}
+                    size="middle"
+                    bordered
+                    locale={{
+                        emptyText: '暂无已安装的模型'
+                    }}
+                />
             </div>
         </>
     );
@@ -560,42 +607,80 @@ function SearchSettings({
     );
 }
 
-// 嵌入模型列表组件
+// 嵌入模型列表组件 - 改用Table
 function EmbeddingModelList({ configs, onSelect, onAdd, onRemove }) {
     if (!configs) return null;
+
+    const columns = [
+        {
+            title: '模型名称',
+            dataIndex: 'name',
+            key: 'name',
+            width: 200,
+        },
+        {
+            title: '输入长度',
+            dataIndex: 'inputLength',
+            key: 'inputLength',
+            width: 120,
+        },
+        {
+            title: '启用',
+            key: 'selected',
+            width: 80,
+            render: (_, record, index) => (
+                <Switch 
+                    checked={record.selected} 
+                    onChange={checked => onSelect && onSelect(index, checked)}
+                />
+            ),
+        },
+        {
+            title: '操作',
+            key: 'action',
+            width: 100,
+            render: (_, record, index) => (
+                configs.length > 1 ? (
+                    <Button 
+                        danger 
+                        size="small" 
+                        icon={<DeleteOutlined />} 
+                        onClick={() => onRemove && onRemove(index)}
+                    >
+                        删除
+                    </Button>
+                ) : null
+            ),
+        },
+    ];
+
+    const dataSource = configs.map((config, index) => ({
+        ...config,
+        key: index,
+    }));
     
     return (
-        <div className="model-list-container">
-            {configs.map((config, idx) => (
-                <div key={idx} className="model-list-row">
-                    <div className="model-info">
-                        <span className="model-name">{config.name}</span>
-                        <span className="model-details">输入长度: {config.inputLength}</span>
-                    </div>
-                    <div className="model-actions">
-                        <Switch 
-                            checked={config.selected} 
-                            onChange={checked => onSelect && onSelect(idx, checked)}
-                        />
-                        {configs.length > 1 && (
-                            <Button 
-                                danger 
-                                size="small" 
-                                icon={<DeleteOutlined />} 
-                                onClick={() => onRemove && onRemove(idx)}
-                                className="delete-button"
-                            />
-                        )}
-                    </div>
-                </div>
-            ))}
-            <Button 
-                icon={<PlusOutlined />} 
-                onClick={onAdd}
-                className="add-button"
-            >
-                添加嵌入模型
-            </Button>
+        <div className="embedding-model-container">
+            <Table
+                columns={columns}
+                dataSource={dataSource}
+                pagination={false}
+                size="small"
+                bordered
+                locale={{
+                    emptyText: '暂无嵌入模型配置'
+                }}
+            />
+            <div style={{ marginTop: 8 }}>
+                <Button 
+                    icon={<PlusOutlined />} 
+                    onClick={onAdd}
+                    type="dashed"
+                    block
+                >
+                    添加嵌入模型
+                </Button>
+            </div>
         </div>
     );
 }
@@ -644,7 +729,7 @@ function ConversationSettings({
     );
 }
 
-// 生成模型列表组件
+// 生成模型列表组件 - 改用Table
 function GenerationModelList({ 
     models, 
     tempApiKeys, 
@@ -655,75 +740,133 @@ function GenerationModelList({
     onRemove
 }) {
     if (!models) return null;
+
+    const columns = [
+        {
+            title: '名称',
+            dataIndex: 'name',
+            key: 'name',
+            width: 150,
+            render: (text, record) => (
+                <Input
+                    value={text}
+                    onChange={e => {
+                        // 这里需要实现编辑功能
+                        console.log('编辑名称:', e.target.value);
+                    }}
+                    size="small"
+                />
+            )
+        },
+        {
+            title: '模型名称',
+            dataIndex: 'modelName',
+            key: 'modelName',
+            width: 150,
+            render: (text, record) => (
+                <Input
+                    value={text}
+                    onChange={e => {
+                        // 这里需要实现编辑功能
+                        console.log('编辑模型名称:', e.target.value);
+                    }}
+                    size="small"
+                />
+            )
+        },
+        {
+            title: '接口地址',
+            dataIndex: 'url',
+            key: 'url',
+            width: 200,
+            render: (text, record) => (
+                <Input
+                    value={text}
+                    onChange={e => {
+                        // 这里需要实现编辑功能
+                        console.log('编辑接口地址:', e.target.value);
+                    }}
+                    size="small"
+                />
+            )
+        },
+        {
+            title: 'API Key',
+            key: 'apiKey',
+            width: 200,
+            render: (_, record) => (
+                <Input.Password
+                    value={tempApiKeys[record.name] || ''}
+                    onChange={e => onApiKeyChange(record.name, e.target.value)}
+                    placeholder="输入API Key"
+                    size="small"
+                />
+            )
+        },
+        {
+            title: '操作',
+            key: 'action',
+            width: 120,
+            render: (_, record) => (
+                <Space size="small">
+                    <Button 
+                        onClick={() => onTestApi(record)}
+                        size="small"
+                        type="primary"
+                    >
+                        测试
+                    </Button>
+                    {models.length > 1 && (
+                        <Button 
+                            danger 
+                            icon={<DeleteOutlined />} 
+                            onClick={() => onRemove(record.name)}
+                            size="small"
+                        />
+                    )}
+                </Space>
+            )
+        },
+        {
+            title: '使用中',
+            key: 'lastUsed',
+            width: 80,
+            render: (_, record) => (
+                <Switch 
+                    checked={record.lastUsed} 
+                    onChange={() => onSelect(record.name)}
+                />
+            )
+        },
+    ];
+
+    const dataSource = models.map((model, index) => ({
+        ...model,
+        key: model.name || index,
+    }));
     
     return (
-        <div className="model-table generation-model">
-            <div className="model-table-header">
-                <div className="model-table-cell cell-name">名称</div>
-                <div className="model-table-cell cell-model">模型名称</div>
-                <div className="model-table-cell cell-url">接口地址</div>
-                <div className="model-table-cell cell-apikey">API Key</div>
-                <div className="model-table-cell cell-action">操作</div>
-                <div className="model-table-cell cell-status">使用中</div>
-            </div>
-            
-            {models.map((model, idx) => (
-                <div key={idx} className="model-table-row">
-                    <div className="model-table-cell cell-name">
-                        <Input
-                            value={model.name}
-                            onChange={e => onSelect(model.name)}
-                        />
-                    </div>
-                    <div className="model-table-cell cell-model">
-                        <Input
-                            value={model.modelName}
-                            onChange={e => onSelect(model.name)}
-                        />
-                    </div>
-                    <div className="model-table-cell cell-url">
-                        <Input
-                            value={model.url}
-                            onChange={e => onSelect(model.name)}
-                        />
-                    </div>
-                    <div className="model-table-cell cell-apikey">
-                        <Input.Password
-                            value={tempApiKeys[model.name] || ''}
-                            onChange={e => onApiKeyChange(model.name, e.target.value)}
-                            placeholder="输入API Key"
-                        />
-                    </div>
-                    <div className="model-table-cell cell-action">
-                        <Button 
-                            onClick={() => onTestApi(model)}
-                            className="test-button"
-                        >
-                            测试
-                        </Button>
-                        {models.length > 1 && (
-                            <Button 
-                                danger 
-                                icon={<DeleteOutlined />} 
-                                onClick={() => onRemove(model.name)}
-                                className="delete-button"
-                            />
-                        )}
-                    </div>
-                    <div className="model-table-cell cell-status">
-                        <Switch 
-                            checked={model.lastUsed} 
-                            onChange={() => onSelect(model.name)}
-                        />
-                    </div>
-                </div>
-            ))}
-            
-            <div className="model-table-action">
+        <div className="generation-model-container">
+            <Table
+                columns={columns}
+                dataSource={dataSource}
+                pagination={{
+                    pageSize: 5,
+                    showSizeChanger: false,
+                }}
+                size="small"
+                bordered
+                scroll={{ x: 900 }}
+                locale={{
+                    emptyText: '暂无生成模型配置'
+                }}
+            />
+            <div style={{ marginTop: 8 }}>
                 <Button 
                     icon={<PlusOutlined />} 
                     onClick={onAdd}
-                    className="add-button"
+                    type="dashed"
+                    block
                 >
                     添加模型
                 </Button>
