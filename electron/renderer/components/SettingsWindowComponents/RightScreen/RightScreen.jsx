@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './RightScreen.css'
 import { Button, Input, Select, Switch, Table, message } from 'antd';
-import { CloseOutlined, PlusOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
+import { CloseOutlined, PlusOutlined, DeleteOutlined, CheckOutlined, FolderOpenOutlined } from '@ant-design/icons';
 
 const { Option } = Select;
 
@@ -17,7 +17,7 @@ export default function RightScreen({ content, onClick }) {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const result = await window.getSettings();
+                const result = await window.electronAPI.getSettings();
                 setSettings(result);
                 setConversationSettings(result?.conversationSettings);
                 setLocalModelManagement(result?.localModelManagement);
@@ -86,15 +86,15 @@ export default function RightScreen({ content, onClick }) {
         setIsSaving(true);
         try {
             // 首先验证设置
-            await window.checkSettings(settings);
+            await window.electronAPI.checkSettings(settings);
             
             // 保存设置
-            await window.updateSettings(settings);
+            await window.electronAPI.updateSettings(settings);
             
             // 保存所有API Key
             for (const [modelName, apiKey] of Object.entries(tempApiKeys)) {
                 if (apiKey) {
-                    await window.setApiKey(modelName, apiKey);
+                    await window.electronAPI.setApiKey(modelName, apiKey);
                 }
             }
             
@@ -111,14 +111,14 @@ export default function RightScreen({ content, onClick }) {
     const testApiConnection = async (model) => {
         try {
             // 使用临时API Key或已保存的API Key
-            const apiKey = tempApiKeys[model.name] || await window.getApiKey(model.name);
+            const apiKey = tempApiKeys[model.name] || await window.electronAPI.getApiKey(model.name);
             
             if (!apiKey) {
                 message.warning('请先设置API Key');
                 return;
             }
             
-            await window.testApi(model.name, model.url, apiKey);
+            await window.electronAPI.testApi(model.name, model.url, apiKey);
             message.success('API连接测试成功');
         } catch (err) {
             console.error('API连接测试失败:', err);
@@ -208,8 +208,6 @@ export default function RightScreen({ content, onClick }) {
                 onClick={saveSettings}
                 loading={isSaving}
                 className="save-button"
-                color = "cyan"
-                variant = 'solid'
             >
                 保存设置
             </Button>
@@ -358,11 +356,38 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
         setNewModel(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleAddModel = () => {
-        if (!newModel.name || !newModel.path || !newModel.fileSize) {
-            message.warning('请填写所有必填字段');
-            return;
+    // 处理目录选择
+    const handleSelectPath = async () => {
+        try {
+            const path = await window.electronAPI.openDir();
+            if (path) {
+                handleInputChange('path', path);
+            }
+        } catch (err) {
+            console.error('选择目录失败:', err);
+            message.error('选择目录失败');
         }
+    };
+
+    // 验证模型有效性
+    const validateModel = () => {
+        if (!newModel.name.trim()) {
+            message.warning('请填写模型名称');
+            return false;
+        }
+        if (!newModel.path) {
+            message.warning('请选择模型路径');
+            return false;
+        }
+        if (!newModel.fileSize || isNaN(newModel.fileSize) || parseInt(newModel.fileSize) <= 0) {
+            message.warning('请输入有效的文件大小（大于0的数字）');
+            return false;
+        }
+        return true;
+    };
+
+    const handleAddModel = () => {
+        if (!validateModel()) return;
         
         onAdd({
             ...newModel,
@@ -393,11 +418,21 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
                     </div>
                     <div className="settings-item">
                         <label>模型路径</label>
-                        <Input 
-                            placeholder="模型路径" 
-                            value={newModel.path}
-                            onChange={e => handleInputChange('path', e.target.value)}
-                        />
+                        <div className="path-selector">
+                            <Input 
+                                readOnly
+                                placeholder="请选择模型目录" 
+                                value={newModel.path}
+                                className="path-input"
+                            />
+                            <Button 
+                                icon={<FolderOpenOutlined />}
+                                onClick={handleSelectPath}
+                                className="path-button"
+                            >
+                                选择目录
+                            </Button>
+                        </div>
                     </div>
                     <div className="settings-item">
                         <label>模型类型</label>
@@ -417,6 +452,7 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
                             placeholder="2200" 
                             value={newModel.fileSize}
                             onChange={e => handleInputChange('fileSize', e.target.value)}
+                            min="1"
                         />
                     </div>
                 </div>
@@ -425,8 +461,7 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
                         type="primary" 
                         icon={<PlusOutlined />}
                         onClick={handleAddModel}
-                        color = "cyan"
-                        variant = 'solid'
+                        className="add-button"
                     >
                         添加模型
                     </Button>
@@ -449,8 +484,8 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
                             <div className="model-table-cell">{model.name}</div>
                             <div className="model-table-cell">{model.type}</div>
                             <div className="model-table-cell">{model.fileSize} MB</div>
-                            <div className="model-table-cell" title={model.path}>
-                                {model.path.length > 30 ? `${model.path.substring(0, 30)}...` : model.path}
+                            <div className="model-table-cell path-cell" title={model.path}>
+                                {model.path}
                             </div>
                             <div className="model-table-cell">
                                 <Button 
@@ -458,8 +493,7 @@ function LocalModelManagement({ models, onAdd, onRemove }) {
                                     danger 
                                     icon={<DeleteOutlined />}
                                     onClick={() => onRemove(model.name)}
-                                    color = "default"
-                                    variant = 'text'
+                                    className="delete-button"
                                 />
                             </div>
                         </div>
@@ -549,9 +583,7 @@ function EmbeddingModelList({ configs, onSelect, onAdd, onRemove }) {
                                 size="small" 
                                 icon={<DeleteOutlined />} 
                                 onClick={() => onRemove && onRemove(idx)}
-                                style={{ marginLeft: 8 }}
-                                color = "default"
-                                variant='text'
+                                className="delete-button"
                             />
                         )}
                     </div>
@@ -560,9 +592,7 @@ function EmbeddingModelList({ configs, onSelect, onAdd, onRemove }) {
             <Button 
                 icon={<PlusOutlined />} 
                 onClick={onAdd}
-                style={{ marginTop: 8 }}
-                color = "cyan"
-                variant = 'solid'
+                className="add-button"
             >
                 添加嵌入模型
             </Button>
@@ -667,9 +697,7 @@ function GenerationModelList({
                     <div className="model-table-cell">
                         <Button 
                             onClick={() => onTestApi(model)}
-                            style={{ marginRight: 8 }}
-                            color = "cyan"
-                            variant = 'solid'
+                            className="test-button"
                         >
                             测试
                         </Button>
@@ -678,8 +706,7 @@ function GenerationModelList({
                                 danger 
                                 icon={<DeleteOutlined />} 
                                 onClick={() => onRemove(model.name)}
-                                variant = "text"
-                                color = "default"
+                                className="delete-button"
                             />
                         )}
                     </div>
@@ -696,8 +723,7 @@ function GenerationModelList({
                 <Button 
                     icon={<PlusOutlined />} 
                     onClick={onAdd}
-                    color = "cyan"
-                    variant = 'solid'
+                    className="add-button"
                 >
                     添加模型
                 </Button>
@@ -750,9 +776,8 @@ function PerformanceSettings({ settings, onChange, onToggle }) {
             
             <div className="settings-action" style={{ marginTop: 16 }}>
                 <Button 
-                    onClick={() => window.getAvailableHardware()}
-                    color = "cyan"
-                    variant = 'solid'
+                    onClick={() => window.electronAPI.getAvailableHardware()}
+                    className="hardware-button"
                 >
                     更新硬件信息
                 </Button>

@@ -53,7 +53,7 @@
 
 /* 鼠标悬停高亮 */
 .lb-button:hover {
-    background-color: #555555;
+    background-color: #555555 !important;
     color: #999999;
 }
 

@@ -6,9 +6,9 @@ import highlight from '@bytemd/plugin-highlight';
 import { Editor } from '@bytemd/react';
 import 'bytemd/dist/index.css';
 import zh from 'bytemd/locales/zh_Hans.json';
-import 'highlight.js/styles/default.css';
+import 'highlight.js/styles/github-dark.css'; // 使用深色代码高亮主题
 import debounce from 'lodash/debounce';
-import './TextEditor.css';
+import './TextEditor.css'; // 我们将在这里添加深色主题样式
 
 function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileContent, saveFileContent }) {
     const plugins = [gfm(), highlight()];
@@ -16,7 +16,6 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    // 当activeKey变化时加载文件内容
     useEffect(() => {
         if (!activeKey || !filePath) {
             setValue('');
@@ -39,7 +38,6 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
         loadContent();
     }, [activeKey, filePath, loadFileContent]);
 
-    // 防抖保存到状态（不实际保存到文件，只是更新缓存）
     const updateFile = useCallback(
         debounce((v) => {
             if (activeKey && filePath) {
@@ -49,7 +47,6 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
         [activeKey, filePath, updateFileContent]
     );
 
-    // 保存文件到磁盘
     const handleSave = useCallback(() => {
         if (!activeKey || !filePath || !value) {
             message.warning('没有可保存的内容');
@@ -72,15 +69,14 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
             });
     }, [activeKey, filePath, value, saveFileContent]);
 
-    // 处理内容变化
     const handleChange = (v) => {
         setValue(v);
         updateFile(v);
     };
 
     return (
-        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div className="editor-toolbar">
+        <div className="dark-editor-container">
+            <div className="editor-toolbar dark-toolbar">
                 <div className="file-info">
                     {filePath && (
                         <span className="file-path">
@@ -93,22 +89,22 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
                     onClick={handleSave} 
                     loading={isSaving}
                     disabled={!activeKey || isLoading}
-                    className="save-btn"
-                    color="cyan"
+                    className="save-btn dark-save-btn"
+                    color = "cyan"
                     variant='solid'
                 >
                     保存
                 </Button>
             </div>
             
-            <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            <div className="editor-content">
                 {isLoading ? (
-                    <div className="loading-container">
+                    <div className="loading-container dark-loading">
                         <p>加载中...</p>
                     </div>
                 ) : (
                     <Editor
-                        mode='split'
+                        mode="split"
                         locale={zh}
                         value={value}
                         plugins={plugins}

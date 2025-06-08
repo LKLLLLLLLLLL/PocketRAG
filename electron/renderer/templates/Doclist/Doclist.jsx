@@ -28,7 +28,7 @@ export default function Doclist({ children, setSelectNode, selectNode, treeData,
         };
 
         // 设置定时刷新
-        const refreshInterval = setInterval(fetchTreeData, 5000); // 每5秒刷新一次
+        const refreshInterval = setInterval(fetchTreeData, 600000); // 每分钟刷新一次
 
         // 监听文件变化事件
         window.electronAPI.onRepoFileChanged(fetchTreeData);

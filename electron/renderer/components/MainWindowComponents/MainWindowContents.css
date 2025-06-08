@@ -755,6 +755,18 @@ html, body, #root {
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
+.searchinput .ant-input:focus{
+    border: 1px solid #00b0b0;
+}
+:where(.css-dev-only-do-not-override-vrrzze).ant-input-search >.ant-input-group >.ant-input-group-addon:last-child .ant-input-search-button:not(.ant-btn-color-primary){
+    color: white;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-input-search >.ant-input-group >.ant-input-group-addon:last-child .ant-input-search-button:not(.ant-btn-color-primary):hover {
+    background: #666666;
+    color: #00b0b0;
+}
+
 .searchinput .ant-input::placeholder,
 .searchinput input::placeholder {
     color: #b3b3b3;
@@ -767,6 +779,17 @@ html, body, #root {
     flex: 1;
     height: 100%;
     min-height: 0;
+}
+
+:where(.css-dev-only-do-not-override-vrrzze).ant-input-outlined:focus-within{
+    border-color: #00b0b0;
+    background: none;
+    color:white;
+    caret-color: white;
+}
+.ant-input-outlined:hover{
+    background: none;
+    border-color:#00b0b0;
 }
 
 /* 主显示区内容卡片统一阴影 */

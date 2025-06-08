@@ -21,7 +21,7 @@
     min-height: 0;
     box-sizing: border-box;
     -webkit-app-region: no-drag;
-    padding: 0; /* 调整内边距 */
+    padding: 0;
     margin-top: 20px;
 }
 
@@ -91,10 +91,10 @@
 
 .settings-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 确保网格列的宽度不会超出 */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 16px;
     margin-bottom: 16px;
-    width: 100%; /* 确保网格宽度不会超出父容器 */
+    width: 100%;
     box-sizing: border-box;
 }
 
@@ -105,25 +105,6 @@
 }
 
 .settings-item label {
-    color: #e0e0e0;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.settings-item input,
-.settings-item select {
-    width: 100%; /* 确保输入框和选择框不会超出父容器宽度 */
-    box-sizing: border-box;
-}
-
-.settings-item-full {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-.settings-item-full label {
     color: #e0e0e0;
     font-size: 14px;
     font-weight: 500;
@@ -158,6 +139,8 @@
 .model-table-cell {
     flex: 1;
     padding: 0 8px;
+    display: flex;
+    align-items: center;
 }
 
 .model-table-row {
@@ -206,31 +189,40 @@
     display: flex;
     gap: 8px;
     align-items: center;
-    width: 100%; /* 确保模型列表行不会超出父容器宽度 */
+    width: 100%;
     box-sizing: border-box;
+    padding: 8px 0;
+    border-bottom: 1px solid #444;
 }
 
-.model-list-select, .model-list-input {
+.model-list-row:last-child {
+    border-bottom: none;
+}
+
+.model-info {
+    display: flex;
+    flex-direction: column;
     flex: 1;
 }
 
-.model-list-add {
-    margin-top: 8px;
-    background: #444;
-    color: white;
-    border-color: #555;
+.model-name {
+    font-weight: 500;
 }
 
-.model-list-add:hover {
-    background: #555;
-    color: white;
-    border-color: #666;
+.model-details {
+    font-size: 12px;
+    color: #888;
+}
+
+.model-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .welcome-container {
     width: 100%;
     max-width: 800px;
-    /* padding: 0 20px; 确保内边距不会导致宽度超出 */
 }
 
 .welcome-header {
@@ -254,7 +246,7 @@
 .welcome-content {
     display: flex;
     gap: 30px;
-    width: 100%; /* 确保内容宽度不会超出父容器 */
+    width: 100%;
     box-sizing: border-box;
 }
 
@@ -262,8 +254,8 @@
     background: #333333;
     border-radius: 8px;
     padding: 24px;
-    flex: 1; /* 使用 flex 布局确保卡片宽度不会超出 */
-    max-width: 48%; /* 设置最大宽度以防止超出 */
+    flex: 1;
+    max-width: 48%;
     box-sizing: border-box;
 }
 
@@ -333,43 +325,35 @@
     margin-top: 4px;
 }
 
-.model-info {
+.path-selector {
     display: flex;
-    flex-direction: column;
+    gap: 8px;
 }
 
-.model-name {
-    font-weight: 500;
+.path-input {
+    flex: 1;
+    background: #222222 !important;
+    color: #eee !important;
+    border: 1px solid #555 !important;
 }
 
-.model-details {
-    font-size: 12px;
-    color: #888;
+.path-button {
+    background: #333 !important;
+    border-color: #555 !important;
+    color: #ddd !important;
 }
 
-.model-list-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #444;
+.path-button:hover {
+    background: #444 !important;
+    border-color: #666 !important;
+    color: #fff !important;
 }
 
-.model-list-row:last-child {
-    border-bottom: none;
-}
-
-.model-actions {
-    display: flex;
-    align-items: center;
-}
-
-.settings-grid .settings-item .ant-input-number {
-    width: 100%;
-}
-
-.model-table-cell .ant-switch {
-    transform: scale(0.8);
+.path-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .settings-save-container {
@@ -383,11 +367,12 @@
 .save-button {
     background-color: #00b0b0;
     border-color: #00b0b0;
+    color: white !important;
 }
 
 .save-button:hover {
-    background-color: #008080;
-    border-color: #008080;
+    background-color: #008080 !important;
+    border-color: #008080 !important;
 }
 
 .model-table-action {
@@ -395,4 +380,48 @@
     background: #444;
     display: flex;
     justify-content: center;
+}
+
+.add-button {
+    background-color: #00b0b0;
+    border-color: #00b0b0;
+    color: white !important;
+}
+
+.add-button:hover {
+    background-color: #008080 !important;
+    border-color: #008080 !important;
+}
+
+.test-button {
+    background-color: #00b0b0;
+    border-color: #00b0b0;
+    color: white !important;
+}
+
+.test-button:hover {
+    background-color: #008080 !important;
+    border-color: #008080 !important;
+}
+
+.hardware-button {
+    background-color: #00b0b0;
+    border-color: #00b0b0;
+    color: white !important;
+}
+
+.hardware-button:hover {
+    background-color: #008080 !important;
+    border-color: #008080 !important;
+}
+
+.delete-button {
+    background-color: transparent;
+    border-color: #ff4d4f;
+    color: #ff4d4f !important;
+}
+
+.delete-button:hover {
+    background-color: rgba(255, 77, 79, 0.1) !important;
+    border-color: #ff4d4f !important;
 }

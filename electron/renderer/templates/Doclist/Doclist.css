@@ -137,6 +137,27 @@
     background-color: #444444;
 }
 
+.ant-tree .ant-tree-treenode-selected::after,
+.ant-tree .ant-tree-treenode-last-selected::after,
+.ant-tree .ant-tree-treenode-leaf-last-selected:hover::after {
+    content: none !important;
+}
+
+.ant-tree-node-content-wrapper.ant-tree-node-selected:hover::after {
+    content: none !important;
+}
+
+.ant-tree .ant-tree-treenode-selected::before,
+.ant-tree .ant-tree-treenode-last-selected::before,
+.ant-tree .ant-tree-treenode-leaf-last-selected:hover::before {
+    content: none !important;
+}
+
+.ant-tree-node-content-wrapper.ant-tree-node-selected:hover::before {
+    content: none !important;
+}
+
+
 :where(.css-dev-only-do-not-override-vrrzze).ant-tree .ant-tree-treenode{
     margin-bottom: 0;
 }
