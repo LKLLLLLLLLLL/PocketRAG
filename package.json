@@ -91,6 +91,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": true,
       "include": "electron/public/uninstaller.nsh"
     },
     "msi": {

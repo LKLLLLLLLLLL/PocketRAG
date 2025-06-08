@@ -14,6 +14,7 @@ const version = require('../package.json').version;
 
 // Directory and version configuration
 const binDir = path.join(__dirname, '..', 'kernel', 'bin');
+const buildDir = path.join(__dirname, '..', 'kernel', 'build');
 const externalDir = path.join(__dirname, '..', 'kernel', 'external');
 const onnxruntimeDir = path.join(externalDir, 'onnxruntime');
 const cudnnDir = path.join(externalDir, 'cudnn');
@@ -214,6 +215,7 @@ async function main() {
 
         console.log('[INFO] Cleaning bin directory...');
         removeDirectory(binDir);
+        removeDirectory(buildDir);
         fs.mkdirSync(binDir, { recursive: true });
 
         const kernelDir = path.join(__dirname, '..', 'kernel');
