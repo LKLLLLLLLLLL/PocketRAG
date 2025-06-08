@@ -1260,6 +1260,7 @@ const repoWatchers = new Map()
 function watchRepoDir(event, repoPath) {
   if(repoWatchers.has(repoPath)) {
     repoWatchers.get(repoPath).close()
+    console.log('防止重复监听', repoPath)
   }
   try {
     const watcher = fs.watch(repoPath, { recursive: true}, async (eventType, filename) => {
