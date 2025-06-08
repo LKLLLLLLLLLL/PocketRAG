@@ -50,6 +50,7 @@
   "build": {
     "appId": "io.github.LKLLLLLLLLLL.PocketRAG",
     "productName": "PocketRAG",
+    "icon": "electron/public/icon.png",
     "files": [
       "electron/build/**/*",
       "electron/main/**/*"

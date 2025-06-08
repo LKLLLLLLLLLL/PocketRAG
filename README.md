@@ -1,15 +1,28 @@
-# PocketRAG
+<div align="center">
+  <img src="electron/public/icon.png" alt="PocketRAG Logo" width="256">
+  <h1>PocketRAG</h1>
+
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-lightgrey?style=flat-square" alt="Platform">
+  <img src="https://img.shields.io/badge/CUDA-12.0+-green?style=flat-square&logo=nvidia" alt="CUDA">
+  <img src="https://img.shields.io/github/last-commit/LKLLLLLLLLLL/PocketRAG?style=flat-square" alt="Last Commit">
+  <a href="https://github.com/LKLLLLLLLLLL/PocketRAG/releases/latest">
+    <img src="https://img.shields.io/github/v/release/LKLLLLLLLLLL/PocketRAG?style=flat-square" alt="Latest Release">
+  </a>
+</div>
+
+---
+
+<!-- <h1>PocketRAG</h1> -->
 PocketRAG是一个轻量的本地化RAG（检索-增强-生成）应用。不需要复杂的配置，提供直装直用的检索体验。
 
 目前支持Windows和MacOS平台。
 
 **CUDA支持**：该应用支持调用CUDA独显加速模型推理，如果需要使用CUDA加速，请确保系统支持CUDA 12.0及以上版本，并安装了CUDA运行时。*注意：带有CUDA加速的版本打包了`cuDNN`库，因此体积较大。*
 
-
 ## 快速开始
 
 ### 使用预打包版本
-请从[Releases页面](https://github.com/LKLLLLLLLLLL/PocketRAG/releases)选择对应操作系统的版本下载，如果需要使用CUDA加速，请下载带有`cuda`后缀的版本。
+请从[Releases页面](https://github.com/LKLLLLLLLLLL/PocketRAG/releases/latest)选择对应操作系统的版本下载，如果需要使用CUDA加速，请下载带有`cuda`后缀的版本。
 
 ### 从源码构建
 
