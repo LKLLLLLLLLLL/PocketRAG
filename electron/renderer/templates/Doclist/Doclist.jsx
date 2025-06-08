@@ -20,6 +20,7 @@ export default function Doclist({ children, setSelectNode, selectNode, treeData,
     // 文件树自动刷新功能
     useEffect(() => {
         const fetchTreeData = () => {
+            console.log('fetching data ...')
             const repoPath = window.repoPath;
             if (!repoPath) return;
             window.electronAPI.getRepoFileTree(repoPath).then((data) => {
@@ -27,17 +28,16 @@ export default function Doclist({ children, setSelectNode, selectNode, treeData,
             });
         };
 
-        // 设置定时刷新
-        const refreshInterval = setInterval(fetchTreeData, 600000); // 每分钟刷新一次
+        const repoFileTreeInit = async () => {
+            await window.repoInitializePromise
+            fetchTreeData()
+            // 监听文件变化事件
+            window.electronAPI.onRepoFileChanged(fetchTreeData);
+            window.electronAPI.watchRepoDir(window.repoPath);
+        }
 
-        // 监听文件变化事件
-        window.electronAPI.onRepoFileChanged(fetchTreeData);
-
-        return () => {
-            clearInterval(refreshInterval);
-            // window.electronAPI.removeRepoFileChangedListener(fetchTreeData);
-        };
-    }, [setTreeData]);
+        repoFileTreeInit()
+    }, []);
 
     return (
         <div className="Doclist-container">
@@ -66,7 +66,6 @@ const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys }
     const [expandedKeys, setExpandedKeys] = useState([]);
     const [rightMenus, setRightMenus] = useState([]);
     const rightTriggerRef = useRef(null);
-    const firstNodeKey = treeData.length > 0 ? treeData[0].key : null;
 
     // 右键菜单处理
     const handleRightClick = ({ event, node }) => {

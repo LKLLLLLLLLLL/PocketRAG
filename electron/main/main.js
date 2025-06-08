@@ -3,7 +3,7 @@ const path = require('node:path')
 const {spawn} = require('node:child_process')
 const EventEmitter = require('events')
 const fs = require('node:fs')
-const {getInstallationTime, generateInstallationId} = require('./getInstallationId.js')
+const {generateInstallationId} = require('./getInstallationId.js')
 //import electron and node modules and self-defined modules
 
 const isDev = process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true' || !app.isPackaged
@@ -1248,25 +1248,12 @@ function generateTree(dir) {
 function getRepoFileTree(event, repoPath) {
   try {
     let fileTreeData = generateTree(repoPath)
-    fileTreeData = [
-      {
-        title: path.basename(repoPath),
-        key: repoPath,
-        children: fileTreeData
-      }
-    ]
     return fileTreeData
   }catch(err) {
     console.error(err)
-    return [
-      {
-        title: path.basename(repoPath),
-        key: repoPath,
-        children: []
-      }
-    ]
+    return []
   }
-}// add the root node
+} // packaging generateTree function
 
 
 const repoWatchers = new Map()
@@ -1354,7 +1341,7 @@ function getVersion(event) {
     console.error('getVersion failed', err)
     return "0.0.0"
   }
-}
+}// get app version
 
 
 function getDirSize(event, dir) {
@@ -1382,7 +1369,7 @@ function getDirSize(event, dir) {
 
   // 转换大小为MB并返回
   return Math.floor(totalSize / (1024 * 1024))
-}
+}// compute the directory size
 
 
 app.whenReady().then(async () => {
@@ -1514,5 +1501,5 @@ app.on('will-quit', (event) => {
   console.log('callbacks\' final size: ', callbacks.size)
   console.log('windows\' final size: ', windows.size)
 })
-
+// quitting action
 
