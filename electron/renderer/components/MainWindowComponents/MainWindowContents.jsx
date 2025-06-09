@@ -3,18 +3,19 @@ import React, { useState, useRef, useEffect } from "react";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { Table,Spin,Typography,Input, Button, message } from "antd";
 import ReactMarkdown from 'react-markdown';
-import Doclist from "../../templates/Doclist/Doclist";
 import LeftBar from "./LeftBar/LeftBar";
+import Doclist from "../../templates/Doclist/Doclist";
+import TabsBar from "./TabsBar/TabsBar";
 import TextEditor from "./TextEditor/TextEditor";
-import TabsBar from "./TabsBar";
+import Conversation from "./Conversation/Conversation";
+import Search from "./Search/Search";
+import ChunkInfo from "./ChunkInfo/ChunkInfo";
+import Welcome from "./Welcome/Welcome";
 import "./MainWindowContents.css";
-
-const { TextArea } = Input;
-const { Text, Paragraph } = Typography;
 
 export default function MainWindowContents() {
     //overall state management
-    const [content, setContent] = useState('conversation');
+    const [content, setContent] = useState('welcome');
     //search state management
     const [inputValue, setInputValue] = useState('');
     const [showResult, setShowResult] = useState(false);
@@ -50,6 +51,60 @@ export default function MainWindowContents() {
         setInfo(usage);
     };
 
+    // 创建系统标签的通用函数
+    const createSystemTab = (tabType, tabLabel) => {
+        const tabKey = `system-${tabType}`;
+        
+        // 检查是否已存在相同标签
+        const exists = tabs.some(tab => tab.key === tabKey);
+        
+        if (!exists) {
+            // 添加新的系统标签
+            setTabs(prev => [
+                ...prev,
+                {
+                    key: tabKey,
+                    label: tabLabel,
+                    isLeaf: false, // 系统标签不是文件
+                    isSystem: true, // 标记为系统标签
+                    systemType: tabType, // 系统类型
+                    filePath: null
+                }
+            ]);
+        }
+        
+        // 激活该标签
+        setActiveKey(tabKey);
+    };
+
+    // 修改 LeftBar 的处理函数
+    const handleConversation = () => {
+        setContent('conversation');
+        createSystemTab('conversation', '对话');
+    };
+
+    const handleSearch = () => {
+        setContent('search');
+        createSystemTab('search', '搜索');
+    };
+
+    const handleEdit = () => {
+        setContent('edit');
+        // 如果有文件标签，切换到最后一个文件标签
+        const fileTab = tabs.filter(tab => !tab.isSystem).pop();
+        if (fileTab) {
+            setActiveKey(fileTab.key);
+        } else {
+            // 如果没有文件标签，创建一个新文件
+            handleNewTab();
+        }
+    };
+
+    const handleChunkInfo = () => {
+        setContent('chunkInfo');
+        createSystemTab('chunkInfo', '分块信息');
+    };
+
     // 处理文件选择 - 当文件树中选择文件时调用
     const handleFileSelect = (node) => {
         if (!node || !node.key) return;
@@ -69,6 +124,7 @@ export default function MainWindowContents() {
                         key: node.key,
                         label: node.title,
                         isLeaf: node.isLeaf,
+                        isSystem: false, // 文件标签不是系统标签
                         filePath: node.filePath || node.key,
                         node: node // 存储完整的节点对象
                     }
@@ -84,15 +140,28 @@ export default function MainWindowContents() {
         }
     };
 
-    // 处理标签切换 - 同步到文件树
+    // 处理标签切换 - 根据标签类型切换内容
     const handleTabChange = (key) => {
         setActiveKey(key);
-        setContent('edit'); // 切换到编辑模式
-
-        // 找到标签对应的节点并选中
+        
+        // 找到对应的标签
         const tab = tabs.find(t => t.key === key);
-        if (tab && tab.node) {
-            setSelectNode(tab.node);
+        if (tab) {
+            if (tab.isSystem) {
+                // 系统标签：根据系统类型切换内容
+                setContent(tab.systemType);
+                
+                // 如果是文件相关的系统标签，清除文件选择
+                if (tab.systemType !== 'edit') {
+                    setSelectNode(null);
+                }
+            } else {
+                // 文件标签：切换到编辑模式并选中对应文件
+                setContent('edit');
+                if (tab.node) {
+                    setSelectNode(tab.node);
+                }
+            }
         }
     };
 
@@ -101,16 +170,36 @@ export default function MainWindowContents() {
         const newTabs = tabs.filter(tab => tab.key !== targetKey);
         setTabs(newTabs);
 
-        // 清除关闭标签的文件内容缓存
-        setFileContentMap(prev => {
-            const newMap = { ...prev };
-            delete newMap[targetKey];
-            return newMap;
-        });
+        // 清除关闭标签的文件内容缓存（仅对文件标签）
+        const closedTab = tabs.find(tab => tab.key === targetKey);
+        if (closedTab && !closedTab.isSystem) {
+            setFileContentMap(prev => {
+                const newMap = { ...prev };
+                delete newMap[targetKey];
+                return newMap;
+            });
+        }
 
         if (targetKey === activeKey) {
-            setActiveKey(newTabs.length > 0 ? newTabs[0].key : '');
-            setContent(newTabs.length > 0 ? 'edit' : content);
+            if (newTabs.length > 0) {
+                // 切换到最后一个标签
+                const lastTab = newTabs[newTabs.length - 1];
+                setActiveKey(lastTab.key);
+                
+                if (lastTab.isSystem) {
+                    setContent(lastTab.systemType);
+                } else {
+                    setContent('edit');
+                    if (lastTab.node) {
+                        setSelectNode(lastTab.node);
+                    }
+                }
+            } else {
+                // 没有标签时，返回默认状态
+                setActiveKey('');
+                setContent('welcome');
+                setSelectNode(null);
+            }
         }
     };
 
@@ -165,6 +254,7 @@ export default function MainWindowContents() {
             key: newTabKey,
             label: '新文件',
             isLeaf: true,
+            isSystem: false, // 新文件不是系统标签
             filePath: newTabKey
         };
 
@@ -404,10 +494,10 @@ export default function MainWindowContents() {
     return (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
             <LeftBar
-                handleConversation={() => setContent('conversation')}
-                handleSearch={() => setContent('search')}
-                handleEdit={() => setContent('edit')}
-                handleChunkInfo={() => setContent('chunkInfo')}
+                handleConversation={handleConversation}
+                handleSearch={handleSearch}
+                handleEdit={handleEdit}
+                handleChunkInfo={handleChunkInfo}
             />
             <div style={{ flex: 1, display: 'flex' }}>
                 <PanelGroup direction="horizontal" autoSaveId="main-window-horizontal">
@@ -488,6 +578,7 @@ export default function MainWindowContents() {
     );
 }
 
+// MainDemo 组件保持不变，只是处理 edit 模式时需要检查系统标签
 const MainDemo = ({
     content, inputValue, resultItem, onChange, onKeyDown, onSearchClick, isLoading, showResult, isTimeout, className,
     history, streaming, inputQuestionValue, setInputQuestionValue, onSendConversation, onConvKeyDown, convLoading,
@@ -497,553 +588,60 @@ const MainDemo = ({
     switch (content) {
         case 'conversation':
             return (
-                <div className={className}>
-                    <div className='maindemo-content'>
-                        <PanelGroup direction="vertical" className='conversation-panelgroup'>
-                            <Panel minSize={50} maxSize={80} defaultSize={70} className='conversation-panel_1'>
-                                <div className='conversation-container' style={{ height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', marginTop: 24 }}>
-                                    <div className="chat-history" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-                                        {history.map((item, idx) => (
-                                            <div key={idx} className="chat-history-item" style={{ display: 'flex', flexDirection: 'column' }}>
-                                                <div className="chat-row chat-row-question">
-                                                    <div className="chat-bubble chat-bubble-question">{item.query}</div>
-                                                </div>
-                                                {item.pending && idx === history.length - 1 ? (
-                                                    stopped ? (
-                                                        <div className="chat-row chat-row-answer">
-                                                            <div className="chat-bubble chat-bubble-answer chat-loading" style={{ color: '#ff4d4f' }}>
-                                                                对话已停止
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <>
-                                                            {/* 显示检索过程 */}
-                                                            {streaming.reduce((acc, msg) => {
-                                                                if (msg.type === 'annotation') {
-                                                                    acc.push({ annotation: msg.content, search: [], result: [] });
-                                                                } else if (msg.type === 'search') {
-                                                                    if (acc.length === 0) acc.push({ annotation: '', search: [], result: [] });
-                                                                    acc[acc.length - 1].search.push(msg.content);
-                                                                } else if (msg.type === 'result') {
-                                                                    if (acc.length === 0) acc.push({ annotation: '', search: [], result: [] });
-                                                                    acc[acc.length - 1].result.push(msg.content);
-                                                                }
-                                                                return acc;
-                                                            }, []).map((retr, i) => (
-                                                                <React.Fragment key={`streaming-${i}`}>
-                                                                    {retr.annotation && (
-                                                                        <div className="annotation-container">
-                                                                            检索目的：{retr.annotation}
-                                                                        </div>
-                                                                    )}
-                                                                    {retr.search.length > 0 && (
-                                                                        <div className="searchkey-container">
-                                                                            关键词：{retr.search.join('、')}
-                                                                        </div>
-                                                                    )}
-                                                                    {retr.result.length > 0 && (
-                                                                        <div className="conversation-result-list">
-                                                                            {retr.result.map((res, j) => (
-                                                                                <div key={`result-${i}-${j}`} className="result0-item">
-                                                                                    <div className="result0-item-container">
-                                                                                        <div className="chunkcontent-container">
-                                                                                            <div className="chunkcontent-content">
-                                                                                                {res.highlightedContent ? (
-                                                                                                    <div dangerouslySetInnerHTML={{ __html: res.highlightedContent }} />
-                                                                                                ) : (
-                                                                                                    <ReactMarkdown>{res.content || res}</ReactMarkdown>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                        {res.filePath && (
-                                                                                            <div className="filepath-container">
-                                                                                                <div className="filepath-content">
-                                                                                                    {res.filePath} {res.beginLine && res.endLine ? `[${res.beginLine}-${res.endLine}]` : ''}
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </React.Fragment>
-                                                            ))}
-
-                                                            {/* 显示实时答案 */}
-                                                            {streaming.some(msg => msg.type === 'answer') && (
-                                                                <div className="chat-row chat-row-answer">
-                                                                    <div className="chat-bubble chat-bubble-answer">
-                                                                        <ReactMarkdown>
-                                                                            {streaming
-                                                                                .filter(msg => msg.type === 'answer')
-                                                                                .map(msg => msg.content)
-                                                                                .join('')}
-                                                                        </ReactMarkdown>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {/* 显示加载状态 */}
-                                                            {!streaming.some(msg => msg.type === 'answer') && (
-                                                                <div className="chat-row chat-row-answer">
-                                                                    <div className="chat-bubble chat-bubble-answer chat-loading">
-                                                                        <LoadingOutlined /> 正在生成回答...
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </>
-                                                    )
-                                                ) : (
-                                                    <>
-                                                        {/* 显示完成的检索结果 */}
-                                                        {item.retrieval?.map((retr, i) => (
-                                                            <React.Fragment key={i}>
-                                                                <div className="annotation-container">
-                                                                    检索目的：{retr.annotation}
-                                                                </div>
-                                                                <div className="searchkey-container">
-                                                                    关键词：{Array.isArray(retr.search) ? retr.search.join('、') : retr.search}
-                                                                </div>
-                                                                <div className="conversation-result-list">
-                                                                    {retr.result.map((res, j) => (
-                                                                        <div key={j} className="result0-item">
-                                                                            <div className="result0-item-container">
-                                                                                <div className="chunkcontent-container">
-                                                                                    <div className="chunkcontent-content">
-                                                                                        {res.highlightedContent ? (
-                                                                                            <div dangerouslySetInnerHTML={{ __html: res.highlightedContent }} />
-                                                                                        ) : (
-                                                                                            <ReactMarkdown>{res.content || res}</ReactMarkdown>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
-                                                                                {res.filePath && (
-                                                                                    <div className="filepath-container">
-                                                                                        <div className="filepath-content">
-                                                                                            {res.filePath} {res.beginLine && res.endLine ? `[${res.beginLine}-${res.endLine}]` : ''}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </React.Fragment>
-                                                        ))}
-                                                        {/* 显示完成的答案 */}
-                                                        <div className="chat-row chat-row-answer">
-                                                            <div className="chat-bubble chat-bubble-answer">
-                                                                <ReactMarkdown>{item.answer}</ReactMarkdown>
-                                                            </div>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </Panel>
-                            <PanelResizeHandle className='conversation-panel-resize-handle' />
-                            <Panel minSize={20} maxSize={50} defaultSize={30} className='conversation-panel_2'>
-                                {showInfo && Array.isArray(info) && info.length > 0 && typeof info[0] === 'object' && (
-                                    <div className="model-info-panel">
-                                        <table>
-                                            <tbody>
-                                                {Object.entries(info[0]).map(([key, value]) => (
-                                                    <tr key={key}>
-                                                        <td>{key}</td>
-                                                        <td>{value}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                                <div className='question-input'>
-                                    <div className='input-area'>
-                                        <TextArea
-                                            placeholder='请输入问题'
-                                            rows={5}
-                                            className='conversation-question-input'
-                                            onChange={onChange_Conv}
-                                            onPressEnter={onPressEnter_Conv}
-                                            value={inputQuestionValue}
-                                            disabled={convLoading}
-                                            style={{ fontSize: 16, padding: '12px', minHeight: 48, maxHeight: 120 }}
-                                            showCount="true"
-                                        />
-                                    </div>
-                                    <div className='button-area'>
-                                        <div className="model-information-area">
-                                            <Button
-                                                className="model-information-button"
-                                                onClick={handleInfoClick}
-                                                color="cyan"
-                                                variant='solid'
-                                            >
-                                                {showInfo ? '关闭' : '信息'}
-                                            </Button>
-                                        </div>
-                                        <div className="conversation-control-area">
-                                            <Button
-                                                onClick={convLoading ? onStop : onClick_Conv}
-                                                disabled={convLoading ? false : !inputQuestionValue.trim()}
-                                                className={convLoading ? 'stop-button' : 'send-button'}
-                                                style={{
-                                                    height: 48,
-                                                    fontSize: 16,
-                                                    marginLeft: 12
-                                                }}
-                                                color={convLoading ? '#00aaaa' : 'cyan'}
-                                                variant='solid'>
-                                                {convLoading ? '停止' : '发送'}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Panel>
-                        </PanelGroup>
-                    </div>
-                </div>
+                <Conversation
+                    className={className}
+                    history={history}
+                    streaming={streaming}
+                    inputQuestionValue={inputQuestionValue}
+                    onSendConversation={onSendConversation}
+                    onConvKeyDown={onConvKeyDown}
+                    convLoading={convLoading}
+                    onChange_Conv={onChange_Conv}
+                    onPressEnter_Conv={onPressEnter_Conv}
+                    onClick_Conv={onClick_Conv}
+                    stopped={stopped}
+                    onStop={onStop}
+                    handleInfoClick={handleInfoClick}
+                    showInfo={showInfo}
+                    info={info}>
+                </Conversation>
             );
         case 'search':
             return (
-                <div style={{ flexDirection: 'column' }} className={className}>
-                    <div className='maindemo-content'>
-                        <div className='searchinput-container'>
-                            <Input.Search
-                                type='text'
-                                placeholder='请输入内容，按回车或点击搜索'
-                                className='searchinput'
-                                value={inputValue}
-                                onChange={onChange}
-                                onKeyDown={onKeyDown}
-                                onSearch={onSearchClick}
-                                enterButton
-                                size="large"
-                                loading={isLoading}
-                                disabled={isLoading}
-                            />
-                        </div>
-                        <div className='searchresult-container'>
-                            <div className='explanation-container'>
-                                <div className="explanation">
-                                    {isTimeout ? <div>请求超时</div>
-                                        : isLoading ? <div><LoadingOutlined /> 搜索中...</div>
-                                            : showResult ? <div>结果如下</div>
-                                                : <div>请进行搜索</div>}
-                                </div>
-                            </div>
-                            <div className='result-ul-container'>
-                                {!isLoading && showResult &&
-                                    <ul className='result-ul'>
-                                        {resultItem.length > 0 ? resultItem : <li>未找到结果</li>}
-                                    </ul>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
+                <Search
+                    className={className}
+                    inputValue={inputValue}
+                    onChange={onChange}
+                    onKeyDown={onKeyDown}
+                    onSearchClick={onSearchClick}
+                    isLoading={isLoading}
+                    isTimeout={isTimeout}
+                    showResult={showResult}
+                    resultItem={resultItem}
+                />
+            )
         case 'edit':
-            const activeTab = tabs.find(tab => tab.key === activeKey);
-            const filePath = activeTab?.filePath || activeKey;
-            const fileContent = fileContentMap[filePath] || '';
-
             return (
-                <div className={className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <div className="maindemo-content" style={{ flex: 1, minHeight: 0, width: "100%"}}>
-                        <TextEditor
-                            activeKey={activeKey}
-                            filePath={filePath}
-                            content={fileContent}
-                            loadFileContent={loadFileContent}
-                            updateFileContent={updateFileContent}
-                            saveFileContent={saveFileContent}
-                        />
-                    </div>
-                </div>
+                <TextEditor
+                    className={className}
+                    activeKey={activeKey}
+                    tabs={tabs}
+                    fileContentMap={fileContentMap}
+                    loadFileContent={loadFileContent}
+                    updateFileContent={updateFileContent}
+                    saveFileContent={saveFileContent}>
+                </TextEditor>
             );
         case 'chunkInfo':
             return (
-                <div className={className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <div className="maindemo-content" style={{ width: "100%",flex: 1, minHeight: 0}}>
-                        <ChunkInfo />
-                    </div>
-                </div>
+                <ChunkInfo className = {className}>
+                </ChunkInfo>    
             );
+        case 'welcome':
         default:
             return (
-                <div className={className}>
-                    <div className='maindemo-content'>
-                        <h2>Welcome</h2>
-                        <p>Select a feature from the left bar.</p>
-                    </div>
-                </div>
+                <Welcome className = {className}>
+                </Welcome>
             );
     }
-};
-
-const ChunkInfo = () => {
-    const [chunkInfo, setChunkInfo] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    // 获取分块信息
-    useEffect(() => {
-        const fetchChunkInfo = async () => {
-            try {
-                setLoading(true);
-                // 直接调用window.getChunksInfo方法
-                const result = await window.getChunksInfo();
-                setChunkInfo(result || []);
-            } catch (error) {
-                console.error("获取分块信息出错:", error);
-                setChunkInfo([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchChunkInfo();
-    }, []);
-
-    const columns = [
-        {
-            title: '分块ID',
-            dataIndex: 'chunkId',
-            key: 'chunkId',
-            width: 120,
-            fixed: 'left',
-            render: (text) => (
-                <Text
-                    code
-                    style={{ color: '#00b0b0' }}
-                >
-                    {text}
-                </Text>
-            ),
-        },
-        {
-            title: '文件路径',
-            dataIndex: 'filePath',
-            key: 'filePath',
-            width: 250,
-            render: (text, record) => (
-                <Paragraph
-                    ellipsis={{
-                        rows: 1,
-                        expandable: true,
-                        symbol: (expanded) => {
-                            console.log('文件路径展开状态:', expanded); // 调试用
-                            return expanded ? '收起' : '展开';
-                        },
-                        onExpand: (expanded) => handleExpand(`filePath-${record.key}`, expanded),
-                    }}
-                    style={{
-                        color: '#ffe066',
-                        margin: 0,
-                        fontSize: '12px',
-                    }}
-                    title={text}
-                >
-                    {text}
-                </Paragraph>
-            ),
-        },
-        {
-            title: '行号范围',
-            key: 'lineRange',
-            width: 100,
-            render: (_, record) => (
-                <Text style={{ color: '#999' }}>
-                    {record.beginLine !== undefined && record.endLine !== undefined
-                        ? `${record.beginLine}-${record.endLine}`
-                        : record.beginLine !== undefined || record.endLine !== undefined
-                        ? record.beginLine || record.endLine
-                        : '-'
-                    }
-                </Text>
-            ),
-        },
-        {
-            title: '嵌入模型',
-            dataIndex: 'embeddingName',
-            key: 'embeddingName',
-            width: 120,
-            render: (text) => (
-                <Text style={{ color: '#87ceeb' }}>
-                    {text || '-'}
-                </Text>
-            ),
-        },
-        {
-            title: '分块内容',
-            dataIndex: 'content',
-            key: 'content',
-            width: 400,
-            render: (text) => (
-                <Paragraph
-                    ellipsis={{
-                        rows: 3,
-                        expandable: true,
-                        symbol: (expanded) => expanded ? '收起' : '展开', // 修改：使用函数形式
-                    }}
-                    style={{
-                        color: '#fff',
-                        margin: 0,
-                        lineHeight: '1.4',
-                        fontSize: '13px',
-                    }}
-                >
-                    {text || '无内容'}
-                </Paragraph>
-            ),
-        },
-        {
-            title: '元数据',
-            dataIndex: 'metadata',
-            key: 'metadata',
-            width: 200,
-            render: (metadata) => {
-                if (!metadata) {
-                    return <Text style={{ color: '#999' }}>无元数据</Text>;
-                }
-
-                // 如果metadata是对象，转换为JSON字符串
-                const metadataStr = typeof metadata === 'object' 
-                    ? JSON.stringify(metadata, null, 2)
-                    : String(metadata);
-
-                return (
-                    <Paragraph
-                        ellipsis={{
-                            rows: 2,
-                            expandable: true,
-                            symbol: (expanded) => expanded ? '收起' : '展开', // 修改：使用函数形式
-                        }}
-                        style={{
-                            color: '#ddd',
-                            margin: 0,
-                            fontSize: '12px',
-                            fontFamily: 'monospace',
-                        }}
-                    >
-                        {metadataStr}
-                    </Paragraph>
-                );
-            },
-        },
-    ];
-
-    // 为表格数据添加key
-    const dataSource = chunkInfo.map((item, index) => ({
-        ...item,
-        key: item.chunkId || index,
-    }));
-
-    if (loading) {
-        return (
-            <div
-                className="chunkinfo-container"
-                style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100%',
-                    flexDirection: 'column',
-                }}
-            >
-                <LoadingOutlined style={{ fontSize: 32, color: '#00b0b0' }} />
-                <div style={{ color: '#ccc', marginTop: 16 }}>
-                    正在加载分块信息...
-                </div>
-            </div>
-        );
-    }
-
-    if (!chunkInfo || chunkInfo.length === 0) {
-        return (
-            <div
-                className="chunkinfo-container"
-                style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100%',
-                    flexDirection: 'column',
-                }}
-            >
-                <div style={{ color: '#999', fontSize: '16px' }}>
-                    暂无分块信息
-                </div>
-                <div style={{ color: '#666', fontSize: '14px', marginTop: 8 }}>
-                    请确保已经进行了文档索引
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div
-            className="chunkinfo-container"
-            style={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-            }}
-        >
-            <div
-                style={{
-                    padding: '12px 16px',
-                    borderBottom: '1px solid #555',
-                    backgroundColor: '#222',
-                }}
-            >
-                <Text
-                    style={{
-                        color: '#999', // 标题改为灰色
-                        fontSize: '16px',
-                        fontWeight: 'bold'
-                    }}
-                >
-                    分块信息总览
-                </Text>
-                <Text
-                    style={{
-                        color: '#999',
-                        fontSize: '14px',
-                        marginLeft: 12
-                    }}
-                >
-                    共 {chunkInfo.length} 个分块
-                </Text>
-            </div>
-            <div style={{ flex: 1, overflow: 'hidden', backgroundColor: "#222" }}>
-                <Table
-                    columns={columns}
-                    dataSource={dataSource}
-                    scroll={{
-                        x: 1200,
-                        y: 'calc(100vh - 200px)',
-                    }}
-                    pagination={{
-                        pageSize: 50,
-                        showSizeChanger: true,
-                        showQuickJumper: true,
-                        showTotal: (total, range) =>
-                            `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-                        pageSizeOptions: ['20', '50', '100', '200'],
-                    }}
-                    size="small"
-                    bordered
-                    style={{
-                        height: '100%',
-                    }}
-                    className="chunk-info-table"
-                />
-            </div>
-        </div>
-    );
 };

@@ -4,6 +4,7 @@
     max-width: 100%;
     -webkit-app-region: drag;
     height: 35px;
+    max-height: 35px; /* 限制最大高度 */
     background-color: transparent;
     display: flex;
     overflow: hidden;
@@ -19,9 +20,14 @@
     -webkit-app-region: no-drag;
 }
 
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs{
+    max-width: 100%;
+}
+
 .tabsbar {
     width: 100%;
     height: 35px;
+    max-height: 35px; /* 限制最大高度 */
     background-color: #444444;
     flex: 1;
     display: flex;
@@ -87,11 +93,10 @@
     flex: 1;
 }
 
-/* 标签样式 - 支持250px默认宽度，最高优先级 */
+/* 标签样式 - 移除所有动画，立即应用宽度 */
 :where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab {
     width: var(--dynamic-tab-width, 250px) !important;
     /* 默认250px */
-    min-width: 80px !important;
     max-width: var(--dynamic-tab-width, 250px) !important;
     flex: 0 0 var(--dynamic-tab-width, 250px) !important;
     color: white;
@@ -99,11 +104,8 @@
     justify-content: flex-start;
     box-sizing: border-box;
     position: relative;
-    /* 统一的过渡动画 */
-    transition:
-        width 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-        background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-        max-width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 移除所有过渡动画 - 立即应用变化 */
+    transition: none !important;
     overflow: visible;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -119,6 +121,7 @@
     width: var(--dynamic-tab-width) !important;
     max-width: var(--dynamic-tab-width) !important;
     flex: 0 0 var(--dynamic-tab-width) !important;
+    transition: none !important; /* 移除动画 */
 }
 
 /* 第一个标签特殊处理 */
@@ -156,7 +159,7 @@
     user-select: none;
 }
 
-/* 标签文字样式 - 适配250px宽度，基于CSS变量动态计算 */
+/* 标签文字样式 - 移除动画，立即应用 */
 .tab-label-text {
     display: inline-block;
     max-width: calc(var(--dynamic-tab-width, 250px) - 48px);
@@ -168,9 +171,8 @@
     text-align: left;
     flex: 1;
     color: #ffffff;
-    transition:
-        color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-        max-width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 移除过渡动画 - 立即应用变化 */
+    transition: none !important;
     padding-left: 8px;
     margin-right: 8px;
     -webkit-user-select: none;
@@ -182,6 +184,7 @@
 /* 确保文字宽度也能动态调整 - 关键修复 */
 .tabsbar[style*="--dynamic-tab-width"] .tab-label-text {
     max-width: calc(var(--dynamic-tab-width) - 48px) !important;
+    transition: none !important; /* 移除动画 */
 }
 
 /* 标签关闭按钮样式 */
@@ -195,9 +198,7 @@
     align-items: center;
     justify-content: center;
     opacity: 0.7;
-    transition:
-        opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-        color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.2s ease, color 0.2s ease; /* 只保留颜色和透明度动画 */
     position: absolute;
     right: 12px;
 }
@@ -223,6 +224,10 @@
     border-bottom-right-radius: 0;
 }
 
+:where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card.ant-tabs-top>.ant-tabs-nav .ant-tabs-tab+.ant-tabs-tab{
+    margin-top: 1px;
+}
+
 /* 底部中间的直线边框部分 */
 :where(.css-dev-only-do-not-override-vrrzze).ant-tabs-card>.ant-tabs-nav .ant-tabs-tab-active::after {
     content: '';
@@ -233,10 +238,7 @@
     height: 2px;
     background-color: #222;
     border-radius: 1px;
-    transition:
-        left 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-        right 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-        background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.2s ease; /* 只保留背景色动画 */
 }
 
 /* 左侧圆角部分 */
@@ -251,9 +253,7 @@
     box-shadow: 6px 3px 0 0 #222;
     background-color: transparent;
     z-index: 1;
-    transition:
-        left 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-        box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: box-shadow 0.2s ease; /* 只保留阴影动画 */
 }
 
 /* 右侧圆角部分 */
@@ -268,9 +268,7 @@
     box-shadow: -6px 3px 0 0 #222;
     background-color: transparent;
     z-index: 1;
-    transition:
-        right 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-        box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: box-shadow 0.2s ease; /* 只保留阴影动画 */
 }
 
 /* 悬停状态样式 */
@@ -289,16 +287,18 @@
     font-weight: 500;
 }
 
-/* 响应式调整 - 适配250px */
+/* 响应式调整 - 移除动画 */
 @media (max-width: 1200px) {
     :where(.css-dev-only-do-not-override-vrrzze).ant-tabs .ant-tabs-tab {
         width: min(var(--dynamic-tab-width, 250px), 200px) !important;
         max-width: min(var(--dynamic-tab-width, 250px), 200px) !important;
         flex: 0 0 min(var(--dynamic-tab-width, 250px), 200px) !important;
+        transition: none !important;
     }
 
     .tab-label-text {
         max-width: calc(min(var(--dynamic-tab-width, 250px), 200px) - 48px);
+        transition: none !important;
     }
 
     /* 关键修复 - 响应式强制选择器 */
@@ -306,10 +306,12 @@
         width: min(var(--dynamic-tab-width), 200px) !important;
         max-width: min(var(--dynamic-tab-width), 200px) !important;
         flex: 0 0 min(var(--dynamic-tab-width), 200px) !important;
+        transition: none !important;
     }
 
     .tabsbar[style*="--dynamic-tab-width"] .tab-label-text {
         max-width: calc(min(var(--dynamic-tab-width), 200px) - 48px) !important;
+        transition: none !important;
     }
 }
 
@@ -318,10 +320,12 @@
         width: min(var(--dynamic-tab-width, 250px), 150px) !important;
         max-width: min(var(--dynamic-tab-width, 250px), 150px) !important;
         flex: 0 0 min(var(--dynamic-tab-width, 250px), 150px) !important;
+        transition: none !important;
     }
 
     .tab-label-text {
         max-width: calc(min(var(--dynamic-tab-width, 250px), 150px) - 48px);
+        transition: none !important;
     }
 
     /* 关键修复 - 响应式强制选择器 */
@@ -329,9 +333,11 @@
         width: min(var(--dynamic-tab-width), 150px) !important;
         max-width: min(var(--dynamic-tab-width), 150px) !important;
         flex: 0 0 min(var(--dynamic-tab-width), 150px) !important;
+        transition: none !important;
     }
 
     .tabsbar[style*="--dynamic-tab-width"] .tab-label-text {
         max-width: calc(min(var(--dynamic-tab-width), 150px) - 48px) !important;
+        transition: none !important;
     }
 }

@@ -1,0 +1,187 @@
+/* ====== 10. 分块信息表格样式 ====== */
+.chunkinfo-container {
+    background-color: #222 !important;
+    color: #fff;
+}
+
+.chunk-info-table {
+    background-color: #222 !important;
+}
+
+.chunk-info-table .ant-table {
+    background-color: #222 !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 0 !important;
+}
+
+/* 表头样式 - 统一样式，包含所有边框 */
+.chunk-info-table .ant-table-thead>tr>th {
+    background-color: #222 !important;
+    color: #999 !important;
+    /* 标题改为灰色 */
+    border-bottom: 1px solid #555 !important;
+    border-right: 1px solid #555 !important;
+    border-left: 1px solid #555 !important;
+    border-top: 1px solid #555 !important;
+    border-radius: 0 !important;
+    font-weight: bold !important;
+    text-align: center !important;
+}
+
+/* 表格内容样式 */
+.chunk-info-table .ant-table-tbody>tr>td {
+    background-color: #222 !important;
+    border-bottom: 1px solid #555 !important;
+    border-right: 1px solid #555 !important;
+    border-left: 1px solid #555 !important;
+    border-top: 1px solid #555 !important;
+    border-radius: 0 !important;
+    color: #fff !important;
+}
+
+/* 特定列内容居中（短内容） */
+.chunk-info-table .ant-table-tbody>tr>td:nth-child(1),
+/* 分块ID */
+.chunk-info-table .ant-table-tbody>tr>td:nth-child(3),
+/* 行号范围 */
+.chunk-info-table .ant-table-tbody>tr>td:nth-child(4)
+
+/* 嵌入模型 */
+    {
+    text-align: center !important;
+}
+
+/* 文件路径列（居中对齐） */
+.chunk-info-table .ant-table-tbody>tr>td:nth-child(2) {
+    text-align: center !important;
+}
+
+/* 分块内容列（很长，保持左对齐） */
+.chunk-info-table .ant-table-tbody>tr>td:nth-child(5) {
+    text-align: left !important;
+}
+
+/* 元数据列（可能很长，居中对齐，但超长时左对齐） */
+.chunk-info-table .ant-table-tbody>tr>td:nth-child(6) {
+    text-align: center !important;
+}
+
+/* 当单元格内容过长时，自动左对齐 */
+.chunk-info-table .ant-table-tbody>tr>td .ant-typography {
+    text-align: inherit !important;
+}
+
+.chunk-info-table .ant-table-tbody>tr:hover>td {
+    background-color: #333 !important;
+}
+
+.chunk-info-table .ant-table-tbody>tr.ant-table-row-selected>td {
+    background-color: #444 !important;
+}
+
+/* 确保表格容器有边框，去掉圆角 */
+.chunk-info-table .ant-table-container {
+    border: 1px solid #555 !important;
+    border-radius: 0 !important;
+    background-color: #222 !important;
+}
+
+/* 表格内容区域使用全局滚动条 */
+.chunk-info-table .ant-table-body {
+    overflow: auto !important;
+    background-color: #222 !important;
+}
+
+/* 禁用antd自带的滚动条样式 */
+.chunk-info-table .ant-table-body::-webkit-scrollbar {
+    width: 8px !important;
+    background: #333333 !important;
+}
+
+.chunk-info-table .ant-table-body::-webkit-scrollbar-thumb {
+    background: #555555 !important;
+    border-radius: 6px !important;
+}
+
+.chunk-info-table .ant-table-body::-webkit-scrollbar-thumb:hover {
+    background: #666666 !important;
+}
+
+.chunk-info-table .ant-table-body::-webkit-scrollbar-corner {
+    background: #333333 !important;
+}
+
+/* 强制覆盖antd的边框半径设置 - 去掉所有圆角 */
+.chunk-info-table .ant-table-container,
+.chunk-info-table .ant-table,
+.chunk-info-table .ant-table-content,
+.chunk-info-table .ant-table-header,
+.chunk-info-table .ant-table-body,
+.chunk-info-table .ant-table-tbody,
+.chunk-info-table .ant-table-thead,
+.chunk-info-table .ant-table-thead>tr>th,
+.chunk-info-table .ant-table-tbody>tr>td {
+    border-radius: 0 !important;
+}
+
+/* 分页器样式 - 背景改为#222，去掉圆角 */
+.chunk-info-table .ant-pagination {
+    background-color: #222 !important;
+    padding: 12px !important;
+    border-top: 1px solid #555 !important;
+    border-radius: 0 !important;
+}
+
+.chunk-info-table .ant-pagination .ant-pagination-item {
+    background-color: #222 !important;
+    border-color: #555 !important;
+    border-radius: 0 !important;
+}
+
+.chunk-info-table .ant-pagination .ant-pagination-item a {
+    color: #fff !important;
+}
+
+.chunk-info-table .ant-pagination .ant-pagination-item-active {
+    background-color: #00b0b0 !important;
+    border-color: #00b0b0 !important;
+    border-radius: 0 !important;
+}
+
+.chunk-info-table .ant-pagination .ant-pagination-item-active a {
+    color: #fff !important;
+}
+
+.chunk-info-table .ant-pagination .ant-pagination-prev,
+.chunk-info-table .ant-pagination .ant-pagination-next {
+    color: #fff !important;
+    border-radius: 0 !important;
+}
+
+.chunk-info-table .ant-pagination .ant-pagination-prev:hover,
+.chunk-info-table .ant-pagination .ant-pagination-next:hover {
+    color: #00b0b0 !important;
+}
+
+.chunk-info-table .ant-select {
+    background-color: #222 !important;
+    border-radius: 0 !important;
+}
+
+.chunk-info-table .ant-select-selector {
+    background-color: #222 !important;
+    border-color: #555 !important;
+    border-radius: 0 !important;
+    color: #fff !important;
+}
+
+/* 表格内Typography组件"展开"按钮颜色 */
+.chunk-info-table .ant-typography-expand {
+    color: #00b0b0 !important;
+}
+
+.chunk-info-table .ant-typography-edit,
+.chunk-info-table .ant-typography-copy {
+    color: #00b0b0 !important;
+}

@@ -13,7 +13,6 @@ import 'highlight.js/styles/github-dark.css';
 import debounce from 'lodash/debounce';
 import './TextEditor.css';
 import { LoadingOutlined } from '@ant-design/icons';
-import { set } from 'lodash';
 
 const mathPlugin = math({
     // 指定使用 KaTeX (默认) 或 MathJax
@@ -48,7 +47,16 @@ const highlightPlugin = highlight({
     detect: true // 自动检测语言
 });
 
-function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileContent, saveFileContent }) {
+// 修复：移除参数中重复的 filePath 和 content，只保留需要的参数
+function TextEditor({ 
+    tabs, 
+    fileContentMap, 
+    className, 
+    activeKey, 
+    loadFileContent, 
+    updateFileContent, 
+    saveFileContent 
+}) {
     const plugins = [ 
         mathPlugin,
         breaks(),
@@ -56,24 +64,46 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
         emoji(),
         highlightPlugin
     ];
-    const [value, setValue] = useState(content || '');
+
+    // 检查当前活动标签是否为文件标签
+    const activeTab = tabs.find(tab => tab.key === activeKey);
+
+    // 如果是系统标签，显示提示信息
+    if (activeTab && activeTab.isSystem) {
+        return (
+            <div className={className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div className="maindemo-content" style={{ flex: 1, minHeight: 0, width: "100%", display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ textAlign: 'center', color: '#999' }}>
+                        <div style={{ fontSize: '18px', marginBottom: '12px' }}>请选择一个文件进行编辑</div>
+                        <div style={{ fontSize: '14px' }}>或点击「+」按钮创建新文件</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // 文件标签的正常处理 - 现在可以正常声明这些变量
+    const currentFilePath = activeTab?.filePath || activeKey;
+    const currentContent = fileContentMap[currentFilePath] || '';
+
+    const [value, setValue] = useState(currentContent || '');
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     
     // 使用 ref 跟踪是否已经初始化过
     const isInitializedRef = useRef(false);
-    const currentFilePathRef = useRef(filePath);
+    const currentFilePathRef = useRef(currentFilePath);
 
     useEffect(() => {
         setIsLoading(true);
 
         // 只有在文件路径真正改变时才重新加载
-        if (currentFilePathRef.current !== filePath) {
-            currentFilePathRef.current = filePath;
+        if (currentFilePathRef.current !== currentFilePath) {
+            currentFilePathRef.current = currentFilePath;
             isInitializedRef.current = false;
         }
 
-        if (!activeKey || !filePath) {
+        if (!activeKey || !currentFilePath) {
             setValue('');
             setIsLoading(false);
             return;
@@ -89,9 +119,9 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
 
             const loadContent = async () => {
                 try {
-                    const fileContent = await loadFileContent(filePath);
+                    const fileContent = await loadFileContent(currentFilePath);
                     setValue(fileContent);
-                    isInitializedRef.current = true; // 标记为已初始化
+                    isInitializedRef.current = true;
                 } catch (error) {
                     console.error('Error loading file:', error);
                     setValue('无法加载文件内容');
@@ -105,16 +135,14 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
         }, 100);
 
         return () => clearTimeout(timer);
-    }, [activeKey, filePath]); // 移除 loadFileContent 依赖
+    }, [activeKey, currentFilePath, loadFileContent]);
 
     const handleSave = useCallback(() => {
-        if (!activeKey || !filePath || !value) {
-            // message.warning('没有可保存的内容');
+        if (!activeKey || !currentFilePath || !value) {
             return;
         }
         
-        // setIsSaving(true);
-        saveFileContent(filePath, value)
+        saveFileContent(currentFilePath, value)
             .then(success => {
                 if (success) {
                     // message.success('文件保存成功');
@@ -128,7 +156,7 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
             .finally(() => {
                 setIsSaving(false);
             });
-    }, [activeKey, filePath, value, saveFileContent]);
+    }, [activeKey, currentFilePath, value, saveFileContent]);
 
     const handleChange = useCallback((v) => {
         setValue(v);
@@ -147,29 +175,33 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
     }, [handleSave]);
 
     return (
-        <div className="dark-editor-container">
-            <div className="editor-content">
-                {isLoading ? (
-                    <div className="loading-container dark-loading"
-                        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#00b0b0'}}>
-                        <LoadingOutlined style={{ fontSize: 32 }} spin />
+        <div className={className} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div className="maindemo-content" style={{ flex: 1, minHeight: 0, width: "100%"}}>
+                <div className="dark-editor-container">
+                    <div className="editor-content">
+                        {isLoading ? (
+                            <div className="loading-container dark-loading"
+                                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#00b0b0'}}>
+                                <LoadingOutlined style={{ fontSize: 32 }} spin />
+                            </div>
+                        ) : (
+                            <Editor
+                                mode="auto"
+                                locale={zh}
+                                value={value}
+                                plugins={plugins}
+                                onChange={handleChange}
+                                editorConfig={{
+                                        lineNumbers: true,
+                                        lineWrapping: true,
+                                        theme: 'default',
+                                        tabSize: 4,
+                                        styleActiveLine: true
+                                }}
+                            />
+                        )}
                     </div>
-                ) : (
-                    <Editor
-                        mode="auto"
-                        locale={zh}
-                        value={value}
-                        plugins={plugins}
-                        onChange={handleChange}
-                        editorConfig={{
-                                lineNumbers: true,
-                                lineWrapping: true,
-                                theme: 'default',
-                                tabSize: 4,
-                                styleActiveLine: true
-                        }}
-                    />
-                )}
+                </div>
             </div>
         </div>
     );
