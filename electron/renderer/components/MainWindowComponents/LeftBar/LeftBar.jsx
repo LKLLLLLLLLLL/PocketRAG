@@ -21,12 +21,12 @@ export default function LeftBar({handleConversation,handleSearch,handleEdit,hand
                             color = "default"
                             variant = 'text'>
                     </Button>
-                    <Button className = 'lb-button new'
+                    {/* <Button className = 'lb-button new'
                             onClick = {async() => {await window.openRepoListWindow()}}
                             icon = {<PlusCircleOutlined style = {{fontSize: 20,color: 'white'}}/>}
                             color = "default"
                             variant = 'text'>
-                    </Button>
+                    </Button> */}
                     {/* <Button className = 'lb-button edit'
                             onClick = {handleEdit}
                             icon = {<EditOutlined style = {{fontSize: 20,color: 'white'}}/>}

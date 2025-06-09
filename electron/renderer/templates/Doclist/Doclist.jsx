@@ -1,6 +1,8 @@
 // Doclist.jsx
 import { useState, useEffect, useRef } from 'react';
 import { Dropdown, Tree, message} from 'antd';
+import { EllipsisOutlined } from '@ant-design/icons';
+import { MenuOutlined } from '@ant-design/icons';
 import './Doclist.css';
 
 const { DirectoryTree } = Tree;
@@ -41,10 +43,12 @@ export default function Doclist({ children, setSelectNode, selectNode, treeData,
 
     return (
         <div className="Doclist-container">
-            <div className="doclist_top-container">
+            <div className="doclist_top-container" onClick={async () => { await window.openRepoListWindow() }}>
                 <span style = {{color: 'white'}}>{window.repoName}</span>
                 <span className="doclist-refresh-btn" style = {{float:'right'}}>
                 </span>
+                {/* <EllipsisOutlined style= {{fontSize:"20px"}}/> */}
+                <MenuOutlined style={{ fontSize: "px" }} />
             </div>
             <div className="doclist_main-container">
                 <RepoFileTree 
