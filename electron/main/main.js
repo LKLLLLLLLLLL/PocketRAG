@@ -1035,6 +1035,7 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
         console.log(JSON.stringify(closeRepo) + '\n')
         windows.delete(windowId)
         isSessionPrepared.delete(windowId)
+        repoNameAndPath.delete(windowId)
       })
       isSessionPrepared.set(windowId, false)
     break
@@ -1537,6 +1538,7 @@ app.on('will-quit', (event) => {
   console.log('callbacks\' final size: ', callbacks.size)
   console.log('windows\' final size: ', windows.size)
   console.log('isSessionPrepared\'s final size: ', isSessionPrepared.size)
+  console.log('repoNameAndPath\'s final size: ', repoNameAndPath.size)
 })
 // quitting action
 
