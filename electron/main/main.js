@@ -14,6 +14,7 @@ const stateFile = path.join(userDataPath, 'windowState.json')
 const platform = process.platform
 const dateNow = Date.now()
 const windows = new Map()
+const isSessionPrepared = new Map() // to record if a session is prepared
 const callbacks = new Map()
 const eventEmitter = new EventEmitter()
 const installationId = generateInstallationId()
@@ -118,27 +119,21 @@ function restartKernel (isKernelError){
 
 
 async function restartAllRepos() {
-  for(const [id, window] of windows.entries()){
+  for(const [id, window] of windows.entries()) {
     const repoName = await window.webContents.executeJavaScript('window.repoName')
-    if(repoName){
-      console.log('restarting window with id: ', id, ' and repoName: ', repoName)
-      const callbackId = callbackRegister()
-      const openRepo = {
-        sessionId : -1,
-        toMain : true,
+    if(repoName) {
+      console.log('restarting session...    id: ', id, 'name: ', repoName)
+      const sessionCrashed = {
+        sessionId : id,
 
-        callbackId : callbackId,
         isReply : false,
 
         message : {
-          type : 'openRepo',
-          repoName : repoName,
-          sessionId : id
+          type : 'sessionCrashed',
+          error : 'sessionCrashed due to kernelCrashed'
         }
       }
-      await readyPromise
-      kernel.stdin.write(JSON.stringify(openRepo) + '\n')
-      console.log(JSON.stringify(openRepo) + '\n')
+      window.webContents.send('kernelData', sessionCrashed)
     }
   }
 }
@@ -528,6 +523,8 @@ function search(event, callbackId, query, accuracy) {
 
 
 function sessionPreparedReply(event, reply){
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  isSessionPrepared.set(windowId, true)
   kernel.stdin.write(JSON.stringify(reply) + '\n')
   console.log(JSON.stringify(reply) + '\n')
 }
@@ -551,7 +548,7 @@ function sessionCrashedHandler(event, error){
 }
 
 
-function restartSession(event, repoName){
+async function restartSession(event, repoName) {
   const sessionId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   const callbackId = callbackRegister()
   const restartSession = {
@@ -567,6 +564,7 @@ function restartSession(event, repoName){
       sessionId : sessionId
     }
   }
+  await readyPromise
   kernel.stdin.write(JSON.stringify(restartSession) + '\n')
   console.log(JSON.stringify(restartSession) + '\n')
 }
@@ -1031,7 +1029,9 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
         kernel.stdin.write(JSON.stringify(closeRepo) + '\n')
         console.log(JSON.stringify(closeRepo) + '\n')
         windows.delete(windowId)
+        isSessionPrepared.delete(windowId)
       })
+      isSessionPrepared.set(windowId, false)
     break
     
     case 'repoList':
@@ -1382,6 +1382,18 @@ function getDirSize(event, dir) {
 }// compute the directory size
 
 
+function getSessionStatus(event) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  return isSessionPrepared.get(windowId)
+}
+
+
+function sessionNotPrepared(event) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  isSessionPrepared.set(windowId, false)
+}
+
+
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
@@ -1422,6 +1434,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('openDir', openDir)
   ipcMain.handle('getVersion', getVersion)
   ipcMain.handle('getDirSize', getDirSize)
+  ipcMain.handle('isSessionPrepared', getSessionStatus)
+  ipcMain.handle('sessionNotPrepared', sessionNotPrepared)
   //add the event listeners before the window is created
 
   const defaultSettingsPath = isDev
@@ -1510,6 +1524,7 @@ app.on('will-quit', (event) => {
   }
   console.log('callbacks\' final size: ', callbacks.size)
   console.log('windows\' final size: ', windows.size)
+  console.log('isSessionPrepared\'s final size: ', isSessionPrepared.size)
 })
 // quitting action
 

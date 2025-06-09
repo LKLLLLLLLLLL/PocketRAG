@@ -91,8 +91,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getVersion : () => ipcRenderer.invoke('getVersion'),
   // get the app version
 
-  getDirSize : (dir) => ipcRenderer.invoke('getDirSize', dir)
+  getDirSize : (dir) => ipcRenderer.invoke('getDirSize', dir),
   // get the size of certain directory
 
+  isSessionPrepared : () => ipcRenderer.invoke('isSessionPrepared'),
+  // if a session is prepared, return true, o.w. false
+
+  sessionNotPrepared : () => ipcRenderer.invoke('sessionNotPrepared')
+  // turn isSessionPrepared status to false
 })
 //expose apis to the renderer process 

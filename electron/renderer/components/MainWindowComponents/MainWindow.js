@@ -1,5 +1,9 @@
 export function MainWindowInit() {
     window.repoInitializePromise = new Promise((resolve, reject) => {
+      if(window.repoName !== undefined && window.repoPath !== undefined) {
+        resolve()
+        return
+      }// avoid timing again due to unknown error
       let timeout
       window.electronAPI.onRepoInitialized(() => {
         clearTimeout(timeout)
@@ -17,7 +21,11 @@ export function MainWindowInit() {
       })
       await window.electronAPI.close()
     })
-    window.sessionPreparedPromise = new Promise((resolve, reject) => {
+    window.sessionPreparedPromise = new Promise(async (resolve, reject) => {
+      if(await window.electronAPI.isSessionPrepared() === true) {
+        resolve()
+        return
+      }// avoid timing again due to unknown error
       let timeout
       const sessionPreparedListener = (event) => {
         clearTimeout(timeout)

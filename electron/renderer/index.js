@@ -16,7 +16,7 @@ window.callbackRegister = (callback) => {
 }
 
 
-window.electronAPI.onKernelData((data) => {
+window.electronAPI.onKernelData(async (data) => {
   const type = data.message.type
   switch(type) {
     case 'getRepos'://isReply check has been done in main.js 
@@ -62,6 +62,7 @@ window.electronAPI.onKernelData((data) => {
       break
     case 'sessionCrashed':
       if(!data.isReply){
+        await window.electronAPI.sessionNotPrepared()
         window.crashTime++
         if(window.crashTime > 3){
           window.electronAPI.sendSessionCrashed(data.message.error)
