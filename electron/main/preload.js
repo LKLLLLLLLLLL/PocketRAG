@@ -97,7 +97,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isSessionPrepared : () => ipcRenderer.invoke('isSessionPrepared'),
   // if a session is prepared, return true, o.w. false
 
-  sessionNotPrepared : () => ipcRenderer.invoke('sessionNotPrepared')
+  sessionNotPrepared : () => ipcRenderer.invoke('sessionNotPrepared'),
   // turn isSessionPrepared status to false
+
+  getRepoNameAndPath : () => ipcRenderer.invoke('getRepoNameAndPath')
 })
 //expose apis to the renderer process 

@@ -15,6 +15,7 @@ const platform = process.platform
 const dateNow = Date.now()
 const windows = new Map()
 const isSessionPrepared = new Map() // to record if a session is prepared
+const repoNameAndPath = new Map() // to recorde repoName and repoPath
 const callbacks = new Map()
 const eventEmitter = new EventEmitter()
 const installationId = generateInstallationId()
@@ -463,11 +464,15 @@ async function openRepo (event, sessionId, repoName, repoPath){
 async function initializeRepo (sessionId, repoName, repoPath){
   const window = windows.get(sessionId)
   if(window){
+    repoNameAndPath.set(sessionId, {
+      name : repoName,
+      path : repoPath
+    })
     await window.webContents.executeJavaScript(`
       window.repoName = ${JSON.stringify(repoName)};
       window.repoPath = ${JSON.stringify(repoPath)};
       `)
-    window.webContents.send('repoInitialized')    
+    window.webContents.send('repoInitialized')
   }
   else {
     console.error('Window not found from sessionId: ', sessionId)
@@ -1394,6 +1399,12 @@ function sessionNotPrepared(event) {
 }
 
 
+function getRepoNameAndPath(event) {
+  const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
+  return repoNameAndPath.get(windowId)
+}
+
+
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
@@ -1436,6 +1447,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('getDirSize', getDirSize)
   ipcMain.handle('isSessionPrepared', getSessionStatus)
   ipcMain.handle('sessionNotPrepared', sessionNotPrepared)
+  ipcMain.handle('getRepoNameAndPath', getRepoNameAndPath)
   //add the event listeners before the window is created
 
   const defaultSettingsPath = isDev
