@@ -77,7 +77,6 @@ const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys }
         const { pageX, pageY } = event;
         overlay.style.left = `${pageX}px`;
         overlay.style.top = `${pageY}px`;
-        setSelectNode(node); // 设置选中的节点
         setRightMenus([
             {
                 key: 'delete',
