@@ -22,6 +22,8 @@ namespace xxhash
     #include <xxhash.h>
 }
 #include <nlohmann/json.hpp>
+#include <cppjieba/Jieba.hpp>
+#include <sqlite3.h>
 
 /*
 This file contains utility functions and classes for the project.
@@ -99,6 +101,31 @@ public:
 
     Type getType() const;
 };
+
+/*
+Jieba tokenizer for chinese text.
+Used for search and keyword extraction.
+*/
+namespace jiebaTokenizer
+{
+    extern cppjieba::Jieba *jieba; 
+    extern std::mutex jiebaMutex;
+
+    int jieba_tokenizer_create(void *sqlite3_api, const char **azArg, int nArg, Fts5Tokenizer **ppOut);
+    void jieba_tokenizer_delete(Fts5Tokenizer *pTokenizer);
+    int jieba_tokenizer_tokenize(Fts5Tokenizer *pTokenizer, void *pCtx, int flags, const char *pText, int nText, int (*xToken)(void *, int, const char *, int, int, int));
+
+    void register_jieba_tokenizer(sqlite3 *db);
+
+    cppjieba::Jieba *get_jieba_ptr();
+
+    void cut(const std::string &text, std::vector<std::string> &words, bool needLower = true);
+
+    void cutForSearch(const std::string &text, std::vector<std::string> &words, bool needLower = true);
+
+    void extractKeyword(const std::string &text, std::vector<std::string> &keywords, int topK = 5);
+}
+
 
 namespace Utils
 {

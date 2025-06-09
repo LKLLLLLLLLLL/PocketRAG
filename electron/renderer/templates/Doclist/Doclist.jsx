@@ -69,7 +69,6 @@ const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys }
 
     // 右键菜单处理
     const handleRightClick = ({ event, node }) => {
-        if (node.key === firstNodeKey) return; // 禁止第一个节点右键
         const overlay = rightTriggerRef.current;
         const { pageX, pageY } = event;
         overlay.style.left = `${pageX}px`;
@@ -107,7 +106,7 @@ const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys }
     };
 
     return (
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div>
             <DirectoryTree
                 expandedKeys={expandedKeys}
                 onExpand={setExpandedKeys}
@@ -115,6 +114,7 @@ const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys }
                 onRightClick={handleRightClick}
                 onSelect={handleLeftClick}
                 selectedKeys={selectedKeys}
+                showIcon={false}
                 className="custom-directory-tree"
             />
             <Dropdown menu={{ items: rightMenus }} trigger={['contextMenu']}>

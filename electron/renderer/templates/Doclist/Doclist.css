@@ -73,6 +73,39 @@
   border-radius: 0 !important;
 }
 
+/* 增加节点的行高 */
+.custom-directory-tree .ant-tree-treenode .ant-tree-node-content-wrapper {
+    line-height: 27px;
+}
+
+/* 调整节点的字体大小 */
+.custom-directory-tree .ant-tree-treenode .ant-tree-node-content-wrapper {
+    font-size: 14px;
+}
+
+/* 减少每层缩进 */
+.custom-directory-tree .ant-tree-indent-unit {
+    width: 10px !important; /* 默认24px，大幅减少缩进 */
+}
+
+/* 调整箭头容器宽度 */
+.custom-directory-tree .ant-tree-switcher {
+    width: 20px !important; /* 默认24px */
+    margin-top: 1px;
+}
+
+/* 调整箭头容器位置 */
+.custom-directory-tree .ant-tree-switcher {
+    position: relative;
+    left: 4px; /*向右移动4px*/
+}
+
+/* 禁止选择树节点上的文本 */
+:where(.css-dev-only-do-not-override-vrrzze).ant-tree .ant-tree-treenode .ant-tree-node-content-wrapper {
+    user-select: none;
+}
+
+
 /* 节点文字颜色 */
 .custom-directory-tree .ant-tree-node-content-wrapper {
   color: white !important;

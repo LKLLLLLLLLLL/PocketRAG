@@ -93,8 +93,24 @@ auto Chunker::operator()(const std::string &in_text, std::unordered_map<std::str
     }
     for(auto& chunk : chunks)
     {
-        auto path = chunk.metadata;
-        chunk.metadata = extraMetadataStr + " <Path> " + path;
+        auto metadata = chunk.metadata;
+        chunk.metadata = extraMetadataStr + "<Path> " + metadata + "\n";
+        // generate keywords for chunk
+        std::vector<std::string> keywords{};
+        jiebaTokenizer::extractKeyword(chunk.content, keywords, 3);
+        if (keywords.empty())
+        {
+            continue;
+        }
+        chunk.metadata += "<Keywords> ";
+        for (const auto &keyword : keywords)
+        {
+            chunk.metadata += keyword;
+            if (keyword != keywords.back())
+            {
+                chunk.metadata += ", ";
+            }
+        }
     }
 
     return chunks;

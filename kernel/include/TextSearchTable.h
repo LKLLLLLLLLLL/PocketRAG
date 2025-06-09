@@ -77,23 +77,3 @@ public:
     // highlight keywords in the text
     static std::string reHighlight(const std::string &text, const std::string &query);
 };
-
-
-namespace jiebaTokenizer
-{
-    extern cppjieba::Jieba *jieba; 
-    extern std::mutex jiebaMutex;
-
-    int jieba_tokenizer_create(void *sqlite3_api, const char **azArg, int nArg, Fts5Tokenizer **ppOut);
-    void jieba_tokenizer_delete(Fts5Tokenizer *pTokenizer);
-    int jieba_tokenizer_tokenize(Fts5Tokenizer *pTokenizer, void *pCtx, int flags, const char *pText, int nText, int (*xToken)(void *, int, const char *, int, int, int));
-
-    void register_jieba_tokenizer(sqlite3 *db);
-
-    cppjieba::Jieba *get_jieba_ptr();
-
-    void cut(const std::string &text, std::vector<std::string> &words, bool needLower = true);
-
-    void cutForSearch(const std::string &text, std::vector<std::string> &words, bool needLower = true);
-}
-

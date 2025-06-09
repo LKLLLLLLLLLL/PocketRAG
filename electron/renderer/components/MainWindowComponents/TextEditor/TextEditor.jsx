@@ -3,6 +3,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Button, message } from 'antd';
 import gfm from '@bytemd/plugin-gfm';
 import highlight from '@bytemd/plugin-highlight';
+import emoji from '@bytemd/plugin-gemoji';
+import breaks from '@bytemd/plugin-breaks';
+import math from '@bytemd/plugin-math'
 import { Editor } from '@bytemd/react';
 import 'bytemd/dist/index.css';
 import zh from 'bytemd/locales/zh_Hans.json';
@@ -11,7 +14,7 @@ import debounce from 'lodash/debounce';
 import './TextEditor.css'; // 我们将在这里添加深色主题样式
 
 function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileContent, saveFileContent }) {
-    const plugins = [gfm(), highlight()];
+    const plugins = [gfm(), highlight(), emoji(), breaks(), math()];
     const [value, setValue] = useState(content || '');
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -71,7 +74,7 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
 
     const handleChange = (v) => {
         setValue(v);
-        updateFile(v);
+        // updateFile(v);
     };
 
     useEffect(() => {
@@ -88,27 +91,6 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
 
     return (
         <div className="dark-editor-container">
-            {/* <div className="editor-toolbar dark-toolbar">
-                <div className="file-info">
-                    {filePath && (
-                        <span className="file-path">
-                            {filePath.startsWith('new-file-') ? '新文件' : filePath}
-                        </span>
-                    )}
-                </div>
-                <Button 
-                    type="primary" 
-                    onClick={handleSave} 
-                    loading={isSaving}
-                    disabled={!activeKey || isLoading}
-                    className="save-btn dark-save-btn"
-                    color = "cyan"
-                    variant='solid'
-                >
-                    保存
-                </Button>
-            </div> */}
-            
             <div className="editor-content">
                 {isLoading ? (
                     <div className="loading-container dark-loading">
@@ -121,6 +103,13 @@ function TextEditor({ activeKey, filePath, content, loadFileContent, updateFileC
                         value={value}
                         plugins={plugins}
                         onChange={handleChange}
+                        editorConfig={{
+                                lineNumbers: true,
+                                lineWrapping: true,
+                                theme: 'default',
+                                tabSize: 4,
+                                styleActiveLine: true
+                        }}
                     />
                 )}
             </div>
