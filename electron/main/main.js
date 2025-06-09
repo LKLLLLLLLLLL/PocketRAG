@@ -17,9 +17,13 @@ const windows = new Map()
 const callbacks = new Map()
 const eventEmitter = new EventEmitter()
 const installationId = generateInstallationId()
-console.log('stateFile is: ', stateFile)
-console.log('installationId: ', installationId)
 // define global constants such as isDev -- is developer mode, dateNow -- to generate timestamp, callbacks -- to manage callbacks(may be redundant), windows -- to manage electron windows, installationId -- to avoid opening windows out-of-date and eventEmitter -- to communicate with main.js itself
+
+if(!isDev) {
+  //only on developer mode can console.log and console.error be used
+  console.log = () => {}
+  console.error = () => {}
+}
 
 function getBackendPath() {
   const exeName = process.platform === 'win32' ? 'PocketRAG_kernel.exe' : 'PocketRAG_kernel'
@@ -977,12 +981,15 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
       let mainOptions = {
         width: Math.floor(srceenWidth * 0.8),
         height: Math.floor(screenHeight * 0.9),
-        backgroundColor: '#222222',     
+        minWidth: 800,
+        minHeight: 600,
+        backgroundColor: '#222222',
         frame: false,
         autoHideMenuBar: true,
         show: false,   
         webPreferences: {
-          preload: path.join(__dirname, 'preload.js')
+          preload: path.join(__dirname, 'preload.js'),
+          devTools: isDev
         }
       }
       if(windowState && !windowState.isMaximized) {
@@ -1039,7 +1046,8 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
         autoHideMenuBar: true,
         show: false,
         webPreferences: {
-          preload: path.join(__dirname, 'preload.js')
+          preload: path.join(__dirname, 'preload.js'),
+          devTools: isDev
         }
       }
       if(platform === 'win32') {
@@ -1077,7 +1085,8 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
         parent : BrowserWindow.fromWebContents(event.sender),
         modal: true,
         webPreferences: {
-          preload: path.join(__dirname, 'preload.js')
+          preload: path.join(__dirname, 'preload.js'),
+          devTools: isDev
         }        
       }
       window = new BrowserWindow(settingsOptions)
