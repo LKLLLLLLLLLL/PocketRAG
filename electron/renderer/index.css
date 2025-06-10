@@ -3,6 +3,74 @@
     box-shadow: none !important;
 }
 
+/* 覆盖 Ant Design 树组件的 CSS 变量 */
+:root {
+  --ant-tree-node-selected-bg: #444444 !important;
+  --ant-tree-node-selected-color: #ffffff !important;
+  --ant-tree-directory-node-selected-bg: #444444 !important;
+  --ant-tree-directory-node-selected-color: #ffffff !important;
+  --ant-tree-node-hover-bg: #444444 !important;
+  --ant-tree-node-hover-color: #ffffff !important;
+}
+
+/* 直接针对 ant-tree 类 */
+.ant-tree,
+:where(.css-dev-only-do-not-override-vrrzze).ant-tree {
+  --ant-tree-node-selected-bg: #444444 !important;
+  --ant-tree-node-selected-color: #ffffff !important;
+  --ant-tree-directory-node-selected-bg: #444444 !important;
+  --ant-tree-directory-node-selected-color: #ffffff !important;
+  --ant-tree-node-hover-bg: #444444 !important;
+  --ant-tree-node-hover-color: #ffffff !important;
+}
+
+/* 确保动态生成的类名也被覆盖 */
+[class*="css-"].ant-tree {
+  --ant-tree-node-selected-bg: #444444 !important;
+  --ant-tree-node-selected-color: #ffffff !important;
+  --ant-tree-directory-node-selected-bg: #444444 !important;
+  --ant-tree-directory-node-selected-color: #ffffff !important;
+  --ant-tree-node-hover-bg: #444444 !important;
+  --ant-tree-node-hover-color: #ffffff !important;
+}
+
+/* 全局 CSS 变量重置 */
+:root,
+:where([class*="css-"]),
+:where([class^="ant-"]) {
+  --ant-tabs-card-height: 35px !important;
+  --ant-tabs-card-gutter: 2px !important;
+  --ant-tabs-card-background: #444444 !important;
+  --ant-tabs-card-active-color: #ffffff !important;
+  --ant-tabs-card-active-background: #222222 !important;
+  --ant-tabs-card-hover-color: #ffffff !important;
+  --ant-tabs-card-hover-background: #555555 !important;
+  --ant-tabs-highlight-color: transparent !important;
+  --ant-primary-color: #ffffff !important;
+  --ant-primary-color-hover: #ffffff !important;
+  --ant-primary-color-active: #ffffff !important;
+  --ant-primary-color-outline: rgba(0, 0, 0, 0.1) !important;
+  border: none !important;
+}
+
+/* 常用组件的全局样式重置 */
+.ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #ffffff !important;
+}
+
+.ant-tabs-card>.ant-tabs-nav .ant-tabs-tab-active {
+  background-color: #222222 !important;
+}
+
+.ant-tabs .ant-tabs-tab:hover {
+  color: #ffffff !important;
+}
+
+.ant-tabs .ant-tabs-tab:not(.ant-tabs-tab-active):hover {
+  background-color: #555555 !important;
+}
+
+
 /* index.css */
 :root {
   /* 注意 antd v5 重置了 --ant-font-family 变量 */

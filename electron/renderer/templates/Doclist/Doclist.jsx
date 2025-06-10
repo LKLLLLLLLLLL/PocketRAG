@@ -48,7 +48,7 @@ export default function Doclist({ children, setSelectNode, selectNode, treeData,
                 <span className="doclist-refresh-btn" style = {{float:'right'}}>
                 </span>
                 {/* <EllipsisOutlined style= {{fontSize:"20px"}}/> */}
-                <MenuOutlined style={{ fontSize: "px" }} />
+                <MenuOutlined style={{ fontSize: "16px" }} />
             </div>
             <div className="doclist_main-container">
                 <RepoFileTree 
@@ -58,9 +58,6 @@ export default function Doclist({ children, setSelectNode, selectNode, treeData,
                     setSelectedKeys={setSelectedKeys}
                 />
                 {children}
-            </div>
-            <div className="doclist_tools-container">
-                <div>文件工具栏</div>
             </div>
         </div>
     );
@@ -77,7 +74,6 @@ const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys }
         const { pageX, pageY } = event;
         overlay.style.left = `${pageX}px`;
         overlay.style.top = `${pageY}px`;
-        setSelectNode(node); // 设置选中的节点
         setRightMenus([
             {
                 key: 'delete',

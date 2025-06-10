@@ -161,7 +161,6 @@ public:
                 std::string modelName;
                 std::string url;
                 bool setApiKey;
-                bool lastUsed;
             };
             std::vector<GenerationModel> generationModel;
             int historyLength;

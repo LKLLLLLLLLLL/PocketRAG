@@ -529,7 +529,9 @@ function search(event, callbackId, query, accuracy) {
 
 function sessionPreparedReply(event, reply){
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
-  isSessionPrepared.set(windowId, true)
+  if(isSessionPrepared.has(windowId)) {
+    isSessionPrepared.set(windowId, true)
+  }
   kernel.stdin.write(JSON.stringify(reply) + '\n')
   console.log(JSON.stringify(reply) + '\n')
 }
@@ -910,7 +912,7 @@ function AreSettingsRight() {
   if (!Array.isArray(cs.generationModel)) return false
   // unique name 检查
   const genNames = new Set()
-  let lastUsedCount = 0
+  /*let lastUsedCount = 0*/
   for (const gm of cs.generationModel) {
     if (typeof gm.name !== 'string' || !gm.name) return false
     if (genNames.has(gm.name)) return false // unique name
@@ -918,12 +920,15 @@ function AreSettingsRight() {
     if (typeof gm.modelName !== 'string' || !gm.modelName) return false
     if (typeof gm.url !== 'string' || !gm.url) return false
     if (typeof gm.setApiKey !== 'boolean') return false
-    if (typeof gm.lastUsed !== 'boolean') return false
-    if (gm.lastUsed) lastUsedCount++
+    // if (typeof gm.lastUsed !== 'boolean') return false
+    // if (gm.lastUsed) lastUsedCount++
   }
+  if (typeof cs.historyLength !== 'number') return false
+
+  /*
   // 只能有一个 lastUsed 为 true（如果数组非空）
   if (cs.generationModel.length > 0 && lastUsedCount !== 1) return false
-  if (typeof cs.historyLength !== 'number') return false
+  */
 
   // performance
   const pf = settings.performance
@@ -943,6 +948,7 @@ async function saveWindowState(window, windowType) {
   const bounds = window.getBounds()
   const repoName = await window.webContents.executeJavaScript('window.repoName')
   const repoPath = await window.webContents.executeJavaScript('window.repoPath')
+  const lastUsedGenModel = await window.webContents.executeJavaScript('window.lastUsedGenModel')
   const state = {
     installationId: installationId,
     x: bounds.x,
@@ -950,9 +956,10 @@ async function saveWindowState(window, windowType) {
     width: bounds.width,
     height: bounds.height,
     isMaximized: window.isMaximized(),
-    windowType : windowType,
+    windowType: windowType,
     repoName: repoName,
-    repoPath: repoPath
+    repoPath: repoPath,
+    lastUsedGenModel: lastUsedGenModel
   }
   try {
     fs.writeFileSync(stateFile, JSON.stringify(state))
@@ -1105,7 +1112,7 @@ function createWindow (event, windowType = 'repoList', windowState = null) {
 
   window.on('close', async (event) => {
     event.preventDefault() // prevent window closing immediately 
-    saveWindowState(window, windowType)
+    await saveWindowState(window, windowType)
     const repoPath = await window.webContents.executeJavaScript('window.repoPath')
     if(repoPath) {
       unwatchRepoDir(repoPath)
@@ -1396,13 +1403,22 @@ function getSessionStatus(event) {
 
 function sessionNotPrepared(event) {
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
-  isSessionPrepared.set(windowId, false)
+  if(isSessionPrepared.has(windowId)) {
+    isSessionPrepared.set(windowId, false)
+  }
 }
 
 
 function getRepoNameAndPath(event) {
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
   return repoNameAndPath.get(windowId)
+}
+
+
+function getLastUsedGenModel(event) {
+  const data = fs.readFileSync(stateFile, 'utf-8')
+  const lastState = JSON.parse(data)
+  return lastState.lastUsedGenModel
 }
 
 
@@ -1449,6 +1465,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('isSessionPrepared', getSessionStatus)
   ipcMain.handle('sessionNotPrepared', sessionNotPrepared)
   ipcMain.handle('getRepoNameAndPath', getRepoNameAndPath)
+  ipcMain.handle('getLastUsedGenModel', getLastUsedGenModel)
   //add the event listeners before the window is created
 
   const defaultSettingsPath = isDev

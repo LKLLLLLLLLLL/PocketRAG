@@ -99,7 +99,7 @@ body,
 }
 
 .biaoqian {
-    max-width: 1250px;
+    /* max-width: 1250px; */
     background: #444;
     color: white;
     height: 35px; /* 固定高度，防止变化 */
@@ -118,7 +118,7 @@ body,
 }
 
 .control-space {
-    width: 150px;
+    width: 137px;
     height: 100%;
     -webkit-app-region: no-drag;
     flex-shrink: 0; /* 不允许收缩 */
@@ -133,6 +133,14 @@ body,
     /* 关键：防止标签宽度变化影响容器 */
     overflow: hidden; /* 隐藏溢出 */
     position: relative; /* 相对定位 */
+    overflow-x: auto; /* 允许水平滚动 */
+    overflow-y: hidden; /* 防止垂直滚动 */
+    -webkit-overflow-scrolling: touch; /* 平滑滚动 */
+    scrollbar-width: none; /* Firefox 隐藏滚动条 */
+}
+
+.tabsbar-container::-webkit-scrollbar {
+    display: none; /* Webkit 浏览器隐藏滚动条 */
 }
 
 .tabsbar-root {
@@ -144,6 +152,7 @@ body,
     /* 关键：确保标签栏尺寸稳定 */
     max-height: 35px; /* 限制最大高度 */
     overflow: hidden; /* 隐藏溢出 */
+    flex-wrap: nowrap; /* 防止标签换行 */
 }
 
 /* ====== 7. 分块内容与文件路径样式 ====== */
@@ -313,5 +322,17 @@ body,
 
     .chunk-info-table {
         margin: 0;
+    }
+}
+
+@media (max-width: 900px) {
+    .control-space {
+        width: 80px; /* 在小屏幕上减少控制区域宽度 */
+    }
+}
+
+@media (max-width: 600px) {
+    .control-space {
+        width: 60px; /* 在更小的屏幕上进一步减少 */
     }
 }

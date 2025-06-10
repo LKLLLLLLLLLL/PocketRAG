@@ -4,11 +4,24 @@ import MainWindowContents from '../../components/MainWindowComponents/MainWindow
 import TopBar from '../../templates/TopBar/TopBar.jsx';
 import TopTools from '../../templates/TopTools/TopTools.jsx';
 import WindowControl from '../../templates/WindowControl/WindowControl.jsx';
+import { StyleProvider } from '@ant-design/cssinjs'
+import { ConfigProvider } from 'antd'
+
+
+const AppWrapper = ({ children }) => (
+    <StyleProvider>
+        <ConfigProvider theme={{ cssVar: true, hashed: false }}>
+            {children}
+        </ConfigProvider>
+    </StyleProvider>
+  );
+
 export default function MainWindow(){
     // 返回一个渲染函数，而不是直接渲染
     return function renderMainWindow() {
         return (
-            <React.StrictMode>
+            <AppWrapper>
+            {/* <React.StrictMode> */}
                 <div className = "main-window-container">
                     {/* <TopBar style = {{display: 'flex'}}>
                         <TopTools></TopTools> 
@@ -18,7 +31,8 @@ export default function MainWindow(){
                     </TopBar> */}
                     <MainWindowContents></MainWindowContents>
                 </div>
-            </React.StrictMode>
+            {/* </React.StrictMode> */}
+            </AppWrapper>
         );
     };
 }

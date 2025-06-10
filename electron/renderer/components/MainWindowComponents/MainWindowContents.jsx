@@ -300,6 +300,114 @@ export default function MainWindowContents() {
         }
     };
 
+    const [lineRange, setLineRange] = useState(null);
+    // 强制刷新行高亮的辅助函数
+    const refreshLineHighlight = (range) => {
+        // 先清空状态，然后重新设置，强制触发更新
+        setLineRange(null);
+        // 使用setTimeout确保状态更新后再设置新值
+        setTimeout(() => {
+            setLineRange(range);
+        }, 50);
+    };
+
+    // 跟踪当前文件是否在加载中
+    const [fileLoading, setFileLoading] = useState(false);
+
+    // 更新 jumpToFile 函数 - 简化行高亮处理流程
+    const jumpToFile = async (filePath, beginLine, endLine) => {
+        try {
+            filePath = await window.electronAPI.pathJoin(window.repoPath, filePath);
+            // 检查参数有效性
+            if (!filePath) return;
+
+            console.log(`正在跳转到文件: ${filePath}, 行范围: ${beginLine}-${endLine}`);
+
+            // 查找文件对应的节点（通过路径匹配）
+            let fileNode = findNodeByPath(treeData, filePath);
+
+            if (!fileNode) {
+                // 如果在树中找不到节点，创建一个临时节点
+                fileNode = {
+                    key: filePath,
+                    title: filePath.split('/').pop(), // 从路径中提取文件名
+                    filePath: filePath,
+                    isLeaf: true
+                };
+            }
+
+            // 检查文件是否已经在标签页中打开
+            const existingTab = tabs.find(tab => tab.filePath === filePath);
+            let targetKey;
+
+            if (existingTab) {
+                // 如果标签已存在，激活它
+                targetKey = existingTab.key;
+            } else {
+                // 添加新标签
+                const newTab = {
+                    key: fileNode.key || `file-${Date.now()}`,
+                    label: fileNode.title || filePath.split('/').pop(),
+                    isLeaf: true,
+                    isSystem: false,
+                    filePath: filePath,
+                    node: fileNode
+                };
+
+                targetKey = newTab.key;
+                setTabs(prev => [...prev, newTab]);
+            }
+
+            // 首先进行内容加载，确保文件内容可用
+            let fileContent = fileContentMap[filePath];
+            if (!fileContent) {
+                try {
+                    console.log('预加载文件内容');
+                    fileContent = await loadFileContent(filePath);
+                } catch (error) {
+                    console.error('预加载文件内容失败:', error);
+                }
+            }
+
+            // 切换到编辑模式，激活标签
+            setContent('edit');
+            setActiveKey(targetKey);
+
+            // 设置行范围，一次性设置，避免重复触发
+            if (beginLine || endLine) {
+                const range = {
+                    start: parseInt(beginLine, 10) || 1,
+                    end: parseInt(endLine, 10) || parseInt(beginLine, 10) || 1
+                };
+
+                // 设置行范围后立即清空，只触发一次传递
+                setLineRange(range);
+            }
+        } catch (error) {
+            console.error('跳转文件时出错:', error);
+        }
+    };
+
+    // 递归查找文件节点的辅助函数
+    const findNodeByPath = (nodes, path) => {
+        if (!nodes || !Array.isArray(nodes)) return null;
+
+        for (const node of nodes) {
+            // 检查当前节点
+            if (node.filePath === path) {
+                return node;
+            }
+
+            // 如果有子节点，递归查找
+            if (node.children) {
+                const found = findNodeByPath(node.children, path);
+                if (found) return found;
+            }
+        }
+
+        return null;
+    };
+
     // conversation related - 修复对话逐字输出和分块显示
     const handleSendConversation = () => {
         if (convLoading) return;
@@ -468,7 +576,12 @@ export default function MainWindowContents() {
     const resultItem0 = searchResult.map((item, index) => (
         <li key={index}
             className={`result0-item ${selectedResultIndex === index ? 'selected' : ''}`}
-            onClick={() => setSelectedResultIndex(index)}>
+            onClick={() => {
+                setSelectedResultIndex(index);
+            }}
+            onDoubleClick={() => {
+                jumpToFile(item.filePath, item.beginLine, item.endLine);
+            }}>
             <div className='result0-item-container'>
                 <div className='chunkcontent-container'>
                     <div className='chunkcontent-content'>
@@ -502,9 +615,9 @@ export default function MainWindowContents() {
             <div style={{ flex: 1, display: 'flex' }}>
                 <PanelGroup direction="horizontal" autoSaveId="main-window-horizontal">
                     <Panel
-                        minSize={10}
+                        minSize={8}
                         maxSize={40}
-                        defaultSize={30}
+                        defaultSize={20}
                         className='mainwindow-panel_1'>
                         <div className='topbar-tools'>
 
@@ -518,9 +631,9 @@ export default function MainWindowContents() {
                     </Panel>
                     <PanelResizeHandle className='main-panel-resize-handle'></PanelResizeHandle>
                     <Panel
-                        minSize={60}
-                        maxSize={90}
-                        defaultSize={70}
+                        // minSize={60}
+                        // maxSize={90}
+                        // defaultSize={70}
                         className='mainwindow-panel_2'>
                         <div className='biaoqian'>
                             <div className="tabsbar-container">
@@ -546,6 +659,8 @@ export default function MainWindowContents() {
                             onChange={handleOnChange}
                             onKeyDown={handleKeyPress}
                             onSearchClick={handleSearchClick}
+                            lineRange={lineRange}
+                            jumpToFile={jumpToFile}
                             // conversation related
                             history={history}
                             streaming={streaming}
@@ -570,6 +685,7 @@ export default function MainWindowContents() {
                             loadFileContent={loadFileContent}
                             updateFileContent={updateFileContent}
                             saveFileContent={saveFileContent}
+                            setLineRange={setLineRange}
                         />
                     </Panel>
                 </PanelGroup>
@@ -583,7 +699,7 @@ const MainDemo = ({
     content, inputValue, resultItem, onChange, onKeyDown, onSearchClick, isLoading, showResult, isTimeout, className,
     history, streaming, inputQuestionValue, setInputQuestionValue, onSendConversation, onConvKeyDown, convLoading,
     onChange_Conv, onPressEnter_Conv, onClick_Conv, stopped, onStop, handleInfoClick, showInfo, info,
-    activeKey, tabs, fileContentMap, loadFileContent, updateFileContent, saveFileContent
+    activeKey, tabs, fileContentMap, loadFileContent, updateFileContent, saveFileContent, lineRange, jumpToFile, setLineRange
 }) => {
     switch (content) {
         case 'conversation':
@@ -629,7 +745,10 @@ const MainDemo = ({
                     fileContentMap={fileContentMap}
                     loadFileContent={loadFileContent}
                     updateFileContent={updateFileContent}
-                    saveFileContent={saveFileContent}>
+                    saveFileContent={saveFileContent}
+                    lineRange={lineRange}
+                    onHighlightComplete={() => { setLineRange(null);}}
+                >
                 </TextEditor>
             );
         case 'chunkInfo':
