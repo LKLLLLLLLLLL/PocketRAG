@@ -7,11 +7,12 @@ import {
     SearchOutlined, 
     MessageOutlined,
     DashboardOutlined,
-    SettingOutlined
+    SettingOutlined,
+    InfoCircleOutlined
 } from '@ant-design/icons';
 
 export default function LeftBar({ setContent }) {
-    const [active, setActive] = useState('localModelManagement');
+    const [active, setActive] = useState('about');
     const [version, setVersion] = useState('v1.0'); // 初始化版本号
 
     useEffect(() => {
@@ -32,6 +33,7 @@ export default function LeftBar({ setContent }) {
     };
     
     const menuItems = [
+        { key: 'about', label: '关于', icon: <InfoCircleOutlined /> },
         { key: 'localModelManagement', label: '模型管理', icon: <CodeOutlined /> },
         { key: 'searchSettings', label: '检索设置', icon: <SearchOutlined /> },
         { key: 'conversationSettings', label: '对话设置', icon: <MessageOutlined /> },
@@ -58,12 +60,12 @@ export default function LeftBar({ setContent }) {
                     </Button>
                 ))}
             </div>
-            <div className='leftbar-footer'>
+            {/* <div className='leftbar-footer'>
                 <div className="version-info">
                     <p>Version v{version}</p>
                     <p>© 2025 PocketRAG</p>
                 </div>
-            </div>
+            </div> */}
         </div>
     );
 }

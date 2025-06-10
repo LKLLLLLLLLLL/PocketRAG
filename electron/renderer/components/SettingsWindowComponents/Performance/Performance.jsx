@@ -33,37 +33,85 @@ const Performance = ({
             setHardwareLoading(true);
             console.log('开始检测硬件可用性...');
 
+            // 确保window.getAvailableHardware函数存在
+            if (typeof window.getAvailableHardware !== 'function') {
+                throw new Error('getAvailableHardware 函数不可用');
+            }
+
             // 调用 getAvailableHardware
             await window.getAvailableHardware();
+
+            // 稍微延迟以确保设置已更新
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             // 获取更新后的设置
             const updatedSettings = await window.getSettings();
             console.log('硬件检测结果:', updatedSettings.performance);
 
             if (updatedSettings.performance) {
-                setHardwareAvailability({
+                const newHardwareAvailability = {
                     'cuda available': updatedSettings.performance['cuda available'] || false,
                     'coreML available': updatedSettings.performance['coreML available'] || false
-                });
+                };
+
+                setHardwareAvailability(newHardwareAvailability);
+                console.log('硬件可用性已更新:', newHardwareAvailability);
+
+                // 显示检测结果
+                const availableHardware = [];
+                if (newHardwareAvailability['cuda available']) availableHardware.push('CUDA');
+                if (newHardwareAvailability['coreML available']) availableHardware.push('CoreML');
+
+                if (availableHardware.length > 0) {
+                    message.success(`硬件检测完成，可用加速: ${availableHardware.join(', ')}`);
+                } else {
+                    message.info('硬件检测完成，未检测到可用的硬件加速');
+                }
             }
 
         } catch (error) {
             console.error('硬件检测失败:', error);
-            message.error('硬件检测失败，使用默认设置');
+            message.warning('硬件检测失败，使用默认设置');
+
             // 使用来自props的备用数据或默认值
-            setHardwareAvailability({
+            const fallbackAvailability = {
                 'cuda available': performanceSettings?.['cuda available'] || false,
                 'coreML available': performanceSettings?.['coreML available'] || false
-            });
+            };
+
+            setHardwareAvailability(fallbackAvailability);
+            console.log('使用备用硬件设置:', fallbackAvailability);
+
         } finally {
             setHardwareLoading(false);
+            console.log('硬件检测流程完成');
         }
     };
 
-    // 初始化硬件检测
+    // 初始化硬件检测 - 优化版本
     useEffect(() => {
-        checkHardwareAvailability();
-    }, []);
+        // 确保只在组件首次挂载时检测
+        if (hardwareLoading) {
+            checkHardwareAvailability();
+        }
+    }, []); // 空依赖数组确保只运行一次
+
+    // 如果想要在performanceSettings变化时重新检测（可选）
+    useEffect(() => {
+        // 如果performanceSettings从外部更新且包含新的硬件信息，直接使用
+        if (performanceSettings && !hardwareLoading) {
+            const externalHardwareInfo = {
+                'cuda available': performanceSettings['cuda available'],
+                'coreML available': performanceSettings['coreML available']
+            };
+
+            // 只有当外部硬件信息与当前状态不同时才更新
+            if (JSON.stringify(externalHardwareInfo) !== JSON.stringify(hardwareAvailability)) {
+                console.log('使用外部硬件信息:', externalHardwareInfo);
+                setHardwareAvailability(externalHardwareInfo);
+            }
+        }
+    }, [performanceSettings]); // 移除hardwareLoading依赖避免循环
 
     // 初始化性能设置
     useEffect(() => {
@@ -315,7 +363,7 @@ const Performance = ({
             {/* 保存按钮和硬件刷新 */}
             <div className="performance-controls-container">
                 <div className="performance-action-buttons">
-                    <ConfigProvider theme={darkTheme}>
+                    {/* <ConfigProvider theme={darkTheme}>
                         <Button
                             type="default"
                             onClick={handleRefreshHardware}
@@ -326,7 +374,7 @@ const Performance = ({
                         >
                             {hardwareLoading ? '检测中...' : '刷新硬件'}
                         </Button>
-                    </ConfigProvider>
+                    </ConfigProvider> */}
                 </div>
                 <div className="performance-save-button-container">
                     <ConfigProvider theme={darkTheme}>
