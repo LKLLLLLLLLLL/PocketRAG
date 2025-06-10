@@ -877,8 +877,8 @@ function AreSettingsRight() {
     if (typeof cfg.selected !== 'boolean') return false
     if (cfg.selected) rerankSelectedCount++
   }
-  // 只能有一个被选中（如果数组非空）
-  if (ss.rerankConfig.configs.length > 0 && rerankSelectedCount !== 1) return false
+  // 最多有一个被选中
+  if (ss.rerankConfig.configs.length > 0 && rerankSelectedCount > 1) return false
 
   // localModelManagement
   const lm = settings.localModelManagement

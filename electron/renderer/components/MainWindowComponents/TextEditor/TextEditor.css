@@ -292,3 +292,127 @@
   user-select: text !important;
   -webkit-user-select: text !important;
 }
+
+/* 更新背景色为VSCode默认深色主题色 */
+.dark-editor-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background-color: #1e1e1e; /* VSCode背景色 */
+  color: #d4d4d4; /* VSCode默认文本色 */
+}
+
+/* 编辑器区域样式 */
+.bytemd-editor .CodeMirror {
+  background-color: #1e1e1e !important; /* VSCode背景色 */
+  color: #d4d4d4 !important; /* VSCode文本色 */
+}
+
+/* 确保文本内容颜色符合VSCode */
+.CodeMirror pre.CodeMirror-line,
+.CodeMirror pre.CodeMirror-line-like {
+  color: #d4d4d4 !important;
+}
+
+/* VSCode风格语法高亮 */
+.cm-s-default .cm-string {
+  color: #ce9178 !important; /* VSCode字符串色 */
+}
+
+.cm-s-default .cm-keyword {
+  color: #569cd6 !important; /* VSCode关键字色 */
+}
+
+.cm-s-default .cm-comment {
+  color: #6A9955 !important; /* VSCode注释色 */
+}
+
+.cm-s-default .cm-number {
+  color: #b5cea8 !important; /* VSCode数字色 */
+}
+
+.cm-s-default .cm-property {
+  color: #9cdcfe !important; /* VSCode属性色 */
+}
+
+.cm-s-default .cm-operator {
+  color: #d4d4d4 !important; /* VSCode运算符色 */
+}
+
+.cm-s-default .cm-def {
+  color: #d5d574 !important; /* VSCode函数色 */
+}
+
+.cm-s-default .cm-variable {
+  color: #9cdcfe !important; /* VSCode变量色 */
+}
+
+.cm-s-default .cm-variable-2 {
+  color: #9cdcfe !important; /* VSCode变量色 */
+}
+
+.cm-s-default .cm-tag {
+  color: #569cd6 !important; /* VSCode标签色 */
+}
+
+.cm-s-default .cm-atom {
+  color: #569cd6 !important; /* VSCode原子色 */
+}
+
+.cm-s-default .cm-attribute {
+  color: #9cdcfe !important; /* VSCode属性色 */
+}
+
+/* 修复Markdown标题高亮颜色 */
+.cm-s-default .cm-header {
+  color: #569cd6 !important;
+  /* VSCode标题色 - 明亮的蓝色 */
+  font-weight: bold !important;
+}
+
+/* 不同级别标题可以有不同的大小 */
+.cm-s-default .cm-header-1 {
+  font-size: 1.4em !important;
+  color: #569cd6 !important;
+}
+
+.cm-s-default .cm-header-2 {
+  font-size: 1.3em !important;
+  color: #569cd6 !important;
+}
+
+.cm-s-default .cm-header-3 {
+  font-size: 1.2em !important;
+  color: #569cd6 !important;
+}
+
+/* Markdown 链接 */
+.cm-s-default .cm-url, 
+.cm-s-default .cm-link {
+  color: #3794ff !important;
+  /* VSCode链接色 */
+  text-decoration: underline !important;
+}
+
+/* Markdown 斜体 */
+.cm-s-default .cm-em {
+  color: #c586c0 !important;
+  /* 浅紫色 */
+  font-style: italic !important;
+}
+
+/* Markdown 粗体 */
+.cm-s-default .cm-strong {
+  color: #c586c0;
+  /* 金黄色 */
+  font-weight: bold !important;
+}
+
+/* Markdown 引用 */
+.cm-s-default .cm-quote {
+  color: #d4b24d !important;
+  /* 绿色 */
+  font-style: italic !important;
+}

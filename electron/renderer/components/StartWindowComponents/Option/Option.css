@@ -36,7 +36,7 @@
 }
 
 .new-button {
-    background-color: #00b0b0;
+    background-color: #009090;
     color: #ffffff;
     border: none;
     border-radius: 6px;
@@ -62,7 +62,7 @@
 }
 
 .new-button:hover {
-    background-color: #008888;
+    background-color: #007777;
 }
 
 .other-button:hover {
