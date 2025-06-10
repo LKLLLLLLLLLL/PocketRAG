@@ -59,9 +59,6 @@ export default function Doclist({ children, setSelectNode, selectNode, treeData,
                 />
                 {children}
             </div>
-            <div className="doclist_tools-container">
-                <div>文件工具栏</div>
-            </div>
         </div>
     );
 }
