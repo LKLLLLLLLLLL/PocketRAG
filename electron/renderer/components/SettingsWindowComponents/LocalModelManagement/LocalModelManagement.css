@@ -1,0 +1,418 @@
+/* ========== 基础容器样式 ========== */
+.local-model-management-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    -webkit-app-region: no-drag;
+    margin-bottom: 30px;
+}
+
+.model-list-container {
+    width: 100%;
+}
+
+/* ========== 说明文字样式 ========== */
+.local-model-settings-explanation {
+    margin-left: 40px;
+    margin-bottom: 16px;
+}
+
+.local-model-settings-explanation h4 {
+    color: #ffffff;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.local-model-settings-explanation p {
+    color: #696969;
+    /* darkgrey */
+    margin: 0;
+    font-size: 12px;
+}
+
+/* ========== 表格容器和样式 ========== */
+.local-model-table-wrapper {
+    width: 90%;
+    max-width: 90%;
+    margin: auto;
+    overflow: hidden;
+    border-radius: 6px;
+    border: 1px solid #555555;
+    display: flex;
+    justify-content: center;
+}
+
+/* 深色表格样式 */
+.dark-table {
+    width: 100%;
+}
+
+.dark-table .ant-table {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    width: 100%;
+}
+
+.dark-table .ant-table-thead>tr>th {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #555555 !important;
+    border-right: 1px solid #555555 !important;
+    text-align: center !important;
+}
+
+.dark-table .ant-table-tbody>tr>td {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #555555 !important;
+    border-right: 1px solid #555555 !important;
+}
+
+.dark-table .ant-table-tbody>tr:hover>td {
+    background-color: #404040 !important;
+}
+
+.dark-table .ant-table-cell {
+    border-right: 1px solid #555555 !important;
+}
+
+/* 分页器样式 */
+.dark-table .ant-pagination {
+    color: #ffffff !important;
+    text-align: center;
+}
+
+.dark-table .ant-pagination .ant-pagination-item {
+    background-color: #333333 !important;
+    border-color: #555555 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item a {
+    color: #ffffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item:hover {
+    background-color: #404040 !important;
+    border-color: #666666 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active {
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active a {
+    color: #000000 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-prev,
+.dark-table .ant-pagination .ant-pagination-next {
+    color: #ffffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-prev:hover,
+.dark-table .ant-pagination .ant-pagination-next:hover {
+    color: #00ffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-total-text {
+    color: #cccccc !important;
+}
+
+.dark-table .ant-empty {
+    color: #cccccc !important;
+}
+
+.dark-table .ant-empty-description {
+    color: #cccccc !important;
+}
+
+/* ========== 表格内容样式 ========== */
+/* 模型名称样式 */
+.model-name {
+    font-weight: 500;
+    color: #ffffff;
+}
+
+/* 模型类型标签样式 */
+.model-type-tag {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+/* 模型路径样式 */
+.model-path {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+}
+
+.path-icon {
+    color: #00ffff;
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.path-text {
+    color: #cccccc;
+    font-family: monospace;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 文件大小样式 */
+.file-size {
+    color: #ffffff;
+    font-weight: 500;
+    font-family: monospace;
+}
+
+/* 删除按钮样式 */
+.action-button-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 24px;
+}
+
+.delete-button-center {
+    color: #ff6b6b !important;
+    padding: 0 !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 4px !important;
+    margin: 0 auto;
+}
+
+.delete-button-center:hover {
+    color: #ff5252 !important;
+    background-color: rgba(255, 107, 107, 0.1) !important;
+}
+
+.delete-button-center:active {
+    color: #ff1744 !important;
+    background-color: rgba(255, 107, 107, 0.2) !important;
+}
+
+.delete-button-center .anticon {
+    font-size: 14px !important;
+}
+
+.delete-button-center.ant-btn-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* ========== 按钮控制区域样式 ========== */
+.model-controls-container {
+    width: 90%;
+    margin: 16px auto 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.model-action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.save-button-container {
+    display: flex;
+    align-items: center;
+}
+
+/* ========== 统一按钮样式 ========== */
+.model-button {
+    min-width: 80px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-model-button,
+.save-settings-button {
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+    color: #000000 !important;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.save-settings-button {
+    min-width: 120px;
+    height: 32px;
+}
+
+.add-model-button:hover,
+.save-settings-button:hover {
+    background-color: #33ffff !important;
+    border-color: #33ffff !important;
+    color: #000000 !important;
+}
+
+.add-model-button:active,
+.save-settings-button:active {
+    background-color: #00cccc !important;
+    border-color: #00cccc !important;
+    color: #000000 !important;
+}
+
+.save-settings-button.ant-btn-loading {
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+/* ========== 分隔线样式 ========== */
+.section-divider {
+    width: 90%;
+    height: 1px;
+    background-color: #555555;
+    margin: 24px auto;
+    position: relative;
+}
+
+/* ========== 模型统计信息样式 ========== */
+.model-statistics-container {
+    width: 100%;
+    margin: auto;
+}
+
+.model-statistics-content {
+    width: 90%;
+    margin: auto;
+    margin-bottom: 16px;
+    padding: 20px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    border: none;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.statistics-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #333333;
+    border-radius: 6px;
+    border: 1px solid #555555;
+}
+
+.statistics-label {
+    color: #cccccc;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.statistics-value {
+    color: #00ffff;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+/* ========== 响应式设计 ========== */
+@media (max-width: 768px) {
+    .local-model-management-container {
+        padding: 12px;
+    }
+
+    .section-divider,
+    .local-model-table-wrapper {
+        width: 95%;
+    }
+
+    .model-statistics-content {
+        width: 95%;
+        padding: 16px;
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* 按钮控制区域响应式 */
+    .model-controls-container {
+        width: 95%;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .model-action-buttons {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .save-button-container {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .model-button,
+    .save-settings-button {
+        width: auto;
+        min-width: 80px;
+    }
+
+    .save-settings-button {
+        min-width: 100px;
+        font-size: 12px;
+    }
+
+    /* 表格按钮响应式 */
+    .delete-button-center {
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
+    }
+
+    .delete-button-center .anticon {
+        font-size: 12px !important;
+    }
+
+    /* 模型路径在小屏幕上的优化 */
+    .model-path {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+
+    .path-text {
+        font-size: 10px;
+        max-width: 100%;
+    }
+
+    .statistics-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .statistics-label,
+    .statistics-value {
+        font-size: 12px;
+    }
+}

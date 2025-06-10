@@ -1,0 +1,303 @@
+/* ========== 基础容器样式 ========== */
+.performance-settings-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    -webkit-app-region: no-drag;
+    margin-bottom: 30px;
+}
+
+/* ========== 说明文字样式 ========== */
+.performance-settings-explanation {
+    margin-left: 40px;
+    margin-bottom: 16px;
+}
+
+.performance-settings-explanation h4 {
+    color: #ffffff;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.performance-settings-explanation p {
+    color: #696969;
+    /* darkgrey */
+    margin: 0;
+    font-size: 12px;
+}
+
+/* ========== 性能设置区域样式 ========== */
+.performance-section {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.performance-demo-container {
+    width: 90%;
+    margin: auto;
+    margin-bottom: 16px;
+    padding: 20px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    border: none;
+    box-sizing: border-box;
+}
+
+/* 性能设置显示样式 */
+.performance-setting-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.performance-setting-label {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.performance-setting-input-wrapper {
+    flex-shrink: 0;
+}
+
+.performance-setting-input {
+    width: 200px;
+}
+
+.performance-setting-input input {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    border-color: #555555 !important;
+}
+
+.performance-setting-input input:focus {
+    border-color: #00ffff !important;
+    box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2) !important;
+}
+
+/* 开关设置样式 */
+.performance-setting-switch-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.performance-setting-switch {
+    flex-shrink: 0;
+}
+
+.performance-availability-status {
+    color: #cccccc;
+    font-size: 12px;
+    min-width: 40px;
+}
+
+/* 深色开关样式 */
+.performance-setting-switch.ant-switch {
+    background-color: #555555 !important;
+}
+
+.performance-setting-switch.ant-switch-checked {
+    background-color: #00ffff !important;
+}
+
+.performance-setting-switch.ant-switch:hover:not(.ant-switch-disabled) {
+    background-color: #666666 !important;
+}
+
+.performance-setting-switch.ant-switch-checked:hover:not(.ant-switch-disabled) {
+    background-color: #33ffff !important;
+}
+
+.performance-setting-switch.ant-switch-disabled {
+    background-color: #333333 !important;
+    opacity: 0.5;
+}
+
+/* 提示文字样式 */
+.performance-setting-hint {
+    color: #999999;
+    font-size: 12px;
+    font-style: italic;
+    text-align: right;
+    width: 100%;
+}
+
+/* ========== 分隔线样式 ========== */
+.section-divider {
+    width: 90%;
+    height: 1px;
+    background-color: #555555;
+    margin: 24px auto;
+    position: relative;
+}
+
+/* ========== 按钮控制区域样式 ========== */
+.performance-controls-container {
+    width: 90%;
+    margin: 16px auto 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.performance-action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.performance-save-button-container {
+    display: flex;
+    align-items: center;
+}
+
+/* ========== 统一按钮样式 ========== */
+.save-settings-button {
+    min-width: 120px;
+    height: 32px;
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+    color: #000000 !important;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.save-settings-button:hover {
+    background-color: #33ffff !important;
+    border-color: #33ffff !important;
+    color: #000000 !important;
+}
+
+.save-settings-button:active {
+    background-color: #00cccc !important;
+    border-color: #00cccc !important;
+    color: #000000 !important;
+}
+
+.save-settings-button.ant-btn-loading {
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+/* ========== 响应式设计 ========== */
+@media (max-width: 768px) {
+    .performance-settings-container {
+        padding: 12px;
+    }
+
+    .section-divider {
+        width: 95%;
+    }
+
+    .performance-demo-container {
+        width: 95%;
+        padding: 16px;
+    }
+
+    /* 性能设置响应式 */
+    .performance-setting-display {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .performance-setting-label {
+        align-self: flex-start;
+    }
+
+    .performance-setting-input-wrapper,
+    .performance-setting-switch-wrapper {
+        align-self: flex-end;
+    }
+
+    .performance-setting-input {
+        width: 150px;
+    }
+
+    /* 按钮控制区域响应式 */
+    .performance-controls-container {
+        width: 95%;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .performance-action-buttons {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .performance-save-button-container {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .save-settings-button {
+        min-width: 100px;
+        font-size: 12px;
+    }
+}
+
+/* 硬件刷新按钮样式 */
+.refresh-hardware-button {
+    min-width: 80px;
+    height: 32px;
+    background-color: #555555 !important;
+    border-color: #555555 !important;
+    color: #ffffff !important;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.refresh-hardware-button:hover {
+    background-color: #666666 !important;
+    border-color: #666666 !important;
+    color: #ffffff !important;
+}
+
+.refresh-hardware-button:active {
+    background-color: #444444 !important;
+    border-color: #444444 !important;
+    color: #ffffff !important;
+}
+
+/* 硬件状态显示 */
+.performance-availability-status {
+    margin-left: 12px;
+    font-size: 12px;
+    color: #999999;
+}
+
+.performance-availability-status.available {
+    color: #52c41a;
+    /* 绿色表示可用 */
+}
+
+.performance-availability-status.unavailable {
+    color: #ff4d4f;
+    /* 红色表示不可用 */
+}
+
+.performance-availability-status.loading {
+    color: #1890ff;
+    /* 蓝色表示检测中 */
+}
+
+/* Switch加载状态 */
+.performance-setting-switch.ant-switch-loading {
+    opacity: 0.6;
+}

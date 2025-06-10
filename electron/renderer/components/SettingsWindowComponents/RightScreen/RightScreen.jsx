@@ -1,19 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import './RightScreen.css'
+import './RightScreen.css';
 import { Button, Input, Select, Switch, Table, message, Space } from 'antd';
 import { CloseOutlined, PlusOutlined, DeleteOutlined, CheckOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import ConversationModelModal from '../ConversationModelModal/ConversationModelModal';
+import LocalModelModal from '../LocalModelModal/LocalModelModal';
+import About from '../About/About';
+import LocalModelManagement from '../LocalModelManagement/LocalModelManagement';
+import ConversationSettings from '../ConversationSettings/ConversationSettings';
+import Performance from '../Performance/Performance';
+import Page from '../Page/Page';
+import SearchSettings from '../SearchSettings/SearchSettings';
 
 const { Option } = Select;
 
 export default function RightScreen({ content, onClick }) {
+    //全部设置
     const [settings, setSettings] = useState([]);
-    const [conversationSettings, setConversationSettings] = useState([]);
-    const [localModelManagement, setLocalModelManagement] = useState([]);
-    const [performance, setPerformance] = useState([]);
-    const [searchSettings, setSearchSettings] = useState([]);
-    const [tempApiKeys, setTempApiKeys] = useState([]);
-    const [isSaving, setIsSaving] = useState(false); // 应为false
 
+    //各个设置
+    const [conversationSettings, setConversationSettings] = useState([]);//对话
+    const [localModelManagement, setLocalModelManagement] = useState([]);//本地模型
+    const [performanceSettings, setPerformanceSettings] = useState([]);//性能
+    const [searchSettings, setSearchSettings] = useState([]);//搜索
+    const [APIKey, setAPIKey] = useState(null);//暂存APIKey
+
+    //保存状态
+    const [isSaving, setIsSaving] = useState(false); 
+
+    //版本号
+    const [version, setVersion] = useState('v1.0'); // 初始化版本号
+
+    //控制弹窗开关
+    const [localModelModal,setLocalModelModal] = useState(false);
+    const [conversationModelModal,setConversationModelModal] = useState(false);
+
+    // 获取版本号
+    useEffect(() => {
+        const fetchVersion = async () => {
+            try {
+                const data = await window.electronAPI.getVersion();
+                setVersion(data);
+            } catch (err) {
+                console.error('Error fetching version:', err);
+            }
+        };
+        fetchVersion();
+    }, []);
+
+    // 获取所有设置信息
     useEffect(() => {
         const fetchSettings = async () => {
             try {
@@ -21,7 +55,7 @@ export default function RightScreen({ content, onClick }) {
                 setSettings(result);
                 setConversationSettings(result?.conversationSettings);
                 setLocalModelManagement(result?.localModelManagement);
-                setPerformance(result?.performance);
+                setPerformanceSettings(result?.performance);
                 setSearchSettings(result?.searchSettings);
             } catch (err) {
                 console.error('Error fetching settings:', err);
@@ -32,7 +66,19 @@ export default function RightScreen({ content, onClick }) {
         fetchSettings();
     }, []);
 
-    // 处理设置变化的通用函数
+    // 初始化性能设置
+    useEffect(() => {
+        const initPerformanceSettings = settings?.performanceSettings || settings?.performance || {};
+        setPerformanceSettings(initPerformanceSettings);
+    }, [settings]);
+
+    // 初始化检索设置
+    useEffect(() => {
+        const initSearchSettings = settings?.searchSettings || {};
+        setSearchSettings(initSearchSettings);
+    }, [settings]);
+
+    // 一次性将所有新设置写入state中
     const handleSettingChange = (path, value) => {
         const newSettings = {...settings};
         const keys = path.split('.');
@@ -46,157 +92,410 @@ export default function RightScreen({ content, onClick }) {
         setSettings(newSettings);
     };
 
-    // 处理嵌入模型选择
-    const handleEmbeddingSelect = (index, selected) => {
-        const newSearchSettings = {...searchSettings};
-        newSearchSettings.embeddingConfig.configs[index].selected = selected;
-        setSearchSettings(newSearchSettings);
-        handleSettingChange('searchSettings', newSearchSettings);
-    };
-
-    // 处理重排模型选择
-    const handleRerankSelect = (modelName) => {
-        const newSearchSettings = {...searchSettings};
-        newSearchSettings.rerankConfig.configs.forEach(config => {
-            config.selected = config.modelName === modelName;
-        });
-        setSearchSettings(newSearchSettings);
-        handleSettingChange('searchSettings', newSearchSettings);
-    };
-
-    // 处理生成模型选择
-    const handleGenerationModelSelect = (modelName) => {
-        const newConversationSettings = {...conversationSettings};
-        newConversationSettings.generationModel.forEach(model => {
-            model.lastUsed = model.name === modelName;
-        });
-        setConversationSettings(newConversationSettings);
-        handleSettingChange('conversationSettings', newConversationSettings);
-    };
-
-    // 性能设置切换
-    const handlePerformanceToggle = (key, value) => {
-        const newPerformance = {...performance, [key]: value};
-        setPerformance(newPerformance);
-        handleSettingChange('performance', newPerformance);
-    };
-
-    // 保存设置到后端
-    const saveSettings = async () => {
-        setIsSaving(true);
+    // 为单个模型设置APIKey，并测试是否有效
+    const setAPIkey = async (modelName, url, apiKey) => {
+        const temp = apiKey;
         try {
-            // 首先验证设置
-            await window.checkSettings(settings);
-            
-            // 保存设置
-            await window.updateSettings(settings);
-            
-            // 保存所有API Key
-            for (const [modelName, apiKey] of Object.entries(tempApiKeys)) {
-                if (apiKey) {
-                    await window.setApiKey(modelName, apiKey);
-                }
-            }
-            
-            message.success('设置保存成功');
+            await window.setApiKey(modelName, apiKey);
+            await window.testApi(modelName, url, apiKey);
+            setAPIKey(apiKey);
+            message.success(`API Key设置成功: ${modelName}`);
         } catch (err) {
-            console.error('保存设置失败:', err);
-            message.error(`保存设置失败: ${err.message}`);
+            console.error('设置API Key失败:', err);
+            message.error(`设置API Key失败: ${err.message}`);
+            setAPIKey(temp);
+            throw err;
+        }
+    };
+
+    // 处理模型列表变化
+    const handleModelListChange = (updatedModels) => {
+        // 更新本地设置状态
+        const updatedConversationSettings = {
+            ...conversationSettings,
+            generationModel: updatedModels
+        };
+        setConversationSettings(updatedConversationSettings);
+
+        // 同步更新全局设置
+        const newSettings = {
+            ...settings,
+            conversationSettings: updatedConversationSettings
+        };
+        setSettings(newSettings);
+    };
+
+    // 处理历史长度变化
+        const handleHistoryLengthChange = (newLength) => {
+            // 更新本地设置状态
+            const updatedConversationSettings = {
+                ...conversationSettings,
+                historyLength: newLength
+            };
+            setConversationSettings(updatedConversationSettings);
+    
+            // 同步更新全局设置
+            const newSettings = {
+                ...settings,
+                conversationSettings: updatedConversationSettings
+            };
+            setSettings(newSettings);
+        };
+    
+    // 保存对话模型设置到后端
+    const handleSaveModelSettings = async (modelSettingsData) => {
+        try {
+            setIsSaving(true);
+
+            // 构建完整的设置数据，只更新模型相关设置
+            const updatedSettings = {
+                ...settings,
+                conversationSettings: {
+                    ...conversationSettings,
+                    generationModel: modelSettingsData.generationModel
+                }
+            };
+
+            // 调用后端接口保存设置
+            await window.checkSettings(updatedSettings);
+            await window.updateSettings(updatedSettings);
+
+            // 更新本地状态
+            setSettings(updatedSettings);
+            setConversationSettings(updatedSettings.conversationSettings);
+
+            message.success('模型设置保存成功');
+
+        } catch (error) {
+            console.error('保存模型设置失败:', error);
+            message.error(`保存模型设置失败: ${error.message}`);
         } finally {
             setIsSaving(false);
         }
     };
 
-    // 测试API连接
-    const testApiConnection = async (model) => {
+    // 保存检索设置到后端
+    const handleSaveSearchSettings = async (searchSettingsData) => {
         try {
-            // 使用临时API Key或已保存的API Key
-            const apiKey = tempApiKeys[model.name] || await window.getApiKey(model.name);
-            
-            if (!apiKey) {
-                message.warning('请先设置API Key');
-                return;
-            }
-            
-            await window.testApi(model.name, model.url, apiKey);
-            message.success('API连接测试成功');
-        } catch (err) {
-            console.error('API连接测试失败:', err);
-            message.error(`API连接测试失败: ${err.message}`);
+            setIsSaving(true);
+
+            // 构建完整的设置数据
+            const updatedSettings = {
+                ...settings,
+                searchSettings: {
+                    ...searchSettings,
+                    ...searchSettingsData
+                }
+            };
+
+            // 调用后端接口保存设置
+            await window.checkSettings(updatedSettings);
+            await window.updateSettings(updatedSettings);
+
+            // 更新本地状态
+            setSettings(updatedSettings);
+            setSearchSettings(updatedSettings.searchSettings);
+
+            message.success('检索设置保存成功');
+
+        } catch (error) {
+            console.error('保存检索设置失败:', error);
+            message.error(`保存检索设置失败: ${error.message}`);
+        } finally {
+            setIsSaving(false);
         }
     };
 
-    // 更新临时API Key存储
-    const handleApiKeyChange = (modelName, value) => {
-        setTempApiKeys(prev => ({
-            ...prev,
-            [modelName]: value
-        }));
+    // 保存性能设置到后端
+    const handleSavePerformanceSettings = async (performanceSettingsData) => {
+        try {
+            setIsSaving(true);
+
+            // 构建完整的设置数据
+            const updatedSettings = {
+                ...settings,
+                performance: {
+                    ...performanceSettings,
+                    ...performanceSettingsData
+                }
+            };
+
+            // 调用后端接口保存设置
+            await window.checkSettings(updatedSettings);
+            await window.updateSettings(updatedSettings);
+
+            // 更新本地状态
+            setSettings(updatedSettings);
+            setPerformanceSettings(updatedSettings.performance);
+
+            message.success('性能设置保存成功');
+
+        } catch (error) {
+            console.error('保存性能设置失败:', error);
+            message.error(`保存性能设置失败: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    // 添加新的本地模型
-    const addLocalModel = (model) => {
-        const newLocalModelManagement = {...localModelManagement};
-        newLocalModelManagement.models = [...(newLocalModelManagement.models || []), model];
-        setLocalModelManagement(newLocalModelManagement);
-        handleSettingChange('localModelManagement', newLocalModelManagement);
+    // 保存历史设置到后端
+    const handleSaveHistorySettings = async (historySettingsData) => {
+        try {
+            setIsSaving(true);
+
+            // 构建完整的设置数据，只更新历史相关设置
+            const updatedSettings = {
+                ...settings,
+                conversationSettings: {
+                    ...conversationSettings,
+                    historyLength: historySettingsData.historyLength
+                }
+            };
+
+            // 调用后端接口保存设置
+            await window.checkSettings(updatedSettings);
+            await window.updateSettings(updatedSettings);
+
+            // 更新本地状态
+            setSettings(updatedSettings);
+            setConversationSettings(updatedSettings.conversationSettings);
+
+            message.success('历史设置保存成功');
+
+        } catch (error) {
+            console.error('保存历史设置失败:', error);
+            message.error(`保存历史设置失败: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    // 删除本地模型
-    const removeLocalModel = (modelName) => {
-        const newLocalModelManagement = {...localModelManagement};
-        newLocalModelManagement.models = newLocalModelManagement.models.filter(m => m.name !== modelName);
-        setLocalModelManagement(newLocalModelManagement);
-        handleSettingChange('localModelManagement', newLocalModelManagement);
+    // 保存本地模型设置到后端
+    const handleSaveLocalModelSettings = async (localModelSettingsData) => {
+        try {
+            setIsSaving(true);
+
+            const updatedSettings = {
+                ...settings,
+                localModelManagement: {
+                    ...localModelManagement,
+                    ...localModelSettingsData
+                }
+            };
+
+            await window.checkSettings(updatedSettings);
+            await window.updateSettings(updatedSettings);
+
+            setSettings(updatedSettings);
+            setLocalModelManagement(updatedSettings.localModelManagement);
+
+            message.success('本地模型设置保存成功');
+
+        } catch (error) {
+            console.error('保存本地模型设置失败:', error);
+            message.error(`保存本地模型设置失败: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    // 添加新的嵌入模型配置
-    const addEmbeddingConfig = () => {
-        const newSearchSettings = {...searchSettings};
-        const newConfig = {
-            name: `bge-m3-${Date.now()}`,
-            modelName: "bge-m3",
-            inputLength: 512,
-            selected: false
+    // 修改 handleSaveAllSettings 函数以更好地处理特定设置
+    const handleSaveAllSettings = async (specificSettings = null) => {
+        try {
+            setIsSaving(true);
+
+            let updatedSettings;
+
+            if (specificSettings) {
+                // 如果传入了特定设置，智能合并到当前设置中
+                updatedSettings = {
+                    ...settings
+                };
+
+                // 根据传入的设置类型进行智能合并
+                if (specificSettings.conversationSettings) {
+                    updatedSettings.conversationSettings = {
+                        ...conversationSettings,
+                        ...specificSettings.conversationSettings
+                    };
+                }
+
+                if (specificSettings.localModelManagement) {
+                    updatedSettings.localModelManagement = {
+                        ...localModelManagement,
+                        ...specificSettings.localModelManagement
+                    };
+                }
+
+                if (specificSettings.performance) {
+                    updatedSettings.performance = {
+                        ...performanceSettings,
+                        ...specificSettings.performance
+                    };
+                }
+
+                if (specificSettings.searchSettings) {
+                    updatedSettings.searchSettings = {
+                        ...searchSettings,
+                        ...specificSettings.searchSettings
+                    };
+                }
+
+            } else {
+                // 否则保存所有当前状态
+                updatedSettings = {
+                    ...settings,
+                    conversationSettings: {
+                        ...conversationSettings,
+                        generationModel: conversationSettings?.generationModel || [],
+                        historyLength: conversationSettings?.historyLength || 0
+                    },
+                    localModelManagement: {
+                        ...localModelManagement,
+                        models: localModelManagement?.models || []
+                    },
+                    performance: {
+                        ...performanceSettings,
+                    },
+                    searchSettings: {
+                        ...searchSettings,
+                        searchLimit: searchSettings?.searchLimit || 10,
+                        embeddingConfig: searchSettings?.embeddingConfig || { configs: [] },
+                        rerankConfig: searchSettings?.rerankConfig || { configs: [] }
+                    }
+                };
+            }
+
+            console.log('RightScreen - 准备保存的设置:', updatedSettings);
+
+            // 调用后端接口验证和保存设置
+            await window.checkSettings(updatedSettings);
+            await window.updateSettings(updatedSettings);
+
+            // 更新所有本地状态
+            setSettings(updatedSettings);
+            setConversationSettings(updatedSettings.conversationSettings);
+            setLocalModelManagement(updatedSettings.localModelManagement);
+            setPerformanceSettings(updatedSettings.performance);
+            setSearchSettings(updatedSettings.searchSettings);
+
+            message.success('设置保存成功');
+
+            return updatedSettings;
+
+        } catch (error) {
+            console.error('保存设置失败:', error);
+            message.error(`保存设置失败: ${error.message}`);
+            throw error;
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // 处理添加对话模型
+    const handleAddGenerationModel =()=>{
+        setConversationModelModal(true);
+    }
+
+    // 处理添加本地模型
+    const handleAddLocalModel = () => {
+        setLocalModelModal(true);
+    };
+
+    // 处理本地模型弹窗确认
+    const handleLocalModelOk = async (newModel) => {
+        try {
+            setIsSaving(true);
+
+            // 更新本地模型列表
+            const updatedLocalModelManagement = {
+                ...localModelManagement,
+                models: [
+                    ...(localModelManagement?.models || []),
+                    newModel
+                ]
+            };
+            setLocalModelManagement(updatedLocalModelManagement);
+
+            // 更新全局settings状态
+            const newSettings = {
+                ...settings,
+                localModelManagement: updatedLocalModelManagement
+            };
+            setSettings(newSettings);
+
+            // 关闭弹窗
+            setLocalModelModal(false);
+            message.success('模型添加成功');
+
+        } catch (error) {
+            console.error('添加本地模型失败:', error);
+            message.error(`添加本地模型失败: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // 处理对话模型弹窗确认
+    const handleConversationModelOk = async (newModel, apiKey) => {
+        try {
+            setIsSaving(true);
+
+            // 1. 设置API Key
+            await setAPIkey(newModel.name, newModel.url, apiKey);
+
+            // 2. 更新本地状态
+            const updatedConversationSettings = {
+                ...conversationSettings,
+                generationModel: [
+                    ...(conversationSettings?.generationModel || []),
+                    newModel
+                ]
+            };
+            setConversationSettings(updatedConversationSettings);
+
+            // 3. 更新全局settings状态
+            const newSettings = {
+                ...settings,
+                conversationSettings: updatedConversationSettings
+            };
+            setSettings(newSettings);
+
+            // 4. 关闭弹窗
+            setConversationModelModal(false);
+            message.success('模型添加成功');
+
+        } catch (error) {
+            console.error('添加模型失败:', error);
+            message.error(`添加模型失败: ${error.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // 处理对话模型弹窗取消
+    const handleConversationModelCancel = () => {
+        setConversationModelModal(false);
+    };
+
+    // 处理本地模型弹窗取消
+    const handleLocalModelCancel = () => {
+        setLocalModelModal(false);
+    };
+
+    // 处理本地模型列表变化
+    const handleLocalModelListChange = (updatedModels) => {
+        const updatedLocalModelManagement = {
+            ...localModelManagement,
+            models: updatedModels
         };
-        
-        newSearchSettings.embeddingConfig.configs.push(newConfig);
-        setSearchSettings(newSearchSettings);
-        handleSettingChange('searchSettings', newSearchSettings);
-    };
+        setLocalModelManagement(updatedLocalModelManagement);
 
-    // 移除嵌入模型配置
-    const removeEmbeddingConfig = (index) => {
-        const newSearchSettings = {...searchSettings};
-        newSearchSettings.embeddingConfig.configs.splice(index, 1);
-        setSearchSettings(newSearchSettings);
-        handleSettingChange('searchSettings', newSearchSettings);
-    };
-
-    // 添加新的生成模型
-    const addGenerationModel = () => {
-        const newConversationSettings = {...conversationSettings};
-        const newModel = {
-            name: `new-model-${Date.now()}`,
-            modelName: "custom-model",
-            url: "http://example.com/api",
-            setApiKey: true,
-            lastUsed: false
+        const newSettings = {
+            ...settings,
+            localModelManagement: updatedLocalModelManagement
         };
-        
-        newConversationSettings.generationModel.push(newModel);
-        setConversationSettings(newConversationSettings);
-        handleSettingChange('conversationSettings', newConversationSettings);
-    };
-
-    // 移除生成模型
-    const removeGenerationModel = (modelName) => {
-        const newConversationSettings = {...conversationSettings};
-        newConversationSettings.generationModel = newConversationSettings.generationModel.filter(
-            m => m.name !== modelName
-        );
-        setConversationSettings(newConversationSettings);
-        handleSettingChange('conversationSettings', newConversationSettings);
+        setSettings(newSettings);
     };
 
     // 渲染保存按钮
@@ -205,726 +504,128 @@ export default function RightScreen({ content, onClick }) {
             <Button 
                 type="primary" 
                 icon={<CheckOutlined />} 
-                onClick={saveSettings}
+                onClick={handleSaveAllConversationSettings}
                 loading={isSaving}
+                color = "cyan"
+                variant='solid'
                 className="save-button"
             >
-                保存设置
+                保存
             </Button>
         </div>
     );
 
-    switch (content) {
-        case 'page':
-            return (
-                <RightScreenContainer onClick={onClick}>
-                    <div className="settings-header">
-                        <h3>页面样式设置</h3>
-                        <p>自定义应用界面的视觉风格</p>
-                    </div>
-                    <div className="settings-form">
-                        {/* 页面样式设置内容 */}
-                    </div>
-                    {renderSaveButton()}
-                </RightScreenContainer>
-            );
+    switch(content){
         case 'localModelManagement':
-            return (
-                <RightScreenContainer onClick={onClick}>
-                    <div className="settings-header">
-                        <h3>本地模型管理</h3>
-                        <p>管理已下载的本地模型</p>
+            return(
+                <div className = 'rightscreen-container'>
+                    <Header onClick={onClick}></Header>
+                    <div>
+                        <LocalModelManagement
+                            localModelManagement={localModelManagement}
+                            onAddLocalModel={handleAddLocalModel}
+                            onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                            onSaveLocalModelSettings={handleSaveLocalModelSettings}
+                            onModelListChange={handleLocalModelListChange}
+                            isSaving={isSaving}>
+                        </LocalModelManagement>
+                        {localModelModal &&
+                            <LocalModelModal
+                                open={localModelModal}
+                                onOk={handleLocalModelOk}
+                                onCancel={handleLocalModelCancel}>
+                            </LocalModelModal>
+                        }
                     </div>
-                    <div className="settings-form">
-                        <LocalModelManagement 
-                            models={localModelManagement?.models || []}
-                            onAdd={addLocalModel}
-                            onRemove={removeLocalModel}
-                        />
-                    </div>
-                    {renderSaveButton()}
-                </RightScreenContainer>
-            );
-        case 'searchSettings':
-            return (
-                <RightScreenContainer onClick={onClick}>
-                    <div className="settings-header">
-                        <h3>检索设置</h3>
-                        <p>配置文档检索的相关参数</p>
-                    </div>
-                    <div className="settings-form">
-                        <SearchSettings 
-                            settings={searchSettings}
-                            onChange={handleSettingChange}
-                            onEmbeddingSelect={handleEmbeddingSelect}
-                            onRerankSelect={handleRerankSelect}
-                            onAddEmbedding={addEmbeddingConfig}
-                            onRemoveEmbedding={removeEmbeddingConfig}
-                        />
-                    </div>
-                    {renderSaveButton()}
-                </RightScreenContainer>
-            );
+                    
+                </div>
+            )
         case 'conversationSettings':
-            return (
-                <RightScreenContainer onClick={onClick}>
-                    <div className="settings-header">
-                        <h3>对话模型设置</h3>
-                        <p>配置对话模型的相关参数</p>
+            return(
+                <div className = 'rightscreen-container'>
+                    <Header onClick={onClick}></Header>
+                    <div>
+                        <ConversationSettings
+                            conversationSettings={conversationSettings}
+                            onAddGenerationModel={handleAddGenerationModel}
+                            onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                            onSaveModelSettings={handleSaveModelSettings} // 保存模型设置
+                            onSaveHistorySettings={handleSaveHistorySettings} // 保存历史设置
+                            onHistoryLengthChange={handleHistoryLengthChange}
+                            onModelListChange={handleModelListChange}// 添加模型列表变化回调
+                            isSaving={isSaving}>
+                        </ConversationSettings>
+                        {conversationModelModal && 
+                            <ConversationModelModal
+                                open={conversationModelModal}
+                                onOk={handleConversationModelOk}
+                                onCancel={handleConversationModelCancel}></ConversationModelModal>}
                     </div>
-                    <div className="settings-form">
-                        <ConversationSettings 
-                            settings={conversationSettings}
-                            tempApiKeys={tempApiKeys}
-                            onChange={handleSettingChange}
-                            onModelSelect={handleGenerationModelSelect}
-                            onApiKeyChange={handleApiKeyChange}
-                            onTestApi={testApiConnection}
-                            onAddModel={addGenerationModel}
-                            onRemoveModel={removeGenerationModel}
-                        />
-                    </div>
-                    {renderSaveButton()}
-                </RightScreenContainer>
-            );
+                </div>
+            )
         case 'performance':
-            return (
-                <RightScreenContainer onClick={onClick}>
-                    <div className="settings-header">
-                        <h3>性能设置</h3>
-                        <p>优化应用的运行性能</p>
-                    </div>
-                    <div className="settings-form">
-                        <PerformanceSettings 
-                            settings={performance}
-                            onChange={handleSettingChange}
-                            onToggle={handlePerformanceToggle}
-                        />
-                    </div>
-                    {renderSaveButton()}
-                </RightScreenContainer>
-            );
+            return(
+                <div className='rightscreen-container'>
+                    <Header onClick={onClick}></Header>
+                    <Performance
+                        performanceSettings={performanceSettings}
+                        onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                        onSavePerformanceSettings={handleSavePerformanceSettings}
+                        isSaving={isSaving}>
+                    </Performance>
+                </div>
+            )
+        case 'page':
+            return(
+                <div className='rightscreen-container'>
+                    <Header onClick={onClick}></Header>
+                    <Page
+                        onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                        >
+                    </Page>
+                </div>
+            )
+        case 'searchSettings':
+            return(
+                <div className='rightscreen-container'>
+                    <Header onClick={onClick}></Header>
+                    <SearchSettings
+                        searchSettings={searchSettings}
+                        localModelManagement={settings?.localModelManagement}
+                        onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                        onSaveSearchSettings={handleSaveSearchSettings}
+                        isSaving={isSaving}>
+                    </SearchSettings>
+                </div>
+            )
+        case 'about':
         default:
-            return (
-                <RightScreenContainer onClick={onClick}>
-                    <div className="welcome-container">
-                        <div className="welcome-header">
-                            <h2>设置</h2>
-                            <p>配置您的应用参数</p>
-                        </div>
-                        <div className="welcome-content">
-                            <div className="welcome-card">
-                                <h4>应用信息</h4>
-                                <p>版本: v1.0.0</p>
-                                <p>更新日期: 2023-11-15</p>
-                            </div>
-                            <div className="welcome-card">
-                                <h4>系统状态</h4>
-                                <p>模型加载: 正常</p>
-                                <p>存储空间: 256GB可用</p>
-                            </div>
-                        </div>
-                    </div>
-                </RightScreenContainer>
-            );
+            return(
+                <div className='rightscreen-container'>
+                    <Header onClick={onClick}></Header>
+                    <About 
+                        version={version}
+                        onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                    >
+                    </About>
+                </div>
+            )
     }
+
 }
 
-function RightScreenContainer({ children, onClick }) {
-    return (
-        <div className='rightscreen-container'>
-            <div className='closebar-container'>
-                <Button className='closebutton' icon={<CloseOutlined />} onClick={onClick}></Button>
-            </div>
-            <div className='rightscreen-main'>
-                {children}
-            </div>
-        </div>
-    );
-}
-
-// 本地模型管理组件
-function LocalModelManagement({ models, onAdd, onRemove }) {
-    const [newModel, setNewModel] = useState({
-        name: '',
-        path: '',
-        type: 'embedding',
-        fileSize: ''
-    });
-
-    const handleInputChange = (field, value) => {
-        setNewModel(prev => ({ ...prev, [field]: value }));
-    };
-
-    // 处理目录选择
-    const handleSelectPath = async () => {
-        try {
-            const path = await window.electronAPI.openDir();
-            if (path) {
-                handleInputChange('path', path);
-            }
-        } catch (err) {
-            console.error('选择目录失败:', err);
-            message.error('选择目录失败');
-        }
-    };
-
-    // 验证模型有效性
-    const validateModel = () => {
-        if (!newModel.name.trim()) {
-            message.warning('请填写模型名称');
-            return false;
-        }
-        if (!newModel.path) {
-            message.warning('请选择模型路径');
-            return false;
-        }
-        if (!newModel.fileSize || isNaN(newModel.fileSize) || parseInt(newModel.fileSize) <= 0) {
-            message.warning('请输入有效的文件大小（大于0的数字）');
-            return false;
-        }
-        return true;
-    };
-
-    const handleAddModel = () => {
-        if (!validateModel()) return;
-        
-        onAdd({
-            ...newModel,
-            fileSize: parseInt(newModel.fileSize)
-        });
-        
-        // 重置表单
-        setNewModel({
-            name: '',
-            path: '',
-            type: 'embedding',
-            fileSize: ''
-        });
-    };
-
-    // 本地模型表格列配置
-    const columns = [
-        {
-            title: '模型名称',
-            dataIndex: 'name',
-            key: 'name',
-            width: 200,
-        },
-        {
-            title: '类型',
-            dataIndex: 'type',
-            key: 'type',
-            width: 120,
-            render: (type) => {
-                const typeMap = {
-                    'embedding': '嵌入模型',
-                    'rerank': 'Rerank',
-                    'generation': '生成模型'
-                };
-                return typeMap[type] || type;
-            }
-        },
-        {
-            title: '文件大小',
-            dataIndex: 'fileSize',
-            key: 'fileSize',
-            width: 120,
-            render: (size) => `${size} MB`
-        },
-        {
-            title: '路径',
-            dataIndex: 'path',
-            key: 'path',
-            ellipsis: {
-                showTitle: true,
-            },
-        },
-        {
-            title: '操作',
-            key: 'action',
-            width: 100,
-            render: (_, record) => (
-                <Button 
-                    size="small" 
-                    danger 
-                    icon={<DeleteOutlined />}
-                    onClick={() => onRemove(record.name)}
-                >
-                    删除
-                </Button>
-            ),
-        },
-    ];
-
-    // 为表格数据添加key
-    const dataSource = models.map((model, index) => ({
-        ...model,
-        key: model.name || index,
-    }));
-
-    return (
-        <>
-            <div className="settings-group">
-                <h4 className="settings-group-title">添加新模型</h4>
-                <div className="settings-grid">
-                    <div className="settings-item">
-                        <div className="label-div"><label>模型名称</label></div>
-                        <Input 
-                            placeholder="模型名称" 
-                            value={newModel.name}
-                            onChange={e => handleInputChange('name', e.target.value)}
-                        />
-                    </div>
-                    <div className="settings-item">
-                        <div className="label-div"><label>模型路径</label></div>
-                        <div className="path-selector">
-                            <Input 
-                                readOnly
-                                placeholder="请选择模型目录" 
-                                value={newModel.path}
-                                className="path-input"
-                            />
-                            <Button 
-                                icon={<FolderOpenOutlined />}
-                                onClick={handleSelectPath}
-                                className="path-button"
-                            >
-                                选择目录
-                            </Button>
-                        </div>
-                    </div>
-                    <div className="settings-item">
-                        <div className="label-div"><label>模型类型</label></div>
-                        <Select 
-                            value={newModel.type}
-                            onChange={value => handleInputChange('type', value)}
-                        >
-                            <Option value="embedding">嵌入模型</Option>
-                            <Option value="rerank">Rerank</Option>
-                            <Option value="generation">生成模型</Option>
-                        </Select>
-                    </div>
-                    <div className="settings-item">
-                        <div className="label-div"><label>文件大小 (MB)</label></div>
-                        <Input 
-                            type="number" 
-                            placeholder="2200" 
-                            value={newModel.fileSize}
-                            onChange={e => handleInputChange('fileSize', e.target.value)}
-                            min="1"
-                        />
-                    </div>
-                </div>
-                <div className="settings-action">
-                    <Button 
-                        type="primary" 
-                        icon={<PlusOutlined />}
-                        onClick={handleAddModel}
-                        className="add-button"
-                    >
-                        添加模型
-                    </Button>
-                </div>
-            </div>
-            
-            <div className="settings-group">
-                <h4 className="settings-group-title">已安装模型</h4>
-                <Table
-                    columns={columns}
-                    dataSource={dataSource}
-                    pagination={{
-                        pageSize: 10,
-                        showSizeChanger: true,
-                        showQuickJumper: true,
-                        showTotal: (total, range) =>
-                            `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-                    }}
-                    size="middle"
-                    bordered
-                    locale={{
-                        emptyText: '暂无已安装的模型'
-                    }}
-                />
-            </div>
-        </>
-    );
-}
-
-// 检索设置组件
-function SearchSettings({ 
-    settings, 
-    onChange, 
-    onEmbeddingSelect, 
-    onRerankSelect,
-    onAddEmbedding,
-    onRemoveEmbedding
-}) {
-    if (!settings) return null;
-    
-    return (
-        <>
-            <div className="settings-group">
-                <h4 className="settings-group-title">基础设置</h4>
-                <div className="settings-grid">
-                    <div className="settings-item">
-                        <div className="label-div"><label>检索上限</label></div>
-                        <Input 
-                            type="number" 
-                            value={settings.searchLimit} 
-                            min={1} 
-                            max={100} 
-                            onChange={e => onChange('searchSettings.searchLimit', parseInt(e.target.value))}
-                        />
-                    </div>
-                    <div className="settings-item">
-                        <div className="label-div"><label>嵌入模型</label></div>
-                        <EmbeddingModelList 
-                            configs={settings.embeddingConfig?.configs} 
-                            onSelect={onEmbeddingSelect}
-                            onAdd={onAddEmbedding}
-                            onRemove={onRemoveEmbedding}
-                        />
-                    </div>
-                    <div className="settings-item">
-                        <div className="label-div"><label>重排模型</label></div>
-                        <Select 
-                            style={{ width: '100%' }}
-                            value={settings.rerankConfig?.configs?.find(c => c.selected)?.modelName || 'none'}
-                            onChange={onRerankSelect}
-                        >
-                            <Option value="none">无</Option>
-                            {settings.rerankConfig?.configs?.map((config, index) => (
-                                <Option key={index} value={config.modelName}>
-                                    {config.modelName}
-                                </Option>
-                            ))}
-                        </Select>
-                    </div>
-                </div>
-            </div>
-        </>
-    );
-}
-
-// 嵌入模型列表组件 - 改用Table
-function EmbeddingModelList({ configs, onSelect, onAdd, onRemove }) {
-    if (!configs) return null;
-
-    const columns = [
-        {
-            title: '模型名称',
-            dataIndex: 'name',
-            key: 'name',
-            width: 200,
-        },
-        {
-            title: '输入长度',
-            dataIndex: 'inputLength',
-            key: 'inputLength',
-            width: 120,
-        },
-        {
-            title: '启用',
-            key: 'selected',
-            width: 80,
-            render: (_, record, index) => (
-                <Switch 
-                    checked={record.selected} 
-                    onChange={checked => onSelect && onSelect(index, checked)}
-                />
-            ),
-        },
-        {
-            title: '操作',
-            key: 'action',
-            width: 100,
-            render: (_, record, index) => (
-                configs.length > 1 ? (
-                    <Button 
-                        danger 
-                        size="small" 
-                        icon={<DeleteOutlined />} 
-                        onClick={() => onRemove && onRemove(index)}
-                    >
-                        删除
-                    </Button>
-                ) : null
-            ),
-        },
-    ];
-
-    const dataSource = configs.map((config, index) => ({
-        ...config,
-        key: index,
-    }));
-    
-    return (
-        <div className="embedding-model-container">
-            <Table
-                columns={columns}
-                dataSource={dataSource}
-                pagination={false}
-                size="small"
-                bordered
-                locale={{
-                    emptyText: '暂无嵌入模型配置'
-                }}
-            />
-            <div style={{ marginTop: 8 }}>
-                <Button 
-                    icon={<PlusOutlined />} 
-                    onClick={onAdd}
-                    type="dashed"
-                    block
-                >
-                    添加嵌入模型
+const Header = ({onClick})=>{
+    return(
+        <div className='rightscreen-header'>
+            <div className='rightscreen-close-button-container'>
+                <Button
+                    variant='text'
+                    color='default'
+                    onClick={onClick}
+                    icon={<CloseOutlined style= {{color: 'white'}}></CloseOutlined>}
+                    className='rightscreen-close-button'>
                 </Button>
             </div>
         </div>
-    );
-}
-
-// 对话设置组件
-function ConversationSettings({ 
-    settings, 
-    tempApiKeys, 
-    onChange, 
-    onModelSelect, 
-    onApiKeyChange, 
-    onTestApi,
-    onAddModel,
-    onRemoveModel
-}) {
-    if (!settings) return null;
-    
-    return (
-        <>
-            <div className="settings-group">
-                <h4 className="settings-group-title">模型设置</h4>
-                <GenerationModelList 
-                    models={settings.generationModel} 
-                    tempApiKeys={tempApiKeys}
-                    onSelect={onModelSelect}
-                    onApiKeyChange={onApiKeyChange}
-                    onTestApi={onTestApi}
-                    onAdd={onAddModel}
-                    onRemove={onRemoveModel}
-                />
-            </div>
-            <div className="settings-group">
-                <h4 className="settings-group-title">对话历史</h4>
-                <div className="settings-item">
-                    <div className="label-div"><label>历史对话长度（字符数）</label></div>
-                    <Input 
-                        type="number"
-                        value={settings.historyLength}
-                        min={0}
-                        onChange={e => onChange('conversationSettings.historyLength', parseInt(e.target.value))}
-                    />
-                    <p className="settings-hint">0 表示无限制</p>
-                </div>
-            </div>
-        </>
-    );
-}
-
-// 生成模型列表组件 - 改用Table
-function GenerationModelList({ 
-    models, 
-    tempApiKeys, 
-    onSelect, 
-    onApiKeyChange, 
-    onTestApi,
-    onAdd,
-    onRemove
-}) {
-    if (!models) return null;
-
-    const columns = [
-        {
-            title: '名称',
-            dataIndex: 'name',
-            key: 'name',
-            width: 150,
-            render: (text, record) => (
-                <Input
-                    value={text}
-                    onChange={e => {
-                        // 这里需要实现编辑功能
-                        console.log('编辑名称:', e.target.value);
-                    }}
-                    size="small"
-                />
-            )
-        },
-        {
-            title: '模型名称',
-            dataIndex: 'modelName',
-            key: 'modelName',
-            width: 150,
-            render: (text, record) => (
-                <Input
-                    value={text}
-                    onChange={e => {
-                        // 这里需要实现编辑功能
-                        console.log('编辑模型名称:', e.target.value);
-                    }}
-                    size="small"
-                />
-            )
-        },
-        {
-            title: '接口地址',
-            dataIndex: 'url',
-            key: 'url',
-            width: 200,
-            render: (text, record) => (
-                <Input
-                    value={text}
-                    onChange={e => {
-                        // 这里需要实现编辑功能
-                        console.log('编辑接口地址:', e.target.value);
-                    }}
-                    size="small"
-                />
-            )
-        },
-        {
-            title: 'API Key',
-            key: 'apiKey',
-            width: 200,
-            render: (_, record) => (
-                <Input.Password
-                    value={tempApiKeys[record.name] || ''}
-                    onChange={e => onApiKeyChange(record.name, e.target.value)}
-                    placeholder="输入API Key"
-                    size="small"
-                />
-            )
-        },
-        {
-            title: '操作',
-            key: 'action',
-            width: 120,
-            render: (_, record) => (
-                <Space size="small">
-                    <Button 
-                        onClick={() => onTestApi(record)}
-                        size="small"
-                        type="primary"
-                    >
-                        测试
-                    </Button>
-                    {models.length > 1 && (
-                        <Button 
-                            danger 
-                            icon={<DeleteOutlined />} 
-                            onClick={() => onRemove(record.name)}
-                            size="small"
-                        />
-                    )}
-                </Space>
-            )
-        },
-        {
-            title: '使用中',
-            key: 'lastUsed',
-            width: 80,
-            render: (_, record) => (
-                <Switch 
-                    checked={record.lastUsed} 
-                    onChange={() => onSelect(record.name)}
-                />
-            )
-        },
-    ];
-
-    const dataSource = models.map((model, index) => ({
-        ...model,
-        key: model.name || index,
-    }));
-    
-    return (
-        <div className="generation-model-container">
-            <Table
-                columns={columns}
-                dataSource={dataSource}
-                pagination={{
-                    pageSize: 5,
-                    showSizeChanger: false,
-                }}
-                size="small"
-                bordered
-                scroll={{ x: 900 }}
-                locale={{
-                    emptyText: '暂无生成模型配置'
-                }}
-            />
-            <div style={{ marginTop: 8 }}>
-                <Button 
-                    icon={<PlusOutlined />} 
-                    onClick={onAdd}
-                    type="dashed"
-                    block
-                >
-                    添加模型
-                </Button>
-            </div>
-        </div>
-    );
-}
-
-// 性能设置组件
-function PerformanceSettings({ settings, onChange, onToggle }) {
-    if (!settings) return null;
-    
-    return (
-        <div className="settings-group">
-            <h4 className="settings-group-title">计算资源</h4>
-            <div className="settings-grid">
-                <div className="settings-item">
-                    <div className="label-div"><label>最大线程数</label></div>
-                    <Input 
-                        type="number" 
-                        value={settings.maxThreads} 
-                        min={0} 
-                        onChange={e => onChange('performance.maxThreads', parseInt(e.target.value))}
-                    />
-                    <p className="settings-hint">0 表示使用所有可用线程</p>
-                </div>
-                <div className="settings-item">
-                    <div className="label-div"><label>使用 CUDA</label></div>
-                    <Switch 
-                        checked={settings.useCuda} 
-                        disabled={!settings['cuda available']}
-                        onChange={checked => onToggle('useCuda', checked)}
-                    />
-                    {!settings['cuda available'] && (
-                        <p className="settings-warning">CUDA 不可用</p>
-                    )}
-                </div>
-                <div className="settings-item">
-                    <div className="label-div"><label>使用 CoreML</label></div>
-                    <Switch 
-                        checked={settings.useCoreML} 
-                        disabled={!settings['coreML available']}
-                        onChange={checked => onToggle('useCoreML', checked)}
-                    />
-                    {!settings['coreML available'] && (
-                        <p className="settings-warning">CoreML 不可用</p>
-                    )}
-                </div>
-            </div>
-            
-            <div className="settings-action" style={{ marginTop: 16 }}>
-                <Button 
-                    onClick={() => window.getAvailableHardware()}
-                    className="hardware-button"
-                >
-                    更新硬件信息
-                </Button>
-            </div>
-        </div>
-    );
+    )
 }

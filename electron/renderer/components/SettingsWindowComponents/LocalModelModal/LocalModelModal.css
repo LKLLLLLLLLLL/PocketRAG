@@ -1,0 +1,172 @@
+/* ========== 模态框样式 ========== */
+.local-model-modal .ant-modal-content {
+    background-color: #2a2a2a !important;
+    border: 1px solid #555555;
+}
+
+.local-model-modal .ant-modal-header {
+    background-color: #2a2a2a !important;
+    border-bottom: 1px solid #555555 !important;
+}
+
+.local-model-modal .ant-modal-title {
+    color: #ffffff !important;
+}
+
+.local-model-modal .ant-modal-close {
+    color: #ffffff !important;
+}
+
+.local-model-modal .ant-modal-close:hover {
+    color: #00ffff !important;
+}
+
+.local-model-modal .ant-modal-body {
+    background-color: #2a2a2a !important;
+}
+
+.local-model-modal .ant-modal-footer {
+    background-color: #2a2a2a !important;
+    border-top: 1px solid #555555 !important;
+}
+
+/* ========== 表单样式 ========== */
+.local-model-form .ant-form-item-label>label {
+    color: #ffffff !important;
+}
+
+.local-model-form .ant-form-item-explain-error {
+    color: #ff6b6b !important;
+}
+
+/* 输入框样式 */
+.dark-input {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    border-color: #555555 !important;
+}
+
+.dark-input:hover {
+    border-color: #666666 !important;
+}
+
+.dark-input:focus,
+.dark-input:focus-within {
+    border-color: #00ffff !important;
+    box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2) !important;
+}
+
+.dark-input input {
+    background-color: transparent !important;
+    color: #ffffff !important;
+}
+
+/* 选择器样式 */
+.dark-select .ant-select-selector {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    border-color: #555555 !important;
+}
+
+.dark-select:hover .ant-select-selector {
+    border-color: #666666 !important;
+}
+
+.dark-select.ant-select-focused .ant-select-selector {
+    border-color: #00ffff !important;
+    box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2) !important;
+}
+
+.dark-select .ant-select-selection-search-input {
+    color: #ffffff !important;
+}
+
+.dark-select .ant-select-selection-placeholder {
+    color: #999999 !important;
+}
+
+.dark-select .ant-select-arrow {
+    color: #cccccc !important;
+}
+
+/* 路径输入组合 */
+.path-input {
+    width: calc(100% - 70px) !important;
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+
+.folder-select-button {
+    width: 70px !important;
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+    color: #000000 !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-left: 0 !important;
+}
+
+.folder-select-button:hover {
+    background-color: #33ffff !important;
+    border-color: #33ffff !important;
+    color: #000000 !important;
+}
+
+.folder-select-button:active {
+    background-color: #00cccc !important;
+    border-color: #00cccc !important;
+    color: #000000 !important;
+}
+
+/* ========== 帮助文字样式 ========== */
+.modal-help-text {
+    margin-top: 20px;
+    padding: 12px;
+    background-color: #333333;
+    border-radius: 6px;
+    border: 1px solid #555555;
+}
+
+.modal-help-text p {
+    color: #cccccc;
+    margin: 0 0 8px 0;
+    font-weight: 500;
+}
+
+.modal-help-text ul {
+    margin: 0;
+    padding-left: 16px;
+    color: #999999;
+}
+
+.modal-help-text li {
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+/* ========== 响应式设计 ========== */
+@media (max-width: 768px) {
+    .local-model-modal {
+        width: 90% !important;
+        margin: 20px auto;
+    }
+
+    .folder-select-button {
+        width: 60px !important;
+        font-size: 12px;
+        padding: 4px 8px !important;
+    }
+
+    .path-input {
+        width: calc(100% - 60px) !important;
+    }
+
+    .modal-help-text {
+        padding: 8px;
+    }
+
+    .modal-help-text li {
+        font-size: 11px;
+    }
+}

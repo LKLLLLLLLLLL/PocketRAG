@@ -1,0 +1,580 @@
+/* ========== 基础容器样式 ========== */
+.conversation-settings-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    -webkit-app-region: no-drag;
+    margin-bottom: 30px;
+}
+
+.model-list-container {
+    width: 100%;
+}
+
+/* ========== 说明文字样式 ========== */
+.conversation-settings-explanation {
+    margin-left: 40px;
+    margin-bottom: 16px;
+}
+
+.conversation-settings-explanation h4 {
+    color: #ffffff;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.conversation-settings-explanation p {
+    color: #696969;
+    /* 改为darkgrey */
+    margin: 0;
+    font-size: 12px;
+    /* 从14px减小到12px */
+}
+
+/* ========== 表格容器和样式 ========== */
+.generation-model-table-wrapper {
+    width: 90%;
+    max-width: 90%;
+    margin: auto;
+    overflow: hidden;
+    border-radius: 6px;
+    border: 1px solid #555555;
+    display: flex;
+    justify-content: center;
+}
+
+/* 深色表格样式 */
+.dark-table {
+    width: 100%;
+}
+
+.dark-table .ant-table {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    width: 100%;
+}
+
+.dark-table .ant-table-thead>tr>th {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #555555 !important;
+    border-right: 1px solid #555555 !important;
+    text-align: center !important;
+}
+
+.dark-table .ant-table-tbody>tr>td {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #555555 !important;
+    border-right: 1px solid #555555 !important;
+}
+
+.dark-table .ant-table-tbody>tr:hover>td {
+    background-color: #404040 !important;
+}
+
+.dark-table .ant-table-cell {
+    border-right: 1px solid #555555 !important;
+}
+
+/* 分页器样式 */
+.dark-table .ant-pagination {
+    color: #ffffff !important;
+    text-align: center;
+}
+
+.dark-table .ant-pagination .ant-pagination-item {
+    background-color: #333333 !important;
+    border-color: #555555 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item a {
+    color: #ffffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item:hover {
+    background-color: #404040 !important;
+    border-color: #666666 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active {
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active a {
+    color: #000000 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-prev,
+.dark-table .ant-pagination .ant-pagination-next {
+    color: #ffffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-prev:hover,
+.dark-table .ant-pagination .ant-pagination-next:hover {
+    color: #00ffff !important;
+}
+
+.dark-table .ant-empty {
+    color: #cccccc !important;
+}
+
+.dark-table .ant-empty-description {
+    color: #cccccc !important;
+}
+
+/* ========== 表格特殊功能样式 ========== */
+/* URL 滚动样式 */
+.scrollable-url {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    cursor: grab;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.scrollable-url::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollable-url:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.scrollable-url:active {
+    cursor: grabbing;
+}
+
+/* API Key 样式 */
+.api-key-center {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px;
+    min-height: 24px;
+    width: 100%;
+}
+
+.api-key-status {
+    font-family: monospace;
+    font-size: 12px;
+    text-align: center;
+    min-width: 60px;
+}
+
+.api-key-loading {
+    color: #00ffff !important;
+    font-size: 11px;
+}
+
+.api-key-visible {
+    color: #00ff00 !important;
+    background-color: rgba(0, 255, 0, 0.1);
+    padding: 2px 4px;
+    border-radius: 3px;
+    border: 1px solid #00ff00;
+    font-weight: 500;
+    cursor: help;
+    font-size: 11px;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.view-api-key-button {
+    color: #cccccc !important;
+    padding: 0 !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 3px !important;
+}
+
+.view-api-key-button:hover {
+    color: #00ffff !important;
+    background-color: rgba(0, 255, 255, 0.1) !important;
+}
+
+.view-api-key-button .anticon {
+    font-size: 12px !important;
+}
+
+/* 删除按钮样式 */
+.action-button-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 24px;
+}
+
+.delete-button-center {
+    color: #ff6b6b !important;
+    padding: 0 !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 4px !important;
+    margin: 0 auto;
+}
+
+.delete-button-center:hover {
+    color: #ff5252 !important;
+    background-color: rgba(255, 107, 107, 0.1) !important;
+}
+
+.delete-button-center:active {
+    color: #ff1744 !important;
+    background-color: rgba(255, 107, 107, 0.2) !important;
+}
+
+.delete-button-center .anticon {
+    font-size: 14px !important;
+}
+
+.delete-button-center.ant-btn-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* ========== 按钮控制区域样式 ========== */
+.model-controls-container,
+.history-controls-container {
+    width: 90%;
+    margin: 16px auto 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.model-action-buttons,
+.history-action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.save-button-container,
+.history-save-button-container {
+    display: flex;
+    align-items: center;
+}
+
+/* ========== 统一按钮样式 ========== */
+.model-button,
+.history-button {
+    min-width: 80px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 主要按钮样式 */
+.add-model-button,
+.save-settings-button {
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+    color: #000000 !important;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.save-settings-button {
+    min-width: 120px;
+    height: 32px;
+}
+
+.add-model-button:hover,
+.save-settings-button:hover {
+    background-color: #33ffff !important;
+    border-color: #33ffff !important;
+    color: #000000 !important;
+}
+
+.add-model-button:active,
+.save-settings-button:active {
+    background-color: #00cccc !important;
+    border-color: #00cccc !important;
+    color: #000000 !important;
+}
+
+.save-settings-button.ant-btn-loading {
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+/* ========== 分隔线样式 ========== */
+.section-divider {
+    width: 90%;
+    height: 1px;
+    background-color: #555555;
+    margin: 24px auto;
+    position: relative;
+}
+
+/* ========== 历史长度设置样式 ========== */
+.history-length-container {
+    width: 100%;
+    margin: auto;
+    padding: 0;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+}
+
+.history-demo-container {
+    width: 90%;
+    margin: auto;
+    margin-bottom: 16px;
+    padding: 20px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    border: 1px solid #555555;
+    box-sizing: border-box;
+}
+
+.history-length-split-align {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* 两端对齐 */
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.history-length-label {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    /* 防止标签换行 */
+}
+
+.history-length-input-wrapper {
+    flex-shrink: 0;
+    /* 防止输入框被压缩 */
+}
+
+.history-length-input {
+    width: 200px;
+    /* 固定宽度 */
+}
+
+.history-length-input input {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    border-color: #555555 !important;
+}
+
+.history-length-input input:focus {
+    border-color: #00ffff !important;
+    box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2) !important;
+}
+
+.history-length-hint {
+    color: #999999;
+    font-size: 12px;
+    font-style: italic;
+    text-align: right;
+    width: 100%;
+}
+
+/* ========== 响应式设计 ========== */
+@media (max-width: 768px) {
+    .conversation-settings-container {
+        padding: 12px;
+    }
+
+    .section-divider,
+    .history-length-container,
+    .generation-model-table-wrapper {
+        width: 95%;
+    }
+
+    .history-demo-container {
+        padding: 16px;
+    }
+
+    /* 历史长度响应式 */
+    .history-length-split-align {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .history-length-label {
+        align-self: flex-start;
+        /* 小屏幕时标签左对齐 */
+    }
+    
+    .history-length-input-wrapper {
+        align-self: flex-end;
+        /* 小屏幕时输入框右对齐 */
+    }
+    
+    .history-length-input {
+        width: 150px;
+    }
+
+    /* 按钮控制区域响应式 */
+    .model-controls-container,
+    .history-controls-container {
+        width: 95%;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .model-action-buttons,
+    .history-action-buttons {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .save-button-container,
+    .history-save-button-container {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .model-button,
+    .history-button,
+    .save-settings-button {
+        width: auto;
+        min-width: 80px;
+    }
+
+    .save-settings-button {
+        min-width: 100px;
+        font-size: 12px;
+    }
+
+    /* 表格按钮响应式 */
+    .delete-button-center {
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
+    }
+
+    .delete-button-center .anticon {
+        font-size: 12px !important;
+    }
+
+    .view-api-key-button {
+        width: 16px !important;
+        height: 16px !important;
+        min-width: 16px !important;
+    }
+
+    .view-api-key-button .anticon {
+        font-size: 10px !important;
+    }
+
+    .api-key-center {
+        flex-direction: column;
+        gap: 2px;
+        min-height: 32px;
+    }
+
+    .api-key-visible {
+        font-size: 11px;
+        padding: 1px 4px;
+    }
+}
+
+
+/* API Key 显示相关样式 */
+.api-key-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    min-height: 24px;
+}
+
+.api-key-center {
+    justify-content: center;
+}
+
+.api-key-status {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    min-width: 60px;
+    justify-content: center;
+}
+
+.api-key-loading {
+    color: #1890ff;
+    font-style: italic;
+}
+
+.api-key-visible {
+    color: #52c41a;
+    background-color: rgba(82, 196, 26, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(82, 196, 26, 0.3);
+    cursor: help;
+    word-break: break-all;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.view-api-key-button {
+    color: #00ffff !important;
+    padding: 0 !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.view-api-key-button:hover {
+    color: #33ffff !important;
+    background-color: rgba(0, 255, 255, 0.1) !important;
+}
+
+.view-api-key-button .anticon {
+    font-size: 12px;
+}
+
+/* 确保API Key容器不会超出表格边界 */
+.api-key-container {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* 星号显示样式 */
+.api-key-status:not(.api-key-loading):not(.api-key-visible) {
+    color: #666666;
+    letter-spacing: 1px;
+}

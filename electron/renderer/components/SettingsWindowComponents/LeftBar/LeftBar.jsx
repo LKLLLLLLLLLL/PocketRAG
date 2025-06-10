@@ -36,7 +36,7 @@ export default function LeftBar({ setContent }) {
         { key: 'searchSettings', label: '检索设置', icon: <SearchOutlined /> },
         { key: 'conversationSettings', label: '对话设置', icon: <MessageOutlined /> },
         { key: 'performance', label: '性能设置', icon: <DashboardOutlined /> },
-        { key: 'page', label: '页面样式', icon: <DesktopOutlined /> },
+        // { key: 'page', label: '页面样式', icon: <DesktopOutlined /> },
     ];
     
     return (

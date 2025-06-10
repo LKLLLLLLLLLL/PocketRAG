@@ -1,0 +1,433 @@
+/* ========== 基础容器样式 ========== */
+.search-settings-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    -webkit-app-region: no-drag;
+    overflow-y: auto;
+    padding: 0;
+    margin-bottom: 30px;
+}
+
+/* ========== 设置区域样式 ========== */
+.search-section {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+/* ========== 说明文字样式 ========== */
+.search-settings-explanation {
+    margin-left: 40px;
+    margin-bottom: 16px;
+}
+
+.search-settings-explanation h4 {
+    color: #ffffff;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.search-settings-explanation p {
+    color: #696969;
+    margin: 0;
+    font-size: 12px;
+}
+
+/* ========== 设置容器样式 ========== */
+.search-demo-container {
+    width: 90%;
+    margin: 0 auto 16px auto;
+    padding: 20px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    border: 1px solid #555555;
+    box-sizing: border-box;
+}
+
+/* ========== 设置显示样式 ========== */
+.search-setting-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.search-setting-label {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.search-setting-input-wrapper {
+    flex-shrink: 0;
+}
+
+.search-setting-input {
+    width: 200px;
+}
+
+.search-setting-input input {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    border-color: #555555 !important;
+}
+
+.search-setting-input input:focus {
+    border-color: #00ffff !important;
+    box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2) !important;
+}
+
+/* ========== 提示文字样式 ========== */
+.search-setting-hint,
+.config-hint {
+    color: #999999;
+    font-size: 12px;
+    font-style: italic;
+    text-align: right;
+}
+
+.search-setting-hint {
+    width: 100%;
+}
+
+.config-hint {
+    width: 90%;
+    margin: 12px auto 16px auto;
+}
+
+/* ========== 表格容器样式 ========== */
+.search-table-container {
+    width: 90%;
+    margin: 0 auto 0 auto;
+    overflow: hidden;
+    border-radius: 6px;
+    border: 1px solid #555555;
+    display: flex;
+    justify-content: center;
+}
+
+/* ========== 深色表格样式 ========== */
+.dark-table {
+    width: 100%;
+}
+
+.dark-table .ant-table {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    width: 100%;
+}
+
+.dark-table .ant-table-thead>tr>th {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #555555 !important;
+    border-right: 1px solid #555555 !important;
+    text-align: center !important;
+}
+
+.dark-table .ant-table-tbody>tr>td {
+    background-color: #333333 !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #555555 !important;
+    border-right: 1px solid #555555 !important;
+}
+
+.dark-table .ant-table-tbody>tr:hover>td {
+    background-color: #404040 !important;
+}
+
+.dark-table .ant-table-cell {
+    border-right: 1px solid #555555 !important;
+}
+
+/* ========== 分页器样式 ========== */
+.dark-table .ant-pagination {
+    color: #ffffff !important;
+    text-align: center;
+}
+
+.dark-table .ant-pagination .ant-pagination-item {
+    background-color: #333333 !important;
+    border-color: #555555 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item a {
+    color: #ffffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item:hover {
+    background-color: #404040 !important;
+    border-color: #666666 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active {
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active a {
+    color: #000000 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-prev,
+.dark-table .ant-pagination .ant-pagination-next {
+    color: #ffffff !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-prev:hover,
+.dark-table .ant-pagination .ant-pagination-next:hover {
+    color: #00ffff !important;
+}
+
+.dark-table .ant-empty {
+    color: #cccccc !important;
+}
+
+.dark-table .ant-empty-description {
+    color: #cccccc !important;
+}
+
+/* ========== 配置开关样式 ========== */
+.config-switch.ant-switch {
+    background-color: #555555 !important;
+}
+
+.config-switch.ant-switch-checked {
+    background-color: #00ffff !important;
+}
+
+.config-switch.ant-switch:hover:not(.ant-switch-disabled) {
+    background-color: #666666 !important;
+}
+
+.config-switch.ant-switch-checked:hover:not(.ant-switch-disabled) {
+    background-color: #33ffff !important;
+}
+
+.config-switch.ant-switch-disabled {
+    background-color: #333333 !important;
+    opacity: 0.5;
+}
+
+/* ========== 分隔线样式 ========== */
+.section-divider {
+    width: 90%;
+    height: 1px;
+    margin: 24px auto;
+    position: relative;
+    border: none;
+    display: block;
+}
+
+/* ========== 按钮控制区域样式 ========== */
+.search-controls-container {
+    width: 90%;
+    margin: 16px auto 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.search-action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex: 1;
+}
+
+.search-save-button-container {
+    display: flex;
+    align-items: center;
+}
+
+/* ========== 按钮样式 ========== */
+.save-settings-button {
+    min-width: 120px;
+    height: 32px;
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+    color: #000000 !important;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+.save-settings-button:hover {
+    background-color: #33ffff !important;
+    border-color: #33ffff !important;
+    color: #000000 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 255, 255, 0.3);
+}
+
+.save-settings-button:active {
+    background-color: #00cccc !important;
+    border-color: #00cccc !important;
+    color: #000000 !important;
+    transform: translateY(0);
+}
+
+.save-settings-button.ant-btn-loading {
+    opacity: 0.8;
+    pointer-events: none;
+    transform: none;
+}
+
+.save-all-settings-button {
+    min-width: 160px;
+    height: 36px;
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+    color: #000000 !important;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.save-all-settings-button:hover {
+    background-color: #33ffff !important;
+    border-color: #33ffff !important;
+    color: #000000 !important;
+    box-shadow: 0 4px 12px rgba(0, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+.save-all-settings-button:active {
+    background-color: #00cccc !important;
+    border-color: #00cccc !important;
+    color: #000000 !important;
+    transform: translateY(0);
+}
+
+.save-all-settings-button.ant-btn-loading {
+    opacity: 0.8;
+    pointer-events: none;
+    transform: none;
+}
+
+/* ========== 特殊区域样式 ========== */
+.final-controls {
+    padding: 20px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    border: 1px solid #555555;
+    margin: 16px auto 0 auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.final-section {
+    margin-bottom: 16px;
+}
+
+/* ========== 响应式设计 ========== */
+@media (max-width: 768px) {
+    .search-settings-container {
+        padding: 12px;
+    }
+
+    .search-settings-explanation {
+        margin-left: 20px;
+    }
+
+    .section-divider,
+    .search-table-container,
+    .search-demo-container,
+    .search-controls-container,
+    .config-hint {
+        width: 95%;
+    }
+
+    .search-demo-container {
+        padding: 16px;
+    }
+
+    /* 设置显示响应式 */
+    .search-setting-display {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .search-setting-label {
+        align-self: flex-start;
+    }
+
+    .search-setting-input-wrapper {
+        align-self: flex-end;
+    }
+
+    .search-setting-input {
+        width: 150px;
+    }
+
+    /* 按钮控制区域响应式 */
+    .search-controls-container {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .search-action-buttons,
+    .search-save-button-container {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .save-settings-button {
+        min-width: 100px;
+        font-size: 12px;
+        height: 28px;
+    }
+
+    .save-all-settings-button {
+        min-width: 120px;
+        font-size: 12px;
+        height: 32px;
+    }
+
+    .config-hint {
+        text-align: center;
+    }
+
+    .final-controls {
+        padding: 16px;
+        margin: 12px auto 16px auto;
+    }
+
+    /* 分隔线响应式 */
+    .section-divider {
+        margin: 16px auto;
+    }
+}
+
+/* ========== 滚动条样式 ========== */
+.search-settings-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.search-settings-container::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 3px;
+}
+
+.search-settings-container::-webkit-scrollbar-thumb {
+    background: #555555;
+    border-radius: 3px;
+}
+
+.search-settings-container::-webkit-scrollbar-thumb:hover {
+    background: #666666;
+}

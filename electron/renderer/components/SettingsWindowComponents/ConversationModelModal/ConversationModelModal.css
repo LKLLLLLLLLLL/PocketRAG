@@ -1,0 +1,185 @@
+/* 紧凑模态框样式 */
+.compact-modal .ant-modal-content {
+    background-color: #2a2a2a !important;
+    border: 1px solid #555555 !important;
+    box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.8) !important;
+}
+
+.compact-modal .ant-modal-header {
+    background-color: #2a2a2a !important;
+    border-bottom: 1px solid #555555 !important;
+    padding: 12px 20px !important;
+    /* 减小上下内边距 */
+}
+
+.compact-modal .ant-modal-title {
+    color: #ffffff !important;
+    font-weight: 500;
+    font-size: 16px !important;
+}
+
+.compact-modal .ant-modal-close {
+    color: #cccccc !important;
+    top: 12px !important;
+    /* 调整关闭按钮位置 */
+}
+
+.compact-modal .ant-modal-close:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.compact-modal .ant-modal-body {
+    background-color: #2a2a2a !important;
+    padding: 16px 20px !important;
+    /* 减小内边距 */
+}
+
+.compact-modal .ant-modal-footer {
+    background-color: #2a2a2a !important;
+    border-top: none !important;
+    /* 移除上边框线 */
+    padding: 12px 20px 16px !important;
+    /* 减小内边距 */
+    margin-top: 0 !important;
+}
+
+/* 紧凑表单样式 */
+.compact-form .ant-form-item {
+    margin-bottom: 12px !important;
+}
+
+.compact-form .ant-form-item:last-child {
+    margin-bottom: 0 !important;
+}
+
+.compact-form .ant-form-item-label {
+    padding-bottom: 4px !important;
+    /* 减小标签底部间距 */
+}
+
+.compact-form .ant-form-item-label>label {
+    color: #ffffff !important;
+    font-weight: 500;
+    font-size: 14px !important;
+}
+
+.compact-form .ant-form-item-label>label.ant-form-item-required:not(.ant-form-item-required-mark-optional)::before {
+    color: #ff4d4f !important;
+}
+
+/* 小尺寸输入框样式 */
+.compact-form .ant-input {
+    background-color: #333333 !important;
+    border-color: #555555 !important;
+    color: #ffffff !important;
+    height: 32px !important;
+    /* 统一小尺寸高度 */
+    font-size: 14px !important;
+}
+
+.compact-form .ant-input:hover {
+    border-color: #33ffff !important;
+}
+
+.compact-form .ant-input:focus,
+.compact-form .ant-input-focused {
+    border-color: #00ffff !important;
+    box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2) !important;
+}
+
+.compact-form .ant-input::placeholder {
+    color: #999999 !important;
+    font-size: 14px !important;
+}
+
+/* 密码输入框样式 */
+.compact-form .ant-input-password {
+    background-color: #333333 !important;
+    border-color: #555555 !important;
+    height: 32px !important;
+}
+
+.compact-form .ant-input-password .ant-input {
+    background-color: transparent !important;
+    border: none !important;
+    height: 30px !important;
+    /* 略小于外层容器 */
+}
+
+.compact-form .ant-input-password .ant-input-suffix {
+    color: #cccccc !important;
+}
+
+.compact-form .ant-input-password .ant-input-suffix:hover {
+    color: #00ffff !important;
+}
+
+/* 错误状态样式 */
+.compact-form .ant-form-item-has-error .ant-input {
+    border-color: #ff4d4f !important;
+}
+
+.compact-form .ant-form-item-has-error .ant-input:hover {
+    border-color: #ff4d4f !important;
+}
+
+.compact-form .ant-form-item-has-error .ant-input:focus {
+    border-color: #ff4d4f !important;
+    box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2) !important;
+}
+
+.compact-form .ant-form-item-explain-error {
+    color: #ff4d4f !important;
+    font-size: 12px !important;
+    margin-top: 4px !important;
+}
+
+/* 按钮样式 */
+.compact-modal .ant-btn {
+    height: 32px !important;
+    /* 与输入框保持一致的高度 */
+    font-size: 14px !important;
+    padding: 4px 16px !important;
+}
+
+.compact-modal .ant-btn-primary {
+    background-color: #00ffff !important;
+    border-color: #00ffff !important;
+    color: #000000 !important;
+    font-weight: 500;
+}
+
+.compact-modal .ant-btn-primary:hover {
+    background-color: #33ffff !important;
+    border-color: #33ffff !important;
+    color: #000000 !important;
+}
+
+.compact-modal .ant-btn-primary:active {
+    background-color: #00cccc !important;
+    border-color: #00cccc !important;
+    color: #000000 !important;
+}
+
+.compact-modal .ant-btn-default {
+    background-color: transparent !important;
+    border-color: #555555 !important;
+    color: #cccccc !important;
+}
+
+.compact-modal .ant-btn-default:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: #888888 !important;
+    color: #ffffff !important;
+}
+
+/* 加载状态按钮样式 */
+.compact-modal .ant-btn-loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.compact-modal .ant-btn-loading .anticon {
+    color: inherit !important;
+}
