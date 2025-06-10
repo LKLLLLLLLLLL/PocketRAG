@@ -83,7 +83,8 @@ export function MainWindowInit() {
       window.electronAPI.sendEmbeddingStatusReply(reply)
       const embeddingStatus = {
         filePath : event.detail.message.filePath,
-        status : event.detail.message.status
+        status : event.detail.message.status,
+        progress : event.detail.message.progress
       }
       console.log(embeddingStatus)
       const embeddingToReactEvent = new CustomEvent('embedding', {detail : embeddingStatus})
