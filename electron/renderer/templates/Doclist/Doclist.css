@@ -1,3 +1,24 @@
+@layer antd {
+    :root {
+        --ant-tree-node-selected-bg: #444444 !important;
+        --ant-tree-node-selected-color: #ffffff !important;
+        --ant-tree-directory-node-selected-bg: #444444 !important;
+        --ant-tree-directory-node-selected-color: #ffffff !important;
+        --ant-tree-node-hover-bg: #444444 !important;
+        --ant-tree-node-hover-color: #ffffff !important;
+    }
+
+    .ant-tree {
+        --ant-tree-node-selected-bg: #444444 !important;
+        --ant-tree-node-selected-color: #ffffff !important;
+        --ant-tree-directory-node-selected-bg: #444444 !important;
+        --ant-tree-directory-node-selected-color: #ffffff !important;
+        --ant-tree-node-hover-bg: #444444 !important;
+        --ant-tree-node-hover-color: #ffffff !important;
+    } 
+}
+
+
 .Doclist-container {
     box-sizing: border-box;
     display: flex;
@@ -56,7 +77,7 @@
 }
 
 .doclist-refresh-btn button:hover {
-    background-color: #444444; /* 调整为深浅灰悬停颜色 */
+    background-color: #444444 !important; /* 调整为深浅灰悬停颜色 */
 }
 
 /* 移除所有边框和轮廓线 */
@@ -104,8 +125,8 @@
 
 /* 调整箭头容器位置 */
 .custom-directory-tree .ant-tree-switcher {
-    position: relative;
-    left: 4px; /*向右移动4px*/
+    position: relative !important;
+    left: 4px !important; /*向右移动4px*/
 }
 
 /* 禁止选择树节点上的文本 */
@@ -154,28 +175,28 @@
 }
 
 .ant-tree-treenode:hover {
-    background-color: #444444; /* 修改悬浮时的背景颜色 */
-    color: #ffffff; /* 修改悬浮时的文本颜色 */
+    background-color: #444444 !important; /* 修改悬浮时的背景颜色 */
+    color: #ffffff !important; /* 修改悬浮时的文本颜色 */
 }
 
-.ant-tree-treenode-selected {
-    background-color: #444444; /* 修改背景颜色 */
-    color: #ffffff; /* 修改文本颜色 */
+:global(.ant-tree-treenode-selected) {
+    background-color: #444444 !important; /* 修改背景颜色 */
+    color: #ffffff !important; /* 修改文本颜色 */
 }
 
 .ant-tree-treenode-leave-last-selected {
-    background-color: #444444; /* 修改背景颜色 */
-    color: #ffffff; /* 修改文本颜色 */
+    background-color: #444444 !important; /* 修改背景颜色 */
+    color: #ffffff !important; /* 修改文本颜色 */
 }
 .ant-tree-treenode-switcher-open .ant-tree-treenode-selected {
-    background-color: #444444; /* 如果节点嵌套在展开的父节点中，可以单独设置背景颜色 */
-    color: #ffffff; /* 修改文本颜色 */
+    background-color: #444444 !important; /* 如果节点嵌套在展开的父节点中，可以单独设置背景颜色 */
+    color: #ffffff !important; /* 修改文本颜色 */
 }
 .ant-tree-treenode-leave-last:hover{
-    background-color: #444444;
+    background-color: #444444 !important;
 }
 .ant-tree-treenode-last:hover{
-    background-color: #444444;
+    background-color: #444444 !important;
 }
 
 .ant-tree .ant-tree-treenode-selected::after,
@@ -212,7 +233,7 @@
 }
 
 :where(.css-dev-only-do-not-override-vrrzze).ant-tree.ant-tree-directory .ant-tree-treenode-selected .ant-tree-node-content-wrapper:before{
-    background: #444444;
+    background: #444444 !important;
 }
 
 /* 确保悬浮时节点文本保持白色 */
@@ -267,7 +288,7 @@
 
 /* 确保选中状态的背景也有统一圆角 */
 :where(.css-dev-only-do-not-override-vrrzze).ant-tree.ant-tree-directory .ant-tree-treenode-selected .ant-tree-node-content-wrapper:before {
-    background: #444444;
+    background: #444444 !important;
     border-radius: 5px !important;
     /* 调整为5px统一圆角 */
 }

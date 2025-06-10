@@ -1,19 +1,43 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Tabs, Button } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Tabs } from 'antd';
+import { CloseOutlined, FileOutlined } from '@ant-design/icons';
 import './TabsBar.css';
+
+// 简单的标签节点组件
+const TabNode = ({tab}) => {
+  return (
+    <div className="vscode-tab">
+      <div className="vscode-tab-content">
+        <FileOutlined className="vscode-tab-icon" />
+        <span 
+          className="vscode-tab-label"
+          title={tab.label}
+        >
+          {tab.label}
+        </span>
+        <CloseOutlined 
+          className="vscode-tab-close"
+          onClick={(e) => {
+            e.stopPropagation();
+            tab.onClose(tab.key);
+          }}
+        />
+      </div>
+    </div>
+  );
+};
 
 function TabsBar({ tabs, activeKey, onTabChange, onTabEdit, onNewTab }) {
     const tabsContainerRef = useRef(null);
-    const [tabWidth, setTabWidth] = useState(250);
+    const [tabWidth, setTabWidth] = useState(200); // VSCode默认值
     const isCalculatingRef = useRef(false);
     const lastCalculatedRef = useRef({
         tabsLength: 0,
         containerWidth: 0,
-        tabWidth: 250
+        tabWidth: 200
     });
 
-    // 一次性计算标签宽度，避免频繁更新
+    // 计算标签宽度
     const calculateTabWidth = useCallback(() => {
         if (isCalculatingRef.current || !tabsContainerRef.current || tabs.length === 0) {
             return;
@@ -21,138 +45,111 @@ function TabsBar({ tabs, activeKey, onTabChange, onTabEdit, onNewTab }) {
 
         const container = tabsContainerRef.current;
         const actualWidth = container.offsetWidth;
-        const currentTabsLength = tabs.length;
+        const currentTabsCount = tabs.length;
 
-        // 只有在标签数量或容器宽度真正变化时才计算
-        const lastCalc = lastCalculatedRef.current;
-        if (
-            actualWidth === lastCalc.containerWidth && 
-            currentTabsLength === lastCalc.tabsLength &&
-            actualWidth > 0
-        ) {
-            return; // 无需重新计算
+        // 如果没有足够改变，则跳过计算
+        if (actualWidth === lastCalculatedRef.current.containerWidth &&
+            currentTabsCount === lastCalculatedRef.current.tabsLength) {
+            return;
         }
 
         isCalculatingRef.current = true;
 
-        // 计算新的标签宽度
-        const totalMargin = currentTabsLength * 6; // 每个标签约6px边距
-        const theoreticalWidth = currentTabsLength * 250 + totalMargin;
+        // 优化后的宽度计算
+        const minTabWidth = 120;
+        const maxTabWidth = 200;
+        const spacing = 1; // 标签之间的间距
 
-        let newTabWidth;
-        if (theoreticalWidth > actualWidth && actualWidth > 0) {
-            // 需要缩小：(容器宽度 - 总边距) / 标签数量
-            newTabWidth = Math.floor((actualWidth - totalMargin) / currentTabsLength);
-            newTabWidth = Math.max(newTabWidth, 80); // 最小80px
-        } else {
-            // 使用默认250px
-            newTabWidth = 250;
-        }
+        // 将容器宽度减去固定的按钮宽度和所有标签间距
+        let availableWidth = actualWidth - (spacing * (currentTabsCount - 1));
 
-        // 只有宽度真正变化时才更新
-        if (Math.abs(newTabWidth - lastCalc.tabWidth) > 1) {
-            setTabWidth(newTabWidth);
-            
-            // 直接设置CSS自定义属性，立即生效
-            container.style.setProperty('--dynamic-tab-width', `${newTabWidth}px`);
+        // 计算单个标签的宽度
+        let newTabWidth = Math.floor(availableWidth / currentTabsCount);
 
-            // 更新缓存
-            lastCalculatedRef.current = {
-                tabsLength: currentTabsLength,
-                containerWidth: actualWidth,
-                tabWidth: newTabWidth
-            };
+        // 约束标签宽度在最小和最大值之间
+        newTabWidth = Math.min(Math.max(newTabWidth, minTabWidth), maxTabWidth);
 
-            console.log(`标签重新计算: 容器=${actualWidth}px, 标签数=${currentTabsLength}, 新宽度=${newTabWidth}px`);
-        }
+        setTabWidth(newTabWidth);
+        container.style.setProperty('--tab-width', `${newTabWidth}px`);
 
-        isCalculatingRef.current = false;
-    }, [tabs.length]); // 只依赖标签数量
-
-    // 只在标签数量变化时计算 - 移除所有其他触发条件
-    useEffect(() => {
-        if (tabs.length !== lastCalculatedRef.current.tabsLength) {
-            // 立即计算，不使用延迟
-            calculateTabWidth();
-        }
-    }, [tabs.length, calculateTabWidth]);
-
-    // 窗口大小变化处理 - 使用节流
-    useEffect(() => {
-        let timeoutId;
-
-        const handleResize = () => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(calculateTabWidth, 300); // 增加延迟，减少频率
+        lastCalculatedRef.current = {
+            tabsLength: currentTabsCount,
+            containerWidth: actualWidth,
+            tabWidth: newTabWidth
         };
 
-        window.addEventListener('resize', handleResize);
+        isCalculatingRef.current = false;
+    }, [tabs.length]);
+
+    // 监听标签数量变化
+    useEffect(() => {
+        calculateTabWidth();
+    }, [tabs.length, calculateTabWidth]);
+
+    // 监听窗口大小变化
+    useEffect(() => {
+        const handleResize = () => {
+            calculateTabWidth();
+        };
+
+        const resizeObserver = new ResizeObserver(handleResize);
+        if (tabsContainerRef.current) {
+            resizeObserver.observe(tabsContainerRef.current);
+        }
 
         return () => {
-            clearTimeout(timeoutId);
-            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
         };
     }, [calculateTabWidth]);
 
-    // 组件挂载后初始计算
-    useEffect(() => {
-        const timer = setTimeout(calculateTabWidth, 100);
-        return () => clearTimeout(timer);
-    }, []); // 只在挂载时执行一次
-
-    // 阻止双击事件的处理函数
-    const handleDoubleClick = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-    }, []);
-
-    // 移除所有重新计算逻辑，避免循环
-    const handleTabChangeWithoutRecalc = useCallback((key) => {
-        onTabChange(key);
-        // 不再自动重新计算
-    }, [onTabChange]);
-
-    const handleTabEditWithoutRecalc = useCallback((targetKey, action) => {
-        onTabEdit(targetKey, action);
-        // 不再自动重新计算，由 useEffect 监听 tabs.length 变化
-    }, [onTabEdit]);
-
-    // 缓存 items 计算
-    const items = useMemo(() => tabs.map(tab => ({
-        key: tab.key,
-        label: (
-            <span
-                className="tab-label-text"
-                title={tab.label}
-                onDoubleClick={handleDoubleClick}
-            >
-                {tab.label}
-                <span className="tab-right-corner"></span>
-            </span>
-        ),
-        closable: true,
-    })), [tabs, handleDoubleClick]);
+    // 渲染标签项
+    const tabItems = useMemo(() => {
+        return tabs.map((tab) => {
+            const isActive = tab.key === activeKey;
+            
+            return {
+                key: tab.key,
+                label: (
+                    <div className={`vscode-tab-wrapper ${isActive ? 'active' : ''}`}>
+                        <TabNode
+                            tab={{
+                                ...tab,
+                                onClose: (key) => onTabEdit(key, 'remove')
+                            }}
+                        />
+                    </div>
+                ),
+                closable: false, // 我们使用自定义关闭按钮
+                destroyOnHidden: false,
+                forceRender: true
+            };
+        });
+    }, [tabs, activeKey, onTabEdit]);
 
     return (
-        <div className="tabsbar-root">
+        <div className="tabsbar-root vscode-theme">
             <div
                 ref={tabsContainerRef}
-                className="tabsbar"
+                className="tabsbar vscode-tabs-container"
                 style={{
-                    '--dynamic-tab-width': `${tabWidth}px`
+                    '--tab-width': `${tabWidth}px`
                 }}
-                onDoubleClick={handleDoubleClick}
             >
                 <Tabs
                     hideAdd
-                    type="editable-card"
+                    type="card"
                     activeKey={activeKey}
-                    onChange={handleTabChangeWithoutRecalc}
-                    onEdit={handleTabEditWithoutRecalc}
-                    items={items}
-                    size="small"
+                    onChange={onTabChange}
+                    items={tabItems}
+                    className="vscode-tabs"
+                    renderTabBar={(props, DefaultTabBar) => (
+                        <DefaultTabBar {...props} className="vscode-tab-bar" />
+                    )}
                 />
+                
+                <div className="vscode-new-tab" onClick={onNewTab}>
+                    <span className="vscode-new-tab-plus">+</span>
+                </div>
             </div>
         </div>
     );

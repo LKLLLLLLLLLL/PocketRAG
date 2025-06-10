@@ -48,7 +48,7 @@ export default function Doclist({ children, setSelectNode, selectNode, treeData,
                 <span className="doclist-refresh-btn" style = {{float:'right'}}>
                 </span>
                 {/* <EllipsisOutlined style= {{fontSize:"20px"}}/> */}
-                <MenuOutlined style={{ fontSize: "px" }} />
+                <MenuOutlined style={{ fontSize: "16px" }} />
             </div>
             <div className="doclist_main-container">
                 <RepoFileTree 
