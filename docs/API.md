@@ -805,8 +805,7 @@ settings.json如下：
                 "name" : "deepseek", // unique name
                 "modelName" : "deepseek-chat",
                 "url" : "http://...",
-                "setApiKey" : true, // api key is stored in the database, must be set by message when commit settings
-                "lastUsed" : true // last used model, only one can be true
+                "setApiKey" : true // api key is stored in the database, must be set by message when commit settings
             },
             {
                 ...

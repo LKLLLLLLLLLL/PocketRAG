@@ -978,7 +978,6 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
             generationModel.modelName = model["modelName"].get<std::string>();
             generationModel.url = model["url"].get<std::string>();
             generationModel.setApiKey = model["setApiKey"].get<bool>();
-            generationModel.lastUsed = model["lastUsed"].get<bool>();
             tempCache.conversationSettings.generationModel.push_back(generationModel);
         }
         tempCache.conversationSettings.historyLength = settingsJson["conversationSettings"]["historyLength"].get<int>();
@@ -1048,7 +1047,6 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
 
     // check conversationSettings
     // check if model name is unique and apiKey is set in sqlite
-    int lastUsedCount = 0;
     for(auto& generationModel : tempCache.conversationSettings.generationModel)
     {
         if(generationModel.setApiKey && generationModel.url.empty())
@@ -1059,14 +1057,6 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
         {
             throw Error{"Generation model apiKey is not set.", Error::Type::Input};
         }
-        if(generationModel.lastUsed)
-        {
-            lastUsedCount++;
-        }
-    }
-    if(lastUsedCount > 1)
-    {
-        throw Error{"Generation model can only have one or zero last used model.", Error::Type::Input};
     }
     if(tempCache.conversationSettings.historyLength < 0)
     {
