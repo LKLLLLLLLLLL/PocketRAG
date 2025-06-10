@@ -1161,8 +1161,8 @@ async function createFirstWindow() {
     const windowType = lastState.windowType
     const repoName = lastState.repoName
     const repoPath = lastState.repoPath
-    if(windowType !== 'main' && windowType !== 'repoList' && windowType !== 'settings') {
-      throw new Error('cannot get windowType')
+    if(windowType !== 'main' && windowType !== 'repoList') {
+      throw new Error('windowType wrong')
     }
     if(windowType === 'main' && (!repoName || !repoPath)) {
       throw new Error('cannot get repoName or repoPath')
