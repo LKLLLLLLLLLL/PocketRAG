@@ -1,8 +1,5 @@
-import React, { useState } from 'react';
-import ReactDOM from 'react-dom';
 import './Option.css';
 import {Button} from 'antd';
-import PopWindow from '../../../templates/PopWindow/Popwindow';
 const Option =({others,setOthers})=>{
 
     //awake the create-window

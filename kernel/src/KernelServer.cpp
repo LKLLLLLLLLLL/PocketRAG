@@ -362,13 +362,15 @@ void KernelServer::handleMessage(nlohmann::json &json, std::shared_ptr<Utils::Ti
         }
         else if(type == "testApi")
         {
-            auto modelName = json["message"]["name"].get<std::string>();
-            auto apiKey = json["message"]["apiKey"].get<std::string>();
+            auto modelName = json["message"]["modelName"].get<std::string>();
+            auto apiKey = json["message"]["api"].get<std::string>();
             auto url = json["message"]["url"].get<std::string>();
-            auto conv = LLMConv::createConv(LLMConv::type::OpenAIapi, modelName, {{"api_key", apiKey}, {"url", url}});
+            auto conv = LLMConv::createConv(LLMConv::type::OpenAIapi, modelName, {{"api_key", apiKey}, {"api_url", url}});
             try
             {
                 conv->test();
+                json["status"]["code"] = "SUCCESS";
+                json["status"]["message"] = "";
             }
             catch(std::exception& e)
             {

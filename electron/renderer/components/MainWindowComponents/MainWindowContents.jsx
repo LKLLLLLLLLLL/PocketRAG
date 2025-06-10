@@ -4,7 +4,7 @@ import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { Table,Spin,Typography,Input, Button, message } from "antd";
 import ReactMarkdown from 'react-markdown';
 import LeftBar from "./LeftBar/LeftBar";
-import Doclist from "../../templates/Doclist/Doclist";
+import Doclist from "./Doclist/Doclist";
 import TabsBar from "./TabsBar/TabsBar";
 import TextEditor from "./TextEditor/TextEditor";
 import Conversation from "./Conversation/Conversation";
@@ -43,6 +43,36 @@ export default function MainWindowContents() {
     const [activeKey, setActiveKey] = useState('')
     const [fileContentMap, setFileContentMap] = useState({}); // 存储文件内容
     const [treeData, setTreeData] = useState([]); // 存储文件树数据
+
+    // 在状态管理部分添加
+    const [embeddingStatus, setEmbeddingStatus] = useState({}); // 嵌入状态管理
+    const [showEmbeddingTable, setShowEmbeddingTable] = useState(false); // 控制表格显示
+
+    // 在 useEffect 中修改事件处理，支持进度值
+    useEffect(() => {
+        const handleEmbeddingProgress = (event) => {
+            const { filePath, status, progress } = event.detail;
+            console.log('收到嵌入进度:', filePath, status, '进度:', progress);
+
+            setEmbeddingStatus(prev => ({
+                ...prev,
+                [filePath]: {
+                    status: status,
+                    progress: progress || null, // 保存原始进度值
+                    timestamp: Date.now() // 可选：添加时间戳
+                }
+            }));
+
+            // 有嵌入活动时显示表格
+            setShowEmbeddingTable(true);
+        };
+
+        window.addEventListener('embedding', handleEmbeddingProgress);
+
+        return () => {
+            window.removeEventListener('embedding', handleEmbeddingProgress);
+        };
+    }, []);
 
     //information related
     const handleInfoClick = async () => {
@@ -627,6 +657,9 @@ export default function MainWindowContents() {
                             selectNode={selectNode}
                             treeData={treeData}
                             setTreeData={setTreeData}
+                            embeddingStatus={embeddingStatus} // 传递嵌入状态
+                            showEmbeddingTable={showEmbeddingTable} // 传递表格显示状态
+                            onToggleEmbeddingTable={() => setShowEmbeddingTable(!showEmbeddingTable)} // 切换表格显示
                         ></Doclist>
                     </Panel>
                     <PanelResizeHandle className='main-panel-resize-handle'></PanelResizeHandle>

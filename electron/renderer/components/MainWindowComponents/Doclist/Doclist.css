@@ -292,3 +292,191 @@
     border-radius: 5px !important;
     /* 调整为5px统一圆角 */
 }
+
+/* 文档列表容器 */
+.doclist_main-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 40px);
+    /* 减去顶部容器高度 */
+    overflow: hidden;
+    width: 100%;
+    /* 确保宽度限制 */
+}
+
+/* 嵌入进度部分 */
+.embedding-progress-section {
+    flex-shrink: 0;
+    border-top: 1px solid #555;
+    background-color: #2a2a2a;
+    width: 100%;
+    /* 确保不超出父容器宽度 */
+    max-width: 100%;
+    /* 强制限制最大宽度 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+}
+
+/* 嵌入进度头部 */
+.embedding-header {
+    padding: 8px 12px;
+    background-color: #333;
+    border-bottom: 1px solid #555;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.embedding-toggle-btn {
+    color: #fff !important;
+    font-size: 12px;
+    padding: 4px 8px !important;
+    height: auto !important;
+    border-radius: 4px;
+}
+
+.embedding-toggle-btn:hover {
+    color: #00ffff !important;
+    background-color: rgba(0, 255, 255, 0.1) !important;
+}
+
+/* 嵌入进度表格容器 */
+.embedding-table-wrapper {
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* 禁止水平滚动 */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 嵌入进度表格样式 */
+.embedding-progress-table {
+    background-color: #333 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.embedding-progress-table .ant-table {
+    background-color: #333 !important;
+    color: #fff !important;
+    width: 100% !important;
+}
+
+.embedding-progress-table .ant-table-container {
+    width: 100% !important;
+    overflow-x: hidden !important;
+    /* 防止水平滚动 */
+}
+
+.embedding-progress-table .ant-table-content {
+    width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+/* 表格头部样式 */
+.embedding-progress-table .ant-table-thead>tr>th {
+    background-color: #2a2a2a !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+    font-size: 11px;
+    padding: 6px 8px !important;
+    text-align: center !important;
+    /* 标题居中 */
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 表格单元格样式 */
+.embedding-progress-table .ant-table-tbody>tr>td {
+    background-color: #333 !important;
+    color: #fff !important;
+    border-bottom: 1px solid #555 !important;
+    font-size: 11px;
+    padding: 6px 8px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.embedding-progress-table .ant-table-tbody>tr:hover>td {
+    background-color: #404040 !important;
+}
+
+/* 确保表格不会超出容器宽度 */
+.embedding-progress-table .ant-table-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+}
+
+.embedding-progress-table .ant-table-wrapper .ant-spin-nested-loading {
+    width: 100% !important;
+}
+
+.embedding-progress-table .ant-table-wrapper .ant-spin-container {
+    width: 100% !important;
+}
+
+/* 文件名列特殊样式 */
+.embedding-progress-table .ant-table-tbody>tr>td:first-child {
+    max-width: 120px;
+    /* 限制文件名列最大宽度 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .embedding-table-wrapper {
+        max-height: 150px;
+    }
+
+    .embedding-progress-table .ant-table-thead>tr>th,
+    .embedding-progress-table .ant-table-tbody>tr>td {
+        font-size: 10px;
+        padding: 4px 6px !important;
+    }
+
+    .embedding-progress-table .ant-table-tbody>tr>td:first-child {
+        max-width: 80px;
+    }
+}
+
+@media (max-width: 480px) {
+    .embedding-table-wrapper {
+        max-height: 120px;
+    }
+
+    .embedding-progress-table .ant-table-thead>tr>th,
+    .embedding-progress-table .ant-table-tbody>tr>td {
+        font-size: 9px;
+        padding: 3px 4px !important;
+    }
+
+    .embedding-progress-table .ant-table-tbody>tr>td:first-child {
+        max-width: 60px;
+    }
+}
+
+/* 滚动条样式 */
+.embedding-table-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+
+.embedding-table-wrapper::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 3px;
+}
+
+.embedding-table-wrapper::-webkit-scrollbar-thumb {
+    background: #555555;
+    border-radius: 3px;
+}
+
+.embedding-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #666666;
+}
