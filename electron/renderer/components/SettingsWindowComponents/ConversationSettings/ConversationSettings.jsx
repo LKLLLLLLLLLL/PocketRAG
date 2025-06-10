@@ -109,7 +109,7 @@ const ConversationSettings = ({
             const apiKey = await window.getApiKey(modelName);
             console.log('获取到的API Key:', apiKey);
 
-            if (apiKey && apiKey.trim() !== '') {
+            if (apiKey && apiKey.apiKey.trim() !== '') {
                 // 更新可见状态
                 setVisibleApiKeys(prev => ({
                     ...prev,

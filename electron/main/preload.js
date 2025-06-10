@@ -73,7 +73,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   setApiKey : (modelName, apiKey) => ipcRenderer.send('setApiKey', modelName, apiKey),
 
-  getApiKey : (modelName) => ipcRenderer.send('getApiKey', callbackId, modelName),
+  getApiKey : (callbackId, modelName) => ipcRenderer.send('getApiKey', callbackId, modelName),
 
   testApi : (callbackId, modelName, url, api) => ipcRenderer.send('testApi', callbackId, modelName, url, api),
 
