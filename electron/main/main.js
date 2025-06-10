@@ -529,7 +529,9 @@ function search(event, callbackId, query, accuracy) {
 
 function sessionPreparedReply(event, reply){
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
-  isSessionPrepared.set(windowId, true)
+  if(isSessionPrepared.has(windowId)) {
+    isSessionPrepared.set(windowId, true)
+  }
   kernel.stdin.write(JSON.stringify(reply) + '\n')
   console.log(JSON.stringify(reply) + '\n')
 }
@@ -1396,7 +1398,9 @@ function getSessionStatus(event) {
 
 function sessionNotPrepared(event) {
   const windowId = getWindowId(BrowserWindow.fromWebContents(event.sender))
-  isSessionPrepared.set(windowId, false)
+  if(isSessionPrepared.has(windowId)) {
+    isSessionPrepared.set(windowId, false)
+  }
 }
 
 
