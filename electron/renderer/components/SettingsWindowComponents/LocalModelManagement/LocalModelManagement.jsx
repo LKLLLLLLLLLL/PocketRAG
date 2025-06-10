@@ -270,7 +270,7 @@ const LocalModelManagement = ({
                 {/* 模型操作按钮和保存按钮 */}
                 <div className="model-controls-container">
                     <div className="model-action-buttons">
-                        {/* <ConfigProvider theme={darkTheme}>
+                        <ConfigProvider theme={darkTheme}>
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
@@ -278,9 +278,9 @@ const LocalModelManagement = ({
                                 size="small"
                                 className="model-button add-model-button"
                             >
-                                添加检索模型
+                                添加
                             </Button>
-                        </ConfigProvider> */}
+                        </ConfigProvider>
                     </div>
                     <div className="save-button-container">
                         <ConfigProvider theme={darkTheme}>
