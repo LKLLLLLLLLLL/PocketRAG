@@ -3,8 +3,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Input, Button } from 'antd';
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
-import ConversationTopicContainer from './ConversationTopicContainer';
-import ModelSelectionContainer from './ModelSelectionContainer';
+import ConversationTopicContainer from './ConversationTopicContainer/ConversationTopicContainer';
+import ModelSelectionContainer from './ModelSelectionContainer/ModelSelectionContainer';
 import './Conversation.css';
 
 const { TextArea } = Input;
@@ -163,30 +163,24 @@ const Conversation = ({
                                                             )}
                                                             {/* FIX: Ensure retr.result is an array before mapping */}
                                                             {retr.result && retr.result.length > 0 && (
-                                                                <ul className="conversation-result-list"> {/* 使用 ul 结构 */}
-                                                                    {retr.result.map((res, j) => (
-                                                                        <li key={`result-${i}-${j}`} className="result0-item"> {/* 使用 li 结构 */}
-                                                                            <div className="result0-item-container">
-                                                                                <div className="chunkcontent-container">
-                                                                                    <div className="chunkcontent-content">
-                                                                                        {res.highlightedContent ? (
-                                                                                            <div dangerouslySetInnerHTML={{ __html: res.highlightedContent }} />
-                                                                                        ) : (
-                                                                                            <ReactMarkdown>{res.content || ''}</ReactMarkdown>
-                                                                                        )}
-                                                                                    </div>
+                                                            <ul className="conversation-result-list">
+                                                                {retr.result.map((res, j) => (
+                                                                    <li key={`result-${i}-${j}`} className="result0-item">
+                                                                        <div className="result0-item-container">
+                                                                            <div className="chunkcontent-container">
+                                                                                <div className="chunkcontent-content">
+                                                                                    {res.highlightedContent ? (
+                                                                                        <div dangerouslySetInnerHTML={{ __html: res.highlightedContent }} />
+                                                                                    ) : (
+                                                                                        <ReactMarkdown>{res.content || ''}</ReactMarkdown>
+                                                                                    )}
                                                                                 </div>
-                                                                                {res.filePath && (
-                                                                                    <div className="filepath-container">
-                                                                                        <div className="filepath-content">
-                                                                                            {res.filePath} {res.beginLine !== undefined && res.endLine !== undefined ? `[${res.beginLine}-${res.endLine}]` : ''}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                )}
                                                                             </div>
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
+                                                                            {/* ...existing code... */}
+                                                                        </div>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
                                                             )}
                                                         </React.Fragment>
                                                     ))}

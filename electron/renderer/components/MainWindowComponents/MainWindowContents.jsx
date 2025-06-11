@@ -100,11 +100,10 @@ export default function MainWindowContents() {
 
     const loadConversationList = useCallback(async () => {
         try {
-            console.log('Loading conversation list...')
+            console.log('Loading conversation list...');
 
-            // 直接从 window.conversations Map 中获取数据
             if (!window.conversations || window.conversations.size === 0) {
-                console.log('No conversations found in map')
+                console.log('No conversations found in map');
                 setConversationList([]);
                 return;
             }
@@ -116,24 +115,23 @@ export default function MainWindowContents() {
                     const historyData = await window.electronAPI.getFile(conversationPath);
                     const history = JSON.parse(historyData);
                     conversations.push({
-                        conversationId: Number(conversationId), // 确保 ID 是数字类型
+                        conversationId: conversationId, // 保持原始类型，不强制转换为数字
                         topic: history.topic || `对话 ${conversationId}`,
                         lastTime: history.history?.length > 0
                             ? history.history[history.history.length - 1].time
-                            : Number(conversationId) // 确保时间戳是数字类型
+                            : (typeof conversationId === 'number' ? conversationId : Date.now())
                     });
                 } catch (err) {
                     console.error(`Failed to read conversation ${conversationId}:`, err);
                     conversations.push({
-                        conversationId: Number(conversationId), // 确保 ID 是数字类型
+                        conversationId: conversationId,
                         topic: `新对话 ${conversationId}`,
-                        lastTime: Number(conversationId) // 确保时间戳是数字类型
+                        lastTime: typeof conversationId === 'number' ? conversationId : Date.now()
                     });
                 }
             }
 
             console.log('Loaded conversation list:', conversations);
-            // 按时间倒序排列
             setConversationList(conversations.sort((a, b) => b.lastTime - a.lastTime));
         } catch (err) {
             console.error('Failed to load conversation list:', err);
@@ -598,30 +596,42 @@ export default function MainWindowContents() {
     // 修改 handleSelectConversation 函数
 
     const handleSelectConversation = async (conversationId) => {
+        console.log('Selecting conversation:', conversationId);
+
         setSelectedConversationId(conversationId);
 
         try {
-            // 使用 window.conversations Map 获取路径
+            // 通过 window.conversations Map 获取文件路径
             const conversationPath = window.conversations.get(conversationId);
             if (!conversationPath) {
-                console.log(`No path found for conversation ${conversationId}`);
-                setCurrentConversationTopic(`对话 ${conversationId}`);
+                console.log('No path found for conversation:', conversationId);
+                setCurrentConversationTopic('新对话');
                 setHistory([]);
                 return;
             }
 
+            console.log('Loading conversation from path:', conversationPath);
+
+            // 使用 window.electronAPI.getFile 获取内容
             const historyData = await window.electronAPI.getFile(conversationPath);
             const conversationData = JSON.parse(historyData);
 
-            setCurrentConversationTopic(conversationData.topic || `对话 ${conversationId}`);
+            console.log('Loaded conversation data:', conversationData);
+
+            // 根据你提供的数据结构正确设置标题和历史记录
+            setCurrentConversationTopic(conversationData.topic || '新对话');
             setHistory(conversationData.history || []);
+
+            console.log('Set topic:', conversationData.topic);
+            console.log('Set history length:', conversationData.history?.length || 0);
+
         } catch (err) {
             console.error('Failed to load conversation:', err);
-            setCurrentConversationTopic(`对话 ${conversationId}`);
+            setCurrentConversationTopic('新对话');
             setHistory([]);
         }
 
-        // 清理流式状态
+        // 清理当前的流式状态
         setStreaming([]);
         streamingRef.current = [];
         setConvLoading(false);
@@ -641,7 +651,6 @@ export default function MainWindowContents() {
         setConvLoading(false);
         setStopped(false);
 
-        // 将新对话添加到映射中 - 修复这里的异步调用
         try {
             const conversationPath = await window.electronAPI.pathJoin(
                 window.repoPath,
@@ -651,14 +660,33 @@ export default function MainWindowContents() {
             );
             window.conversations.set(newConversationId, conversationPath);
             console.log('Created new conversation:', newConversationId);
+
+            // 立即将新对话加入 conversationList
+            setConversationList(prev => ([
+                {
+                    conversationId: newConversationId,
+                    topic: '新对话',
+                    lastTime: newConversationId
+                },
+                ...prev
+            ]));
         } catch (err) {
             console.error('Failed to create conversation path:', err);
         }
     };
 
     // 处理模型选择
-    const handleModelSelect = (modelName) => {
+    const handleModelSelect = async (modelName) => {
         setSelectedModel(modelName);
+        // 获取模型详细信息并存入 info
+        try {
+            const settings = await window.electronAPI.getSettings();
+            const generationModels = settings.conversationSettings?.generationModel || [];
+            const modelInfo = generationModels.find(m => m.name === modelName);
+            if (modelInfo) setInfo([modelInfo]);
+        } catch (err) {
+            setInfo([]);
+        }
     };
 
     // 优化后的发送逻辑
@@ -891,6 +919,7 @@ export default function MainWindowContents() {
                             onModelSelect={handleModelSelect}
                             conversationList={conversationList}
                             loadConversationList={loadConversationList}
+                            currentConversationTopic={currentConversationTopic} // 关键
                             //information related
                             handleInfoClick={handleInfoClick}
                             info={info}

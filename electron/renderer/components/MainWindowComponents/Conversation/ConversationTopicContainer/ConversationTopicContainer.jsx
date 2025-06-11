@@ -69,12 +69,19 @@ const ConversationTopicContainer = ({
             </div>
         ),
         onClick: () => {
-            onSelectConversation(Number(conversation.conversationId)); // 确保 ID 是数字类型
+            console.log('Menu item clicked, conversationId:', conversation.conversationId);
+            onSelectConversation(conversation.conversationId); // 传递原始 ID，不转换类型
         }
     }));
 
     return (
-        <div className="conversation-topic-container">
+        <div className="conversation-topic-container"
+            style={{
+                minHeight: 48,
+                maxHeight: 80,
+                overflow: 'hidden',
+                paddingBottom: 4
+            }}>
             <div className="conversation-header">
                 <div className="conversation-title">
                     <Title level={5} style={{ margin: 0, fontSize: '14px' }}>
@@ -83,7 +90,6 @@ const ConversationTopicContainer = ({
                 </div>
                 <div className="conversation-controls">
                     <Space size={8}>
-                        {/* 选择对话按钮 */}
                         {conversationList && conversationList.length > 0 && (
                             <Dropdown
                                 menu={{
@@ -100,8 +106,6 @@ const ConversationTopicContainer = ({
                                 </Button>
                             </Dropdown>
                         )}
-
-                        {/* 新建对话按钮 */}
                         <Button
                             type="primary"
                             size="small"
@@ -114,7 +118,7 @@ const ConversationTopicContainer = ({
                 </div>
             </div>
 
-            {/* 当前对话信息显示区域 */}
+            {/* 简化信息显示区域，移除重复的标题显示 */}
             <div className="conversation-info">
                 {selectedConversationId ? (
                     <div className="current-conversation">
