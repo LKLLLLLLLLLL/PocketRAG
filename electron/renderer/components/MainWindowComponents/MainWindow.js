@@ -1,5 +1,8 @@
 export function MainWindowInit() {
-    window.repoInitializePromise = new Promise((resolve, reject) => {
+    window.repoInitializePromise = new Promise(async (resolve, reject) => {
+      const repoNameAndPath = await window.electronAPI.getRepoNameAndPath()
+      window.repoName = repoNameAndPath.name
+      window.repoPath = repoNameAndPath.path// fix bug: data loss due to window refresh
       if(window.repoName !== undefined && window.repoPath !== undefined) {
         resolve()
         return

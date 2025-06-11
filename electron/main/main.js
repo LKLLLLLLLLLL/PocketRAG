@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, screen} = require('electron/main')
+const { app, BrowserWindow, ipcMain, dialog, screen, shell} = require('electron/main')
 const path = require('node:path')
 const {spawn} = require('node:child_process')
 const EventEmitter = require('events')
@@ -1428,6 +1428,11 @@ function pathBasename(event, ...paths) {
 }
 
 
+function openExternal(event, url) {
+  return shell.openExternal(url)
+}
+
+
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
@@ -1473,6 +1478,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('getRepoNameAndPath', getRepoNameAndPath)
   ipcMain.handle('getLastUsedGenModel', getLastUsedGenModel)
   ipcMain.handle('pathBasename', pathBasename)
+  ipcMain.handle('openExternal', openExternal)
   //add the event listeners before the window is created
 
   const defaultSettingsPath = isDev

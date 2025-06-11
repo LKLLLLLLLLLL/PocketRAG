@@ -223,13 +223,7 @@ window.openSettingsWindow = async () => {
 
 switch(window.windowType){
   case 'main':
-    (async () => {
-      const repoNameAndPath = await window.electronAPI.getRepoNameAndPath()
-      window.repoName = repoNameAndPath.name
-      window.repoPath = repoNameAndPath.path
       MainWindowInit()
-    })()// Fix bug: data loss due to window refresh
-    
     break
   case 'repoList':
     RepoListWindowInit()
