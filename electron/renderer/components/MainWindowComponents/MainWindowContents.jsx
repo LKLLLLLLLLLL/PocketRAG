@@ -1028,6 +1028,7 @@ const MainDemo = ({
                     currentConversationTopic={currentConversationTopic}
                     conversationList={conversationList}
                     loadConversationList={loadConversationList}
+                    jumpToFile={jumpToFile}
                 />
             );
         case 'search':
