@@ -417,6 +417,17 @@
     box-shadow: 0 0 0 2px rgba(0, 144, 144, 0.1);
 }
 
+/* 下拉菜单统一样式 */
+.settingswindow-container .ant-select-dropdown .ant-select-item-option-selected {
+    background: rgba(0, 144, 144, 0.3) !important;
+    color: #ffffff !important;
+}
+
+.settingswindow-container .ant-select-dropdown .ant-select-item:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+}
+
 /* Modal组件样式覆盖 */
 .settingswindow-container .ant-modal-content {
     background: linear-gradient(145deg, #1a1a1a, #1e1e1e);
@@ -433,11 +444,13 @@
 }
 
 .settingswindow-container .ant-modal-close {
-    color: #a0a0a0;
+    color: #ffffff !important;
+    background: transparent !important;
 }
 
 .settingswindow-container .ant-modal-close:hover {
-    color: #ff6b6b;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1) !important;
 }
 
 /* Message组件样式 */

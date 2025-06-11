@@ -3,7 +3,6 @@ import './RightScreen.css';
 import { Button, Input, Select, Switch, message, Space } from 'antd';
 import { CloseOutlined, PlusOutlined, DeleteOutlined, CheckOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import ConversationModelModal from '../ConversationModelModal/ConversationModelModal';
-import LocalModelModal from '../LocalModelModal/LocalModelModal';
 import About from '../About/About';
 import LocalModelManagement from '../LocalModelManagement/LocalModelManagement';
 import ConversationSettings from '../ConversationSettings/ConversationSettings';
@@ -31,7 +30,6 @@ export default function RightScreen({ content, onClick }) {
     const [version, setVersion] = useState('v1.0'); // 初始化版本号
 
     //控制弹窗开关
-    const [localModelModal,setLocalModelModal] = useState(false);
     const [conversationModelModal,setConversationModelModal] = useState(false);
 
     // 获取版本号
@@ -92,18 +90,68 @@ export default function RightScreen({ content, onClick }) {
         setSettings(newSettings);
     };
 
-    // 为单个模型设置APIKey，并测试是否有效
+    // 设置API Key到数据库 - 通过后端接口安全地存储敏感信息
     const setAPIkey = async (modelName, url, apiKey) => {
-        const temp = apiKey;
         try {
-            await window.setApiKey(modelName, apiKey);
-            await window.testApi(modelName, url, apiKey);
-            setAPIKey(apiKey);
-            message.success(`API Key设置成功: ${modelName}`);
+            console.log('RightScreen - setAPIkey 原始调用参数:');
+            console.log('  modelName:', modelName, typeof modelName, 'isNull:', modelName === null);
+            console.log('  url:', url, typeof url, 'isNull:', url === null);
+            console.log('  apiKey:', apiKey, typeof apiKey, 'isNull:', apiKey === null);
+
+            // 严格验证参数 - 确保不是 null 或 undefined
+            if (modelName === null || modelName === undefined) {
+                throw new Error('模型名称为null或undefined');
+            }
+            if (url === null || url === undefined) {
+                throw new Error('URL为null或undefined');
+            }
+            if (apiKey === null || apiKey === undefined) {
+                throw new Error('API密钥为null或undefined');
+            }
+
+            // 验证参数类型
+            if (typeof modelName !== 'string') {
+                throw new Error(`模型名称类型错误: ${typeof modelName}, 期望: string`);
+            }
+            if (typeof url !== 'string') {
+                throw new Error(`URL类型错误: ${typeof url}, 期望: string`);
+            }
+            if (typeof apiKey !== 'string') {
+                throw new Error(`API密钥类型错误: ${typeof apiKey}, 期望: string`);
+            }
+
+            // 验证参数内容
+            if (modelName.trim() === '') {
+                throw new Error('模型名称不能为空');
+            }
+            if (url.trim() === '') {
+                throw new Error('URL不能为空');
+            }
+            if (apiKey.trim() === '') {
+                throw new Error('API密钥不能为空');
+            }
+
+            // 强制转换为字符串并清理
+            const cleanModelName = String(modelName).trim();
+            const cleanUrl = String(url).trim();
+            const cleanApiKey = String(apiKey).trim();
+
+            console.log('RightScreen - setAPIkey 清理后的参数:');
+            console.log('  cleanModelName:', cleanModelName, typeof cleanModelName);
+            console.log('  cleanUrl:', cleanUrl, typeof cleanUrl);
+            console.log('  cleanApiKey:', '***', typeof cleanApiKey);
+
+            // 通过后端接口将API Key安全地存储到数据库
+            await window.setApiKey(cleanModelName, cleanApiKey);
+            // 测试API连通性
+            await window.testApi(cleanModelName, cleanUrl, cleanApiKey);
+            
+            // 临时存储到组件状态（仅用于UI显示，不保存到settings.json）
+            setAPIKey(cleanApiKey);
+            message.success(`API Key设置成功: ${cleanModelName}`);
         } catch (err) {
             console.error('设置API Key失败:', err);
             message.error(`设置API Key失败: ${err.message}`);
-            setAPIKey(temp);
             throw err;
         }
     };
@@ -158,7 +206,7 @@ export default function RightScreen({ content, onClick }) {
 
             // 调用后端接口保存设置
             await window.checkSettings(updatedSettings);
-            await window.updateSettings(updatedSettings);
+            window.updateSettings(updatedSettings);
 
             // 更新本地状态
             setSettings(updatedSettings);
@@ -190,7 +238,7 @@ export default function RightScreen({ content, onClick }) {
 
             // 调用后端接口保存设置
             await window.checkSettings(updatedSettings);
-            await window.updateSettings(updatedSettings);
+            window.updateSettings(updatedSettings);
 
             // 更新本地状态
             setSettings(updatedSettings);
@@ -222,7 +270,7 @@ export default function RightScreen({ content, onClick }) {
 
             // 调用后端接口保存设置
             await window.checkSettings(updatedSettings);
-            await window.updateSettings(updatedSettings);
+            window.updateSettings(updatedSettings);
 
             // 更新本地状态
             setSettings(updatedSettings);
@@ -254,7 +302,7 @@ export default function RightScreen({ content, onClick }) {
 
             // 调用后端接口保存设置
             await window.checkSettings(updatedSettings);
-            await window.updateSettings(updatedSettings);
+            window.updateSettings(updatedSettings);
 
             // 更新本地状态
             setSettings(updatedSettings);
@@ -284,7 +332,7 @@ export default function RightScreen({ content, onClick }) {
             };
 
             await window.checkSettings(updatedSettings);
-            await window.updateSettings(updatedSettings);
+            window.updateSettings(updatedSettings);
 
             setSettings(updatedSettings);
             setLocalModelManagement(updatedSettings.localModelManagement);
@@ -368,16 +416,13 @@ export default function RightScreen({ content, onClick }) {
 
             console.log('RightScreen - 准备保存的设置:', updatedSettings);
 
-            // 调用后端接口验证和保存设置
+            // 简化的保存逻辑：
+            // console.log(updatedSettings);
+            // 1. 验证设置
             await window.checkSettings(updatedSettings);
+            console.log(updatedSettings);
+            // 2. 直接保存设置
             await window.updateSettings(updatedSettings);
-
-            // 更新所有本地状态
-            setSettings(updatedSettings);
-            setConversationSettings(updatedSettings.conversationSettings);
-            setLocalModelManagement(updatedSettings.localModelManagement);
-            setPerformanceSettings(updatedSettings.performance);
-            setSearchSettings(updatedSettings.searchSettings);
 
             message.success('设置保存成功');
 
@@ -397,54 +442,19 @@ export default function RightScreen({ content, onClick }) {
         setConversationModelModal(true);
     }
 
-    // 处理添加本地模型
-    const handleAddLocalModel = () => {
-        setLocalModelModal(true);
-    };
-
-    // 处理本地模型弹窗确认
-    const handleLocalModelOk = async (newModel) => {
-        try {
-            setIsSaving(true);
-
-            // 更新本地模型列表
-            const updatedLocalModelManagement = {
-                ...localModelManagement,
-                models: [
-                    ...(localModelManagement?.models || []),
-                    newModel
-                ]
-            };
-            setLocalModelManagement(updatedLocalModelManagement);
-
-            // 更新全局settings状态
-            const newSettings = {
-                ...settings,
-                localModelManagement: updatedLocalModelManagement
-            };
-            setSettings(newSettings);
-
-            // 关闭弹窗
-            setLocalModelModal(false);
-            message.success('模型添加成功');
-
-        } catch (error) {
-            console.error('添加本地模型失败:', error);
-            message.error(`添加本地模型失败: ${error.message}`);
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    // 处理对话模型弹窗确认
+    // 修改 handleConversationModelOk 函数，确保API Key通过后端接口直接写入数据库
     const handleConversationModelOk = async (newModel, apiKey) => {
         try {
             setIsSaving(true);
+            console.log('RightScreen - handleConversationModelOk 开始处理');
+            console.log('新模型配置:', newModel);
+            console.log('API Key类型:', typeof apiKey);
 
-            // 1. 设置API Key
+            // 1. 通过后端接口设置API Key到数据库（使用模型的name作为标识）
+            console.log('设置API Key到数据库...');
             await setAPIkey(newModel.name, newModel.url, apiKey);
 
-            // 2. 更新本地状态
+            // 2. 更新本地状态（不保存API Key到settings.json）
             const updatedConversationSettings = {
                 ...conversationSettings,
                 generationModel: [
@@ -463,7 +473,7 @@ export default function RightScreen({ content, onClick }) {
 
             // 4. 关闭弹窗
             setConversationModelModal(false);
-            message.success('模型添加成功');
+            message.success('模型添加成功，API Key已安全保存到数据库');
 
         } catch (error) {
             console.error('添加模型失败:', error);
@@ -476,11 +486,6 @@ export default function RightScreen({ content, onClick }) {
     // 处理对话模型弹窗取消
     const handleConversationModelCancel = () => {
         setConversationModelModal(false);
-    };
-
-    // 处理本地模型弹窗取消
-    const handleLocalModelCancel = () => {
-        setLocalModelModal(false);
     };
 
     // 处理本地模型列表变化
@@ -498,22 +503,31 @@ export default function RightScreen({ content, onClick }) {
         setSettings(newSettings);
     };
 
-    // 渲染保存按钮
-    const renderSaveButton = () => (
-        <div className="settings-save-container">
-            <Button 
-                type="primary" 
-                icon={<CheckOutlined />} 
-                onClick={handleSaveAllConversationSettings}
-                loading={isSaving}
-                color = "cyan"
-                variant='solid'
-                className="save-button"
-            >
-                保存
-            </Button>
-        </div>
-    );
+    // 处理搜索设置变化
+    const handleSearchSettingsChange = (updatedSearchSettings) => {
+        // 更新本地搜索设置状态
+        setSearchSettings(updatedSearchSettings);
+        
+        // 同步更新全局设置
+        const newSettings = {
+            ...settings,
+            searchSettings: updatedSearchSettings
+        };
+        setSettings(newSettings);
+    };
+    
+    // 处理性能设置变化
+    const handlePerformanceSettingsChange = (updatedPerformanceSettings) => {
+        // 更新本地性能设置状态
+        setPerformanceSettings(updatedPerformanceSettings);
+        
+        // 同步更新全局设置
+        const newSettings = {
+            ...settings,
+            performance: updatedPerformanceSettings
+        };
+        setSettings(newSettings);
+    };
 
     switch(content){
         case 'localModelManagement':
@@ -523,19 +537,11 @@ export default function RightScreen({ content, onClick }) {
                     <div className="settings-content-wrapper">
                         <LocalModelManagement
                             localModelManagement={localModelManagement}
-                            onAddLocalModel={handleAddLocalModel}
                             onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
                             onSaveLocalModelSettings={handleSaveLocalModelSettings}
                             onModelListChange={handleLocalModelListChange}
                             isSaving={isSaving}>
                         </LocalModelManagement>
-                        {localModelModal &&
-                            <LocalModelModal
-                                open={localModelModal}
-                                onOk={handleLocalModelOk}
-                                onCancel={handleLocalModelCancel}>
-                            </LocalModelModal>
-                        }
                     </div>
                     {/* 悬浮保存按钮 */}
                     <div className="floating-save-button">
@@ -595,6 +601,7 @@ export default function RightScreen({ content, onClick }) {
                             performanceSettings={performanceSettings}
                             onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
                             onSavePerformanceSettings={handleSavePerformanceSettings}
+                            onPerformanceSettingsChange={handlePerformanceSettingsChange} // 性能设置变化回调
                             isSaving={isSaving}>
                         </Performance>
                     </div>
@@ -634,6 +641,7 @@ export default function RightScreen({ content, onClick }) {
                             localModelManagement={settings?.localModelManagement}
                             onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
                             onSaveSearchSettings={handleSaveSearchSettings}
+                            onSearchSettingsChange={handleSearchSettingsChange} // 搜索设置变化回调
                             isSaving={isSaving}>
                         </SearchSettings>
                     </div>

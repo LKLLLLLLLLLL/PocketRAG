@@ -10,6 +10,7 @@ const SearchSettings = ({
     localModelManagement,
     onSaveAllSettings,
     onSaveSearchSettings,
+    onSearchSettingsChange,
     isSaving
 }) => {
     // -----------------------检索设置状态管理-------------------------
@@ -31,56 +32,71 @@ const SearchSettings = ({
             setSearchLimit(searchSettings.searchLimit || 10);
             setEmbeddingConfigs(searchSettings.embeddingConfig?.configs || []);
             setRerankConfigs(searchSettings.rerankConfig?.configs || []);
+        }    }, [searchSettings]);
+
+    // 统一的状态同步函数
+    const syncToParent = (newSearchLimit, newEmbeddingConfigs, newRerankConfigs) => {
+        if (onSearchSettingsChange) {
+            const updatedSearchSettings = {
+                searchLimit: newSearchLimit,
+                embeddingConfig: {
+                    configs: newEmbeddingConfigs
+                },
+                rerankConfig: {
+                    configs: newRerankConfigs
+                }
+            };
+            onSearchSettingsChange(updatedSearchSettings);
         }
-    }, [searchSettings]);
+    };
 
-    //------------------------处理函数-------------------------
-
-    // 处理搜索限制变化
+    //------------------------处理函数-------------------------    // 处理搜索限制变化
     const handleSearchLimitChange = (e) => {
         const value = parseInt(e.target.value) || 1;
         setSearchLimit(value);
-    };
-
-    // 处理嵌入配置选择变化
+        // 立即同步到父组件
+        syncToParent(value, embeddingConfigs, rerankConfigs);
+    };    // 处理嵌入配置选择变化
     const handleEmbeddingSelectionChange = (name, checked) => {
-        setEmbeddingConfigs(prev =>
-            prev.map(config =>
-                config.name === name
-                    ? { ...config, selected: checked }
-                    : config
-            )
+        const updatedConfigs = embeddingConfigs.map(config =>
+            config.name === name
+                ? { ...config, selected: checked }
+                : config
         );
+        setEmbeddingConfigs(updatedConfigs);
+        // 立即同步到父组件
+        syncToParent(searchLimit, updatedConfigs, rerankConfigs);
     };    // 处理重排序配置选择变化（只能选择一个）
     const handleRerankSelectionChange = (selectedName, checked) => {
-        setRerankConfigs(prev => {
-            if (checked) {
-                // 如果用户要选中某个项目，自动取消其他所有项目的选中状态
-                const previouslySelected = prev.find(config => config.selected);
-                const updatedConfigs = prev.map(config => ({
-                    ...config,
-                    selected: config.modelName === selectedName
-                }));
-                
-                // 提供用户反馈
-                if (previouslySelected && previouslySelected.modelName !== selectedName) {
-                    message.info(`已切换至重排序模型: ${selectedName}，自动取消了之前的选择`);
-                } else {
-                    message.success(`已选择重排序模型: ${selectedName}`);
-                }
-                
-                return updatedConfigs;
+        let updatedConfigs;
+        if (checked) {
+            // 如果用户要选中某个项目，自动取消其他所有项目的选中状态
+            const previouslySelected = rerankConfigs.find(config => config.selected);
+            updatedConfigs = rerankConfigs.map(config => ({
+                ...config,
+                selected: config.modelName === selectedName
+            }));
+            
+            // 提供用户反馈
+            if (previouslySelected && previouslySelected.modelName !== selectedName) {
+                message.info(`已切换至重排序模型: ${selectedName}，自动取消了之前的选择`);
             } else {
-                // 如果用户要取消选中，允许取消（这样可以实现没有任何选中的状态）
-                const updatedConfigs = prev.map(config => ({
-                    ...config,
-                    selected: config.modelName === selectedName ? false : config.selected
-                }));
-                
-                message.info(`已取消选择重排序模型: ${selectedName}`);
-                return updatedConfigs;
-            }        });
-    };    // 处理添加嵌入配置
+                message.success(`已选择重排序模型: ${selectedName}`);
+            }
+        } else {
+            // 如果用户要取消选中，允许取消（这样可以实现没有任何选中的状态）
+            updatedConfigs = rerankConfigs.map(config => ({
+                ...config,
+                selected: config.modelName === selectedName ? false : config.selected
+            }));
+            
+            message.info(`已取消选择重排序模型: ${selectedName}`);
+        }
+        
+        setRerankConfigs(updatedConfigs);
+        // 立即同步到父组件
+        syncToParent(searchLimit, embeddingConfigs, updatedConfigs);
+    };// 处理添加嵌入配置
     const handleAddEmbeddingConfig = () => {
         setAddModalType('embedding');
         setAddModalTitle('添加嵌入配置');
@@ -102,9 +118,7 @@ const SearchSettings = ({
                 if (embeddingConfigs.some(config => config.name === formData.name)) {
                     message.error('配置名称已存在');
                     return;
-                }
-
-                // 添加新的嵌入配置
+                }                // 添加新的嵌入配置
                 const newConfig = {
                     name: formData.name,
                     modelName: formData.modelName,
@@ -112,7 +126,10 @@ const SearchSettings = ({
                     selected: false
                 };
 
-                setEmbeddingConfigs(prev => [...prev, newConfig]);
+                const updatedEmbeddingConfigs = [...embeddingConfigs, newConfig];
+                setEmbeddingConfigs(updatedEmbeddingConfigs);
+                // 立即同步到父组件
+                syncToParent(searchLimit, updatedEmbeddingConfigs, rerankConfigs);
                 message.success('嵌入配置添加成功');
 
             } else if (addModalType === 'rerank') {
@@ -120,15 +137,16 @@ const SearchSettings = ({
                 if (rerankConfigs.some(config => config.modelName === formData.modelName)) {
                     message.error('该重排序模型已添加');
                     return;
-                }
-
-                // 添加新的重排序配置
+                }                // 添加新的重排序配置
                 const newConfig = {
                     modelName: formData.modelName,
                     selected: false
                 };
 
-                setRerankConfigs(prev => [...prev, newConfig]);
+                const updatedRerankConfigs = [...rerankConfigs, newConfig];
+                setRerankConfigs(updatedRerankConfigs);
+                // 立即同步到父组件
+                syncToParent(searchLimit, embeddingConfigs, updatedRerankConfigs);
                 message.success('重排序配置添加成功');
             }
 
@@ -144,17 +162,21 @@ const SearchSettings = ({
     const handleAddConfigClose = () => {
         setAddModalVisible(false);
         setAddModalType('');
-        setAddModalTitle('');    };
-
-    // 删除嵌入配置
+        setAddModalTitle('');    };    // 删除嵌入配置
     const handleDeleteEmbeddingConfig = (configName) => {
-        setEmbeddingConfigs(prev => prev.filter(config => config.name !== configName));
+        const updatedEmbeddingConfigs = embeddingConfigs.filter(config => config.name !== configName);
+        setEmbeddingConfigs(updatedEmbeddingConfigs);
+        // 立即同步到父组件
+        syncToParent(searchLimit, updatedEmbeddingConfigs, rerankConfigs);
         message.success(`嵌入配置 "${configName}" 已删除`);
     };
 
     // 删除重排序配置
     const handleDeleteRerankConfig = (modelName) => {
-        setRerankConfigs(prev => prev.filter(config => config.modelName !== modelName));
+        const updatedRerankConfigs = rerankConfigs.filter(config => config.modelName !== modelName);
+        setRerankConfigs(updatedRerankConfigs);
+        // 立即同步到父组件
+        syncToParent(searchLimit, embeddingConfigs, updatedRerankConfigs);
         message.success(`重排序配置 "${modelName}" 已删除`);
     };
 
@@ -172,33 +194,36 @@ const SearchSettings = ({
             };
             onSaveSearchSettings(searchSettingsToSave);
         }
-    };
+    };    // 修改处理保存所有设置的函数
+    const handleSaveAllSettings = async () => {
+        try {
+            console.log('SearchSettings - handleSaveAllSettings called');
 
-    // 修改处理保存所有设置的函数
-    const handleSaveAllSettings = () => {
-        console.log('SearchSettings - handleSaveAllSettings called');
-
-        if (onSaveAllSettings) {
-            // 构建当前页面的所有设置数据
-            const currentSearchSettings = {
-                searchSettings: {
-                    searchLimit: searchLimit,
-                    embeddingConfig: {
-                        configs: embeddingConfigs
-                    },
-                    rerankConfig: {
-                        configs: rerankConfigs
+            if (onSaveAllSettings) {
+                // 构建当前页面的所有设置数据
+                const currentSearchSettings = {
+                    searchSettings: {
+                        searchLimit: searchLimit,
+                        embeddingConfig: {
+                            configs: embeddingConfigs
+                        },
+                        rerankConfig: {
+                            configs: rerankConfigs
+                        }
                     }
-                }
-            };
+                };
 
-            console.log('SearchSettings - 保存数据:', currentSearchSettings);
-            // 调用父组件传入的保存函数
-            onSaveAllSettings(currentSearchSettings);
-        } else {
-            console.log('onSaveAllSettings 函数不可用');
-            // 如果没有传入保存函数，使用本地保存函数
-            handleSaveSearchSettings();
+                console.log('SearchSettings - 保存数据:', currentSearchSettings);
+                // 调用父组件传入的保存函数
+                await onSaveAllSettings(currentSearchSettings);
+            } else {
+                console.log('onSaveAllSettings 函数不可用');
+                // 如果没有传入保存函数，使用本地保存函数
+                handleSaveSearchSettings();
+            }
+        } catch (error) {
+            console.error('SearchSettings - 保存失败:', error);
+            message.error(`保存检索设置失败: ${error.message}`);
         }
     };
 

@@ -592,3 +592,14 @@
 .search-settings-container .compact-select .ant-select-selection-placeholder {
     color: rgba(255, 255, 255, 0.4) !important;
 }
+
+/* 下拉菜单选中项样式 */
+.search-settings-container .ant-select-dropdown .ant-select-item-option-selected {
+    background: rgba(0, 144, 144, 0.3) !important;
+    color: #ffffff !important;
+}
+
+.search-settings-container .ant-select-dropdown .ant-select-item:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+}

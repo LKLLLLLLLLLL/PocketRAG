@@ -15,10 +15,12 @@
 
 .local-model-modal .ant-modal-close {
     color: #ffffff !important;
+    background: transparent !important;
 }
 
 .local-model-modal .ant-modal-close:hover {
-    color: #00ffff !important;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .local-model-modal .ant-modal-body {

@@ -1,7 +1,7 @@
 import { Tooltip, ConfigProvider, Input, Button, Checkbox, message } from 'antd';
 import CustomTable from '../CustomTable/CustomTable';
 import AddConfigModal from '../AddConfigModal/AddConfigModal';
-import { EditOutlined, CheckOutlined, CloseOutlined, PlusOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EditOutlined, CheckOutlined, CloseOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import React, { useState, useEffect } from 'react';
 import './ConversationSettings.css';
 
@@ -24,15 +24,13 @@ const ConversationSettings = ({
     const [deletingModels, setDeletingModels] = useState({});
 
     // 添加模型弹窗状态
-    const [addModalVisible, setAddModalVisible] = useState(false);
+    const [addModalVisible, setAddModalVisible] = useState(false);    //------------------------API测试状态管理-------------------------
 
-    //------------------------API Key状态管理-------------------------
-
-    // 存储可见的API Key
-    const [visibleApiKeys, setVisibleApiKeys] = useState({});
-
-    // 存储加载状态
-    const [loadingApiKeys, setLoadingApiKeys] = useState({}); 
+    // 存储API测试状态
+    const [apiTestStatus, setApiTestStatus] = useState({}); // { modelName: 'success' | 'error' | 'testing' }
+    
+    // 存储API测试加载状态
+    const [testingApiKeys, setTestingApiKeys] = useState({});
 
     //------------------------历史长度相关函数-------------------------
 
@@ -53,10 +51,8 @@ const ConversationSettings = ({
     };    // 处理添加模型
     const handleAddModel = () => {
         setAddModalVisible(true);
-    };
-
-    // 处理添加模型确认
-    const handleAddModelConfirm = (formData) => {
+    };    // 处理添加模型确认 - 通过后端接口设置API Key
+    const handleAddModelConfirm = async (formData) => {
         try {
             // 检查模型名称是否重复
             const isDuplicateName = conversationSettings?.generationModel?.some(
@@ -74,14 +70,17 @@ const ConversationSettings = ({
             if (isDuplicateModelName) {
                 message.error('模型标识已存在，请使用其他标识');
                 return;
-            }
-
-            // 创建新的模型配置
+            }            // 如果表单包含 API Key，通过后端接口设置到数据库
+            if (formData.apiKey && formData.setApiKey) {
+                console.log('ConversationSettings - 设置API Key到数据库...');
+                await window.setApiKey(formData.name, formData.apiKey);
+                // 移除自动API测试，允许用户手动测试
+                console.log('ConversationSettings - API Key设置成功');
+            }            // 创建新的模型配置（不包含API Key）
             const newModel = {
                 name: formData.name,
                 modelName: formData.modelName,
                 url: formData.url,
-                enabled: true,
                 setApiKey: formData.setApiKey || true
             };
 
@@ -91,14 +90,15 @@ const ConversationSettings = ({
             // 通知父组件模型列表变化
             if (onModelListChange) {
                 onModelListChange(updatedModels);
-            }
-
-            message.success(`对话模型 "${formData.name}" 添加成功`);
+            }            const successMessage = formData.apiKey 
+                ? `对话模型 "${formData.name}" 添加成功，API Key已安全保存到数据库`
+                : `对话模型 "${formData.name}" 添加成功`;
+            message.success(successMessage);
             setAddModalVisible(false);
 
         } catch (error) {
             console.error('添加模型失败:', error);
-            message.error('添加模型失败');
+            message.error(`添加模型失败: ${error.message}`);
         }
     };
 
@@ -127,68 +127,79 @@ const ConversationSettings = ({
             };
             onSaveHistorySettings(historySettingsToSave);
         }
-    };
-
-    // 修改处理保存全部设置的函数
-    const handleSaveAllSettings = () => {
-        if (onSaveAllSettings) {
-            // 构建当前页面的对话设置数据
-            const currentConversationSettings = {
-                conversationSettings: {
-                    historyLength: historyLength,
-                    generationModel: conversationSettings?.generationModel || []
-                }
-            };
-
-            console.log('ConversationSettings - 保存数据:', currentConversationSettings);
-            // 调用父组件的保存函数，传递当前页面数据
-            onSaveAllSettings(currentConversationSettings);
-        } else {
-            console.log('onSaveAllSettings 函数不可用');
-            // 如果没有传入保存函数，使用本地保存函数
-            message.warning('保存函数不可用，请检查配置');
-        }
-    };
-
-    // 修改API Key查看功能
-    const handleViewApiKey = async (modelName) => {
+    };    // 修改处理保存全部设置的函数
+    const handleSaveAllSettings = async () => {
         try {
-            // 设置加载状态
-            setLoadingApiKeys(prev => ({ ...prev, [modelName]: true }));
+            console.log('ConversationSettings - handleSaveAllSettings called');
 
-            // 获取API Key
-            const apiKey = await window.getApiKey(modelName);
-            console.log('获取到的API Key:', apiKey);
+            if (onSaveAllSettings) {
+                // 构建当前页面的对话设置数据
+                const currentConversationSettings = {
+                    conversationSettings: {
+                        historyLength: historyLength,
+                        generationModel: conversationSettings?.generationModel || []
+                    }
+                };
 
-            if (apiKey && apiKey.apiKey.trim() !== '') {
-                // 更新可见状态
-                setVisibleApiKeys(prev => ({
-                    ...prev,
-                    [modelName]: apiKey
-                }));
-
-                // 10秒后自动隐藏
-                setTimeout(() => {
-                    setVisibleApiKeys(prev => {
-                        const newState = { ...prev };
-                        delete newState[modelName];
-                        return newState;
-                    });
-                }, 10000);
-
-                message.success('API Key已显示，10秒后自动隐藏');
+                console.log('ConversationSettings - 保存数据:', currentConversationSettings);
+                // 调用父组件的保存函数，传递当前页面数据
+                await onSaveAllSettings(currentConversationSettings);
             } else {
-                message.warning('该模型未设置API Key');
+                console.log('onSaveAllSettings 函数不可用');
+                // 如果没有传入保存函数，使用本地保存函数
+                message.warning('保存函数不可用，请检查配置');
+            }
+        } catch (error) {
+            console.error('ConversationSettings - 保存失败:', error);
+            message.error(`保存对话设置失败: ${error.message}`);
+        }    };
+
+    // 处理API测试
+    const handleTestApi = async (record) => {
+        try {
+            // 设置测试加载状态
+            setTestingApiKeys(prev => ({ ...prev, [record.name]: true }));
+            setApiTestStatus(prev => ({ ...prev, [record.name]: 'testing' }));            // 获取API Key - 使用模型的 name 字段作为标识
+            const apiKeyResult = await window.getApiKey(record.name);
+            if (!apiKeyResult || !apiKeyResult.apiKey) {
+                throw new Error('未找到API Key，请先设置API Key');
             }
 
+            // 测试API
+            await window.testApi(record.modelName, record.url, apiKeyResult.apiKey);
+            
+            // 测试成功
+            setApiTestStatus(prev => ({ ...prev, [record.name]: 'success' }));
+            message.success(`API测试成功: ${record.name}`);
+
+            // 3秒后清除状态
+            setTimeout(() => {
+                setApiTestStatus(prev => {
+                    const newState = { ...prev };
+                    delete newState[record.name];
+                    return newState;
+                });
+            }, 3000);
+
         } catch (error) {
-            console.error('获取API Key失败:', error);
-            message.error(`获取API Key失败: ${error.message || '未知错误'}`);
+            console.error('API测试失败:', error);
+            setApiTestStatus(prev => ({ ...prev, [record.name]: 'error' }));
+            message.error(`API测试失败: ${error.message}`);
+
+            // 3秒后清除状态
+            setTimeout(() => {
+                setApiTestStatus(prev => {
+                    const newState = { ...prev };
+                    delete newState[record.name];
+                    return newState;
+                });
+            }, 3000);
+
         } finally {
-            // 清除加载状态
-            setLoadingApiKeys(prev => {
+            // 清除测试加载状态
+            setTestingApiKeys(prev => {
                 const newState = { ...prev };
-                delete newState[modelName];
+                delete newState[record.name];
                 return newState;
             });
         }
@@ -248,7 +259,7 @@ const ConversationSettings = ({
             title: 'URL',
             dataIndex: 'url',
             key: 'url',
-            width: 200,
+            width: 300,
             align: 'center',
             ellipsis: {
                 showTitle: false,
@@ -257,6 +268,14 @@ const ConversationSettings = ({
                 <Tooltip title={url} placement="topLeft">
                     <div
                         className="scrollable-url"
+                        style={{
+                            width: '100%',
+                            maxWidth: '280px',
+                            overflow: 'auto',
+                            whiteSpace: 'nowrap',
+                            textAlign: 'left',
+                            padding: '2px 4px'
+                        }}
                         onWheel={(e) => {
                             e.preventDefault();
                             e.currentTarget.scrollLeft += e.deltaY > 0 ? 30 : -30;
@@ -266,7 +285,7 @@ const ConversationSettings = ({
                     </div>
                 </Tooltip>
             )
-        },        // 修改API Key列的渲染逻辑
+        },// 修改API Key列的渲染逻辑
         {
             title: 'API Key',
             dataIndex: 'setApiKey',
@@ -274,36 +293,12 @@ const ConversationSettings = ({
             width: 150,
             align: 'center',
             render: (setApiKey, record) => {
-                const isVisible = visibleApiKeys[record.name];
-                const isLoading = loadingApiKeys[record.name];
-
                 return (
                     <div className="api-key-container api-key-center">
                         <span className="api-key-status">
-                            {isLoading ? (
-                                <span className="api-key-loading">加载中...</span>
-                            ) : isVisible ? (
-                                <span className="api-key-visible" title={isVisible}>
-                                    {isVisible.length > 12 ? `${isVisible.substring(0, 12)}...` : isVisible}
-                                </span>
-                            ) : (
-                                // 默认显示状态：如果模型存在则显示星号，否则显示未设置
-                                record.name ? '******' : '未设置'
-                            )}
+                            {/* 默认显示状态：如果模型存在则显示星号，否则显示未设置 */}
+                            {record.name ? '******' : '未设置'}
                         </span>
-                        {/* 只有当模型存在时才显示查看按钮 */}
-                        {record.name && !isLoading && (
-                            <ConfigProvider theme={darkTheme}>
-                                <Button
-                                    type="text"
-                                    icon={<EyeOutlined />}
-                                    size="small"
-                                    className="view-api-key-button"
-                                    onClick={() => handleViewApiKey(record.name)}
-                                    title="点击查看API Key（10秒后自动隐藏）"
-                                />
-                            </ConfigProvider>
-                        )}
                     </div>
                 );
             }

@@ -2,75 +2,130 @@
 
 /* ========== 模态框容器样式 ========== */
 .add-config-modal .ant-modal-content {
-    background: transparent; /* 修复背景问题 */
+    background: rgba(30, 30, 30, 0.95); /* 统一的深色背景 */
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 8px;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px); /* 保留毛玻璃效果 */
 }
 
 .add-config-modal .ant-modal-header {
-    background: rgba(40, 40, 40, 0.9); /* 可根据需要调整为 transparent 或其他颜色 */
+    background: transparent; /* 移除头部独立背景 */
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px 8px 0 0;
-    padding: 16px 20px;
+    padding: 0px; /* 进一步缩小上下和左右内边距 */
+    padding-left: 10px;
 }
 
 .add-config-modal .ant-modal-title {
     color: #f5f5f5;
-    font-size: 14px;
+    font-size: 16px; /* 增大字体大小 */
     font-weight: 600;
-    margin: 0;
+    margin: 0px;
 }
 
 .add-config-modal .ant-modal-close {
-    color: rgba(255, 255, 255, 0.6);
-    top: 16px;
-    right: 16px;
+    color: #ffffff !important;
+    background: transparent !important;
+    position: absolute; /* 确保绝对定位 */
+    top: 15px; /* 与头部上内边距对齐 */
+    right: 15px; /* 与头部右内边距对齐 */
 }
 
 .add-config-modal .ant-modal-close:hover {
-    color: rgba(255, 255, 255, 0.9);
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .add-config-modal .ant-modal-body {
-    padding: 20px;
-    background: rgba(30, 30, 30, 0.95); /* 可根据需要调整为 transparent 或其他颜色 */
+    padding: 15px; /* 缩小内边距 */
+    background: transparent; /* 移除内容区域独立背景 */
 }
 
 .add-config-modal .ant-modal-footer {
-    background: rgba(40, 40, 40, 0.9); /* 可根据需要调整为 transparent 或其他颜色 */
+    background: transparent; /* 移除底部独立背景 */
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 0 0 8px 8px;
-    padding: 12px 20px;
+    padding: 10px 15px; /* 缩小上下和左右内边距 */
 }
 
 /* ========== 表单样式 ========== */
 .add-config-modal .modal-form {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
 }
 
 .add-config-modal .form-item {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+    overflow: visible;
+    transition: none;
+}
+
+.add-config-modal .form-item:hover {
+    background: transparent;
+}
+
+.add-config-modal .form-content {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0px 0;
+    min-height: 48px;
+    border-bottom: none;
+}
+
+.add-config-modal .form-info {
+    flex: 1;
+    margin-right: 16px;
 }
 
 .add-config-modal .form-item label {
-    color: #e0e0e0;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
+    color: #f5f5f5;
+    margin-bottom: 4px;
+    line-height: 1.3;
+    display: block;
+}
+
+.add-config-modal .form-description {
+    font-size: 12px;
+    color: #a0a0a0;
+    line-height: 1.4;
     margin: 0;
+}
+
+.add-config-modal .form-control {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* 右对齐 */
+    width: 200px;
+}
+
+/* ========== 统一控件尺寸 ========== */
+.add-config-modal .compact-input,
+.add-config-modal .compact-select {
+    width: 200px !important;
+    height: 32px !important;
+}
+
+.add-config-modal .compact-select .ant-select-selector {
+    height: 32px !important;
+    line-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
 }
 
 /* ========== 输入框样式 ========== */
 .add-config-modal .compact-input {
     background: rgba(255, 255, 255, 0.05) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 4px !important;
+    border-radius: 3px !important; /* 缩小圆角尺寸，保持一致性 */
     color: #e0e0e0 !important;
-    min-height: 28px !important;
     padding: 4px 8px !important;
     transition: all 0.2s ease !important;
 }
@@ -93,9 +148,8 @@
 .add-config-modal .compact-select .ant-select-selector {
     background: rgba(255, 255, 255, 0.05) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 4px !important;
+    border-radius: 3px !important; /* 缩小圆角尺寸，与下拉菜单一致 */
     color: #e0e0e0 !important;
-    min-height: 28px !important;
     padding: 0 8px !important;
     transition: all 0.2s ease !important;
 }
@@ -127,23 +181,24 @@
 
 /* ========== 下拉菜单样式 ========== */
 .add-config-modal .ant-select-dropdown {
-    background: rgba(30, 30, 30, 0.95) !important;
+    background: #2a2a2a !important; /* 实色背景，不再透明 */
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-radius: 6px !important;
-    backdrop-filter: blur(10px) !important;
+    border-radius: 3px !important; /* 缩小圆角尺寸 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important; /* 添加阴影增强深度感 */
 }
 
 .add-config-modal .ant-select-item {
     color: #e0e0e0 !important;
-    background: transparent !important;
+    background: #2a2a2a !important; /* 与下拉菜单背景一致 */
 }
 
 .add-config-modal .ant-select-item:hover {
-    background: rgba(0, 144, 144, 0.1) !important;
+    background: #333333 !important; /* 实色悬停背景 */
+    color: #ffffff !important;
 }
 
 .add-config-modal .ant-select-item-option-selected {
-    background: rgba(0, 144, 144, 0.2) !important;
+    background: rgba(0, 144, 144, 0.3) !important; /* 深青色选中背景 */
     color: #ffffff !important;
 }
 
@@ -193,8 +248,43 @@
     margin: 0;
 }
 
+/* ========== 带后缀的输入框容器样式 ========== */
+.add-config-modal .ant-input-affix-wrapper {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 3px !important; /* 缩小圆角尺寸，保持一致性 */
+    padding: 0 !important;
+    height: 32px !important;
+    width: 200px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.add-config-modal .ant-input-affix-wrapper .ant-input {
+    background: transparent !important;
+    border: none !important;
+    padding: 4px 8px !important;
+    color: #e0e0e0 !important;
+    height: 100% !important;
+    line-height: 1.5 !important;
+}
+
+.add-config-modal .ant-input-affix-wrapper:hover {
+    border-color: rgba(0, 144, 144, 0.4) !important;
+}
+
+.add-config-modal .ant-input-affix-wrapper:focus-within {
+    border-color: rgba(0, 144, 144, 0.6) !important;
+    box-shadow: 0 0 0 2px rgba(0, 144, 144, 0.2) !important;
+}
+
 /* ========== 后缀样式 ========== */
 .add-config-modal .ant-input-suffix {
     color: rgba(255, 255, 255, 0.6) !important;
     font-size: 11px !important;
+    padding: 0 8px !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    background: transparent !important;
 }

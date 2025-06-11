@@ -1,13 +1,12 @@
 import { ConfigProvider, Button, message, Tooltip } from 'antd';
 import CustomTable from '../CustomTable/CustomTable';
-import AddConfigModal from '../AddConfigModal/AddConfigModal';
+import AddConfigModal from '../AddConfigModal/AddConfigModal'; // 使用统一的 AddConfigModal
 import { CheckOutlined, DeleteOutlined, PlusOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import React, { useState, useEffect } from 'react';
 import './LocalModelManagement.css';
 
 const LocalModelManagement = ({
     localModelManagement,
-    onAddLocalModel,
     onSaveAllSettings,
     onSaveLocalModelSettings,
     onModelListChange,
@@ -34,51 +33,59 @@ const LocalModelManagement = ({
         }
     }, [localModelManagement]);
 
-    //------------------------处理函数-------------------------    // 处理添加模型
-    const handleAddModel = () => {
-        setAddModalVisible(true);
+    //------------------------处理函数-------------------------
+
+    // 统一的状态同步函数
+    const syncToParent = (updatedModels) => {
+        if (onModelListChange) {
+            onModelListChange(updatedModels);
+        }
     };
 
-    // 处理添加模型确认
-    const handleAddModelConfirm = (formData) => {
+    // 处理添加模型
+    const handleAddModel = () => {
+        setAddModalVisible(true);
+    };    // 处理添加模型确认
+    const handleAddModelConfirm = async (formData) => {
         try {
+            console.log('LocalModelManagement - 添加模型数据:', formData);
+
             // 检查模型名称是否重复
             const isDuplicateName = localModels.some(model => model.name === formData.name);
             if (isDuplicateName) {
-                message.error('模型名称已存在，请使用其他名称');
-                return;
+                throw new Error('模型名称已存在，请使用其他名称');
             }
 
             // 检查模型路径是否重复
             const isDuplicatePath = localModels.some(model => model.path === formData.path);
             if (isDuplicatePath) {
-                message.error('模型路径已存在，请使用其他路径');
-                return;
+                throw new Error('模型路径已存在，请使用其他路径');
             }
 
-            // 创建新的模型配置
+            // 验证必填字段
+            if (!formData.name || !formData.type || !formData.path) {
+                throw new Error('请填写完整的模型信息');
+            }            // 创建新的模型配置（fileSize由后端自动计算）
             const newModel = {
                 name: formData.name,
                 type: formData.type,
                 path: formData.path,
-                fileSize: formData.fileSize || 0
+                fileSize: formData.fileSize || 0 // 使用表单中计算得到的文件大小
             };
 
             // 更新本地模型列表
             const updatedModels = [...localModels, newModel];
             setLocalModels(updatedModels);
 
-            // 通知父组件
-            if (onModelListChange) {
-                onModelListChange(updatedModels);
-            }
+            // 立即同步到父组件
+            syncToParent(updatedModels);
 
             message.success(`${formData.type === 'embedding' ? '嵌入' : '重排序'}模型 "${formData.name}" 添加成功`);
             setAddModalVisible(false);
 
         } catch (error) {
             console.error('添加模型失败:', error);
-            message.error('添加模型失败');
+            throw error; // 重新抛出错误，让 LocalModelModal 处理
         }
     };
 
@@ -89,18 +96,15 @@ const LocalModelManagement = ({
 
     // 处理删除模型
     const handleDeleteModel = (modelName) => {
-        setDeletingModels(prev => ({ ...prev, [modelName]: true }));
-
-        try {
+        setDeletingModels(prev => ({ ...prev, [modelName]: true }));        try {
             const updatedModels = localModels.filter(
                 model => model.name !== modelName
             );
 
             setLocalModels(updatedModels);
 
-            if (onModelListChange) {
-                onModelListChange(updatedModels);
-            }
+            // 立即同步到父组件
+            syncToParent(updatedModels);
 
             message.success(`模型 "${modelName}" 已删除`);
 
@@ -124,23 +128,30 @@ const LocalModelManagement = ({
             };
             onSaveLocalModelSettings(localModelSettingsToSave);
         }
-    };
+    };    // 在组件内部添加处理保存所有设置的函数
+    const handleSaveAllSettings = async () => {
+        try {
+            console.log('LocalModelManagement - handleSaveAllSettings called');
 
-    // 在组件内部添加处理保存所有设置的函数
-    const handleSaveAllSettings = () => {
-        if (onSaveAllSettings) {
-            // 构建当前页面的本地模型设置数据
-            const currentLocalModelSettings = {
-                localModelManagement: {
-                    models: localModels
-                }
-            };
+            if (onSaveAllSettings) {
+                // 构建当前页面的本地模型设置数据
+                const currentLocalModelSettings = {
+                    localModelManagement: {
+                        models: localModels
+                    }
+                };
 
-            // 调用父组件的保存函数，传递当前页面数据
-            onSaveAllSettings(currentLocalModelSettings);
-        } else {
-            // 如果没有传入保存函数，使用本地保存函数
-            handleSaveLocalModelSettings();
+                console.log('LocalModelManagement - 保存数据:', currentLocalModelSettings);
+                // 调用父组件的保存函数，传递当前页面数据
+                await onSaveAllSettings(currentLocalModelSettings);
+            } else {
+                console.log('onSaveAllSettings 函数不可用');
+                // 如果没有传入保存函数，使用本地保存函数
+                handleSaveLocalModelSettings();
+            }
+        } catch (error) {
+            console.error('LocalModelManagement - 保存失败:', error);
+            message.error(`保存本地模型设置失败: ${error.message}`);
         }
     };
 
@@ -199,20 +210,43 @@ const LocalModelManagement = ({
                 >
                     {getModelTypeTag(type)}
                 </span>
-            )
-        },        {
+            )        },        {
             title: '模型路径',
             dataIndex: 'path',
             key: 'path',
-            width: 200,
+            width: 300,
+            align: 'center',
             ellipsis: {
                 showTitle: false,
             },
             render: (path) => (
                 <Tooltip title={path} placement="topLeft">
-                    <div className="model-path">
-                        <FolderOpenOutlined className="path-icon" />
-                        <span className="path-text">{path}</span>
+                    <div 
+                        className="model-path"
+                        style={{
+                            width: '100%',
+                            maxWidth: '280px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textAlign: 'left',
+                            padding: '2px 4px'
+                        }}
+                    >
+                        <FolderOpenOutlined className="path-icon" style={{ marginRight: '6px', flexShrink: 0 }} />
+                        <span 
+                            className="path-text" 
+                            style={{
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                flex: 1,
+                                minWidth: 0
+                            }}
+                        >
+                            {path}
+                        </span>
                     </div>
                 </Tooltip>
             )
@@ -226,7 +260,8 @@ const LocalModelManagement = ({
             render: (fileSize) => (
                 <span className="file-size">{formatFileSize(fileSize)}</span>
             )
-        },        {
+        },
+        {
             title: '操作',
             key: 'action',
             width: 80,
@@ -234,7 +269,8 @@ const LocalModelManagement = ({
             render: (_, record) => {
                 const isDeleting = deletingModels[record.name];
 
-                return (                    <div className="action-button-container">
+                return (
+                    <div className="action-button-container">
                         <ConfigProvider theme={darkTheme}>
                             <Button
                                 type="text"
@@ -245,8 +281,7 @@ const LocalModelManagement = ({
                                 onClick={() => handleDeleteModel(record.name)}
                                 loading={isDeleting}
                                 title="删除模型"
-                            />
-                        </ConfigProvider>
+                            />                        </ConfigProvider>
                     </div>
                 );
             }
@@ -257,7 +292,9 @@ const LocalModelManagement = ({
     const dataSource = localModels.map((model, index) => ({
         ...model,
         key: model.name || index,
-    }));    // 深色主题配置
+    }));
+
+    // 深色主题配置
     const darkTheme = {
         token: {
             colorBgContainer: 'rgba(255, 255, 255, 0.05)',
@@ -316,8 +353,7 @@ const LocalModelManagement = ({
                         </Button>
                     </ConfigProvider>
                 </div>
-            </div>
-            {/* 添加模型弹窗 */}
+            </div>            {/* 添加模型弹窗 */}
             <AddConfigModal
                 visible={addModalVisible}
                 onClose={handleAddModalClose}
