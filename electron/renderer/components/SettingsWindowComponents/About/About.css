@@ -1,15 +1,91 @@
-.about-container{
+/* 引入共享样式 */
+@import '../shared-styles.css';
+
+.about-container {
     display: flex;
     flex: 1;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    color: darkgrey;
+    color: #a0a0a0;
+    padding: 40px 0;
+    background: transparent;
+    text-align: center;
 }
+
 .content {
-    margin: 4px;
+    margin: 8px 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 400px;
+    max-width: 500px;
+    padding: 16px 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.content:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(0, 144, 144, 0.2);
+    transform: translateY(-1px);
+}
+
+/* 关于页面标题样式 */
+.about-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f5f5f5;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+.about-subtitle {
+    font-size: 14px;
+    color: #00cccc;
+    margin-bottom: 32px;
+    font-weight: 500;
+}
+
+.about-version {
+    font-size: 13px;
+    color: #d0d0d0;
+    margin-bottom: 16px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+.about-description {
+    font-size: 12px;
+    color: #a0a0a0;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.about-links {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.about-link {
+    padding: 8px 16px;
+    background: rgba(0, 144, 144, 0.1);
+    border: 1px solid rgba(0, 144, 144, 0.3);
+    border-radius: 6px;
+    color: #00cccc;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.about-link:hover {
+    background: rgba(0, 144, 144, 0.2);
+    border-color: rgba(0, 144, 144, 0.5);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 144, 144, 0.3);
 }

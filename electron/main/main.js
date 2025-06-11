@@ -824,7 +824,8 @@ function updateHardwareSettings(event, settings_) {
   try {
     const data = fs.readFileSync(path.join(userDataPath, 'settings.json'), 'utf-8')
     let settings = JSON.parse(data)
-    settings.performance = settings_
+    settings.performance.cudaAvailable = settings_.cudaAvailable
+    settings.performance.coreMLAvailable = settings_.coreMLAvailable
     fs.writeFileSync(path.join(userDataPath, 'settings.json'), JSON.stringify(settings))
   }catch(err) {
     console.error('update hardware settings failed: ', err)
@@ -934,9 +935,9 @@ function AreSettingsRight() {
   const pf = settings.performance
   if (!pf || typeof pf !== 'object') return false
   if (typeof pf.maxThreads !== 'number') return false
-  if (typeof pf['cuda available'] !== 'boolean') return false
+  if (typeof pf['cudaAvailable'] !== 'boolean') return false
   if (typeof pf.useCuda !== 'boolean') return false
-  if (typeof pf['coreML available'] !== 'boolean') return false
+  if (typeof pf['coreMLAvailable'] !== 'boolean') return false
   if (typeof pf.useCoreML !== 'boolean') return false
 
   return true

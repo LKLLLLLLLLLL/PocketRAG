@@ -306,7 +306,7 @@
 
 /* 编辑器区域样式 */
 .bytemd-editor .CodeMirror {
-  background-color: #1e1e1e !important; /* VSCode背景色 */
+  background-color: #222 !important; /* VSCode背景色 */
   color: #d4d4d4 !important; /* VSCode文本色 */
 }
 

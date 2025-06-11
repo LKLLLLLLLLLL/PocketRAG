@@ -7,6 +7,7 @@ const Performance = ({
     performanceSettings,
     onSaveAllSettings,
     onSavePerformanceSettings,
+    onPerformanceSettingsChange,
     isSaving
 }) => {
     // -----------------------性能设置状态管理-------------------------
@@ -19,19 +20,18 @@ const Performance = ({
     const [useCoreML, setUseCoreML] = useState(false);
     // 硬件可用性状态
     const [hardwareAvailability, setHardwareAvailability] = useState({
-        'cuda available': false,
-        'coreML available': false
+        'cudaAvailable': false,
+        'coreMLAvailable': false
     });
     // 硬件检测加载状态
     const [hardwareLoading, setHardwareLoading] = useState(true);
 
-    //------------------------初始化函数-------------------------
-
-    // 检测硬件可用性
+    //------------------------初始化函数-------------------------    // 检测硬件可用性
     const checkHardwareAvailability = async () => {
         try {
             setHardwareLoading(true);
-            console.log('开始检测硬件可用性...');
+            console.log('开始检测硬件可用性...');            // 硬件检测不保存当前UI状态，而是重新读取settings.json中的用户设置
+            console.log('开始硬件检测，准备重新读取用户设置...');
 
             // 确保window.getAvailableHardware函数存在
             if (typeof window.getAvailableHardware !== 'function') {
@@ -39,28 +39,54 @@ const Performance = ({
             }
 
             // 调用 getAvailableHardware
-            await window.getAvailableHardware();
-
-            // 稍微延迟以确保设置已更新
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // 获取更新后的设置
+            await window.getAvailableHardware();            // 获取更新后的设置（包含硬件可用性信息）
             const updatedSettings = await window.getSettings();
             console.log('硬件检测结果:', updatedSettings.performance);
 
             if (updatedSettings.performance) {
                 const newHardwareAvailability = {
-                    'cuda available': updatedSettings.performance['cuda available'] || false,
-                    'coreML available': updatedSettings.performance['coreML available'] || false
+                    'cudaAvailable': updatedSettings.performance['cudaAvailable'] || false,
+                    'coreMLAvailable': updatedSettings.performance['coreMLAvailable'] || false
                 };
 
                 setHardwareAvailability(newHardwareAvailability);
                 console.log('硬件可用性已更新:', newHardwareAvailability);
+                  // 重新读取用户的use相关设置来更新UI状态（来自settings.json）
+                const userUseCuda = updatedSettings.performance.useCuda || false;
+                const userUseCoreML = updatedSettings.performance.useCoreML || false;
+                const userMaxThreads = updatedSettings.performance.maxThreads || 0;
+                
+                console.log('从settings.json重新读取用户设置:', {
+                    useCuda: userUseCuda,
+                    useCoreML: userUseCoreML,
+                    maxThreads: userMaxThreads
+                });
+                
+                // 更新UI状态（自动更新按钮状态）
+                setUseCuda(userUseCuda);
+                setUseCoreML(userUseCoreML);
+                setMaxThreads(userMaxThreads);
+                
+                // 构建完整的设置数据同步到父组件
+                const completeUserSettings = {
+                    maxThreads: userMaxThreads,
+                    useCuda: userUseCuda,
+                    useCoreML: userUseCoreML,
+                    'cudaAvailable': newHardwareAvailability['cudaAvailable'],
+                    'coreMLAvailable': newHardwareAvailability['coreMLAvailable']
+                };
+                
+                console.log('同步最新用户设置到父组件:', completeUserSettings);
+                
+                // 同步到父组件
+                if (onPerformanceSettingsChange) {
+                    onPerformanceSettingsChange(completeUserSettings);
+                }
 
                 // 显示检测结果
                 const availableHardware = [];
-                if (newHardwareAvailability['cuda available']) availableHardware.push('CUDA');
-                if (newHardwareAvailability['coreML available']) availableHardware.push('CoreML');
+                if (newHardwareAvailability['cudaAvailable']) availableHardware.push('CUDA');
+                if (newHardwareAvailability['coreMLAvailable']) availableHardware.push('CoreML');
 
                 if (availableHardware.length > 0) {
                     message.success(`硬件检测完成，可用加速: ${availableHardware.join(', ')}`);
@@ -75,8 +101,8 @@ const Performance = ({
 
             // 使用来自props的备用数据或默认值
             const fallbackAvailability = {
-                'cuda available': performanceSettings?.['cuda available'] || false,
-                'coreML available': performanceSettings?.['coreML available'] || false
+                'cudaAvailable': performanceSettings?.['cudaAvailable'] || false,
+                'coreMLAvailable': performanceSettings?.['coreMLAvailable'] || false
             };
 
             setHardwareAvailability(fallbackAvailability);
@@ -86,85 +112,71 @@ const Performance = ({
             setHardwareLoading(false);
             console.log('硬件检测流程完成');
         }
-    };
-
-    // 初始化硬件检测 - 优化版本
+    };    // 初始化硬件检测 - 优化版本
     useEffect(() => {
         // 确保只在组件首次挂载时检测
         if (hardwareLoading) {
             checkHardwareAvailability();
         }
-    }, []); // 空依赖数组确保只运行一次
-
-    // 如果想要在performanceSettings变化时重新检测（可选）
-    useEffect(() => {
-        // 如果performanceSettings从外部更新且包含新的硬件信息，直接使用
-        if (performanceSettings && !hardwareLoading) {
-            const externalHardwareInfo = {
-                'cuda available': performanceSettings['cuda available'],
-                'coreML available': performanceSettings['coreML available']
-            };
-
-            // 只有当外部硬件信息与当前状态不同时才更新
-            if (JSON.stringify(externalHardwareInfo) !== JSON.stringify(hardwareAvailability)) {
-                console.log('使用外部硬件信息:', externalHardwareInfo);
-                setHardwareAvailability(externalHardwareInfo);
-            }
-        }
-    }, [performanceSettings]); // 移除hardwareLoading依赖避免循环
-
-    // 初始化性能设置
+    }, []); // 空依赖数组确保只运行一次// 初始化性能设置
     useEffect(() => {
         if (performanceSettings) {
+            console.log('初始化性能设置:', performanceSettings);
             setMaxThreads(performanceSettings.maxThreads || 0);
             setUseCuda(performanceSettings.useCuda || false);
             setUseCoreML(performanceSettings.useCoreML || false);
 
-            // 如果没有进行硬件检测，使用传入的硬件可用性信息
-            if (!hardwareLoading) {
-                setHardwareAvailability({
-                    'cuda available': performanceSettings['cuda available'] || false,
-                    'coreML available': performanceSettings['coreML available'] || false
-                });
+            // 始终使用传入的硬件可用性信息，无论是否在进行硬件检测
+            const settingsHardwareAvailability = {
+                'cudaAvailable': performanceSettings['cudaAvailable'] || false,
+                'coreMLAvailable': performanceSettings['coreMLAvailable'] || false
+            };
+            
+            // 只有当设置中的硬件信息与当前状态不同时才更新
+            if (JSON.stringify(settingsHardwareAvailability) !== JSON.stringify(hardwareAvailability)) {
+                console.log('使用设置中的硬件可用性信息:', settingsHardwareAvailability);
+                setHardwareAvailability(settingsHardwareAvailability);
             }
+        }    }, [performanceSettings]); // 移除hardwareLoading依赖
+
+    // 统一的状态同步函数
+    const syncToParent = (threads, cuda, coreml, hardwareAvail) => {
+        if (onPerformanceSettingsChange) {
+            const updatedPerformanceSettings = {
+                maxThreads: threads,
+                useCuda: cuda,
+                useCoreML: coreml,
+                'cudaAvailable': hardwareAvail['cudaAvailable'],
+                'coreMLAvailable': hardwareAvail['coreMLAvailable']
+            };
+            onPerformanceSettingsChange(updatedPerformanceSettings);
         }
-    }, [performanceSettings, hardwareLoading]);
+    };
 
-    // 添加调试信息
-    useEffect(() => {
-        console.log('Performance props:', {
-            onSaveAllSettings: typeof onSaveAllSettings,
-            onSavePerformanceSettings: typeof onSavePerformanceSettings,
-            isSaving,
-            hardwareAvailability,
-            hardwareLoading
-        });
-    }, [onSaveAllSettings, onSavePerformanceSettings, isSaving, hardwareAvailability, hardwareLoading]);
-
-    //------------------------处理函数-------------------------
-
-    // 处理最大线程数变化
+    //------------------------处理函数-------------------------    // 处理最大线程数变化
     const handleMaxThreadsChange = (e) => {
         const value = parseInt(e.target.value) || 0;
         setMaxThreads(value);
-    };
-
-    // 处理CUDA开关变化
+        // 立即同步到父组件
+        syncToParent(value, useCuda, useCoreML, hardwareAvailability);
+    };    // 处理CUDA开关变化
     const handleCudaChange = (checked) => {
-        if (!hardwareAvailability['cuda available'] && checked) {
+        if (!hardwareAvailability['cudaAvailable'] && checked) {
             message.warning('CUDA不可用，无法启用');
             return;
         }
         setUseCuda(checked);
-    };
-
-    // 处理CoreML开关变化
+        // 立即同步到父组件
+        syncToParent(maxThreads, checked, useCoreML, hardwareAvailability);
+    };    // 处理CoreML开关变化
     const handleCoreMlChange = (checked) => {
-        if (!hardwareAvailability['coreML available'] && checked) {
+        if (!hardwareAvailability['coreMLAvailable'] && checked) {
             message.warning('CoreML不可用，无法启用');
             return;
         }
         setUseCoreML(checked);
+        // 立即同步到父组件
+        syncToParent(maxThreads, useCuda, checked, hardwareAvailability);
     };
 
     // 处理保存性能设置
@@ -174,8 +186,8 @@ const Performance = ({
                 maxThreads: maxThreads,
                 useCuda: useCuda,
                 useCoreML: useCoreML,
-                'cuda available': hardwareAvailability['cuda available'],
-                'coreML available': hardwareAvailability['coreML available']
+                'cudaAvailable': hardwareAvailability['cudaAvailable'],
+                'coreMLAvailable': hardwareAvailability['coreMLAvailable']
             };
             onSavePerformanceSettings(performanceSettingsToSave);
         }
@@ -194,8 +206,8 @@ const Performance = ({
                         useCuda: useCuda,
                         useCoreML: useCoreML,
                         // 包含硬件可用性信息
-                        'cuda available': hardwareAvailability['cuda available'],
-                        'coreML available': hardwareAvailability['coreML available']
+                        'cudaAvailable': hardwareAvailability['cudaAvailable'],
+                        'coreMLAvailable': hardwareAvailability['coreMLAvailable']
                     }
                 };
 
@@ -248,151 +260,88 @@ const Performance = ({
                 trackColorToggled: '#00ffff',
             },
         },
-    };
-
-    return (
+    };    return (
         <div className="performance-settings-container">
+            {/* 线程配置 */}
+            <div className="settings-group-title">线程配置</div>
+            
             {/* 最大线程数设置 */}
-            <div className="performance-section">
-                <div className="performance-settings-explanation">
-                    <h4>线程配置</h4>
-                    <p>设置ONNX运行时的最大线程数</p>
-                </div>
-                <div className="performance-demo-container">
-                    <div className="performance-setting-display">
-                        <div className="performance-setting-label">
-                            <span>最大线程数：</span>
-                        </div>
-                        <div className="performance-setting-input-wrapper">
-                            <ConfigProvider theme={darkTheme}>
-                                <Input
-                                    type="number"
-                                    value={maxThreads}
-                                    onChange={handleMaxThreadsChange}
-                                    min={0}
-                                    placeholder="0表示使用最大可用线程数"
-                                    className="performance-setting-input"
-                                    suffix="线程"
-                                />
-                            </ConfigProvider>
-                        </div>
+            <div className="setting-item">
+                <div className="setting-content">
+                    <div className="setting-info">
+                        <div className="setting-title">最大线程数</div>
+                        <div className="setting-description">设置ONNX运行时的最大线程数，0表示使用最大可用线程数</div>
                     </div>
-                    <div className="performance-setting-hint">
-                        <span>0 表示使用最大可用线程数，建议设置为 0 或 CPU 核心数</span>
+                    <div className="setting-control">
+                        <ConfigProvider theme={darkTheme}>
+                            <Input
+                                type="number"
+                                value={maxThreads}
+                                onChange={handleMaxThreadsChange}
+                                min={0}
+                                placeholder="线程数"
+                                className="compact-input"
+                                suffix="线程"
+                            />
+                        </ConfigProvider>
                     </div>
                 </div>
             </div>
 
-            {/* 分隔线 */}
-            <div className="section-divider"></div>
-
+            {/* 硬件加速 */}
+            <div className="settings-group-title">硬件加速</div>
+            {hardwareLoading && <div className="settings-group-description">正在检测硬件...</div>}
+            
             {/* CUDA设置 */}
-            <div className="performance-section">
-                <div className="performance-settings-explanation">
-                    <h4>CUDA 加速</h4>
-                    <p>使用NVIDIA GPU进行计算加速</p>
-                    {hardwareLoading && <p style={{ color: '#999999', fontSize: '12px' }}>正在检测硬件...</p>}
-                </div>
-                <div className="performance-demo-container">
-                    <div className="performance-setting-display">
-                        <div className="performance-setting-label">
-                            <span>启用 CUDA：</span>
-                        </div>
-                        <div className="performance-setting-switch-wrapper">
-                            <ConfigProvider theme={darkTheme}>
-                                <Switch
-                                    checked={useCuda}
-                                    onChange={handleCudaChange}
-                                    disabled={!hardwareAvailability['cuda available'] || hardwareLoading}
-                                    className="performance-setting-switch"
-                                    loading={hardwareLoading}
-                                />
-                            </ConfigProvider>
-                            <span className="performance-availability-status">
-                                {hardwareLoading ? '检测中...' :
-                                    hardwareAvailability['cuda available'] ? '可用' : '不可用'}
-                            </span>
-                        </div>
+            <div className="setting-item">
+                <div className="setting-content">
+                    <div className="setting-info">
+                        <div className="setting-title">CUDA 加速</div>
+                        <div className="setting-description">使用NVIDIA GPU进行计算加速，需要CUDA驱动支持</div>
                     </div>
-                    <div className="performance-setting-hint">
-                        <span>需要NVIDIA GPU和CUDA驱动支持，启用后可显著提升计算性能</span>
+                    <div className="setting-control">
+                        <ConfigProvider theme={darkTheme}>
+                            <Switch
+                                checked={useCuda}
+                                onChange={handleCudaChange}
+                                disabled={!hardwareAvailability['cudaAvailable'] || hardwareLoading}
+                                className="performance-setting-switch"
+                                loading={hardwareLoading}
+                            />
+                        </ConfigProvider>
+                        <span className="performance-availability-status">
+                            {hardwareLoading ? '检测中...' :
+                                hardwareAvailability['cudaAvailable'] ? '可用' : '不可用'}
+                        </span>
                     </div>
                 </div>
             </div>
 
             {/* 分隔线 */}
-            <div className="section-divider"></div>
-
-            {/* CoreML设置 */}
-            <div className="performance-section">
-                <div className="performance-settings-explanation">
-                    <h4>CoreML 加速</h4>
-                    <p>使用Apple CoreML进行计算加速</p>
-                    {hardwareLoading && <p style={{ color: '#999999', fontSize: '12px' }}>正在检测硬件...</p>}
-                </div>
-                <div className="performance-demo-container">
-                    <div className="performance-setting-display">
-                        <div className="performance-setting-label">
-                            <span>启用 CoreML：</span>
-                        </div>
-                        <div className="performance-setting-switch-wrapper">
-                            <ConfigProvider theme={darkTheme}>
-                                <Switch
-                                    checked={useCoreML}
-                                    onChange={handleCoreMlChange}
-                                    disabled={!hardwareAvailability['coreML available'] || hardwareLoading}
-                                    className="performance-setting-switch"
-                                    loading={hardwareLoading}
-                                />
-                            </ConfigProvider>
-                            <span className="performance-availability-status">
-                                {hardwareLoading ? '检测中...' :
-                                    hardwareAvailability['coreML available'] ? '可用' : '不可用'}
-                            </span>
-                        </div>
+            <div className="section-divider"></div>            {/* CoreML设置 */}
+            <div className="setting-item">
+                <div className="setting-content">
+                    <div className="setting-info">
+                        <div className="setting-title">CoreML 加速</div>
+                        <div className="setting-description">使用Apple CoreML进行计算加速，仅在macOS系统上可用</div>
                     </div>
-                    <div className="performance-setting-hint">
-                        <span>仅在macOS系统上可用，启用后可利用Apple Neural Engine加速</span>
+                    <div className="setting-control">
+                        <ConfigProvider theme={darkTheme}>
+                            <Switch
+                                checked={useCoreML}
+                                onChange={handleCoreMlChange}
+                                disabled={!hardwareAvailability['coreMLAvailable'] || hardwareLoading}
+                                className="performance-setting-switch"
+                                loading={hardwareLoading}
+                            />
+                        </ConfigProvider>
+                        <span className="performance-availability-status">
+                            {hardwareLoading ? '检测中...' :
+                                hardwareAvailability['coreMLAvailable'] ? '可用' : '不可用'}
+                        </span>
                     </div>
                 </div>
-            </div>
-
-            {/* 分隔线 */}
-            <div className="section-divider"></div>
-
-            {/* 保存按钮和硬件刷新 */}
-            <div className="performance-controls-container">
-                <div className="performance-action-buttons">
-                    {/* <ConfigProvider theme={darkTheme}>
-                        <Button
-                            type="default"
-                            onClick={handleRefreshHardware}
-                            loading={hardwareLoading}
-                            size="small"
-                            className="refresh-hardware-button"
-                            title="重新检测硬件"
-                        >
-                            {hardwareLoading ? '检测中...' : '刷新硬件'}
-                        </Button>
-                    </ConfigProvider> */}
-                </div>
-                <div className="performance-save-button-container">
-                    <ConfigProvider theme={darkTheme}>
-                        <Button
-                            type="primary"
-                            icon={<CheckOutlined />}
-                            onClick={handleSaveAllSettings}
-                            loading={isSaving}
-                            size="small"
-                            className="save-settings-button"
-                            title="保存设置"
-                        >
-                            保存设置
-                        </Button>
-                    </ConfigProvider>
-                </div>
-            </div>
-        </div>
+            </div>        </div>
     );
 };
 

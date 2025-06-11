@@ -19,14 +19,15 @@
 }
 
 .compact-modal .ant-modal-close {
-    color: #cccccc !important;
+    color: #ffffff !important;
+    background: transparent !important;
     top: 12px !important;
     /* 调整关闭按钮位置 */
 }
 
 .compact-modal .ant-modal-close:hover {
     color: #ffffff !important;
-    background-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .compact-modal .ant-modal-body {

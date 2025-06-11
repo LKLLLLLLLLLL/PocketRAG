@@ -815,9 +815,9 @@ settings.json如下：
     },
     "performance": {
         "maxThreads" : 0, // max threads for onnxruntime, 0 means max available threads
-        "cuda available" : true, // this is not a setting, just indicate whether cuda choice can be selected
+        "cudaAvailable" : true, // this is not a setting, just indicate whether cuda choice can be selected
         "useCuda" : false, // whether to use cuda, if available
-        "coreML available" : true, 
+        "coreMLAvailable" : true, 
         "useCoreML" : false
     }
 }
