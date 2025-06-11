@@ -124,7 +124,7 @@ export default function MainWindowContents() {
                 } catch (err) {
                     console.error(`Failed to read conversation ${conversationId}:`, err);
                     conversations.push({
-                        conversationId: conversationId,
+                        conversationId:  conversationId,
                         topic: `新对话 ${conversationId}`,
                         lastTime: typeof conversationId === 'number' ? conversationId : Date.now()
                     });
@@ -137,6 +137,48 @@ export default function MainWindowContents() {
             console.error('Failed to load conversation list:', err);
             setConversationList([]);
         }
+    }, []);
+
+    // 添加对话相关的处理函数
+    const onSelectConversation = useCallback(async (conversationId) => {
+        try {
+            setSelectedConversationId(conversationId);
+            
+            // 从 conversations map 中获取对话文件路径
+            const conversationPath = window.conversations.get(conversationId);
+            if (!conversationPath) {
+                console.error('Conversation not found:', conversationId);
+                return;
+            }
+
+            // 读取对话历史
+            const historyData = await window.electronAPI.getFile(conversationPath);
+            const conversationData = JSON.parse(historyData);
+            
+            setHistory(conversationData.history || []);
+            setCurrentConversationTopic(conversationData.topic || `对话 ${conversationId}`);
+            
+            // 如果有保存的模型，设置选中的模型
+            if (conversationData.model) {
+                setSelectedModel(conversationData.model);
+            }
+            
+        } catch (err) {
+            console.error('Failed to load conversation:', err);
+            message.error('加载对话失败');
+        }
+    }, []);
+
+    const onNewConversation = useCallback(() => {
+        setSelectedConversationId(null);
+        setHistory([]);
+        setCurrentConversationTopic('新对话');
+        setStreaming([]);
+        streamingRef.current = [];
+    }, []);
+
+    const onModelSelect = useCallback((modelName) => {
+        setSelectedModel(modelName);
     }, []);
 
     // 在 useEffect 中修改事件处理，支持进度值
@@ -186,8 +228,12 @@ export default function MainWindowContents() {
         const handleDone = (e) => {
             console.log('对话完成:', e.detail);
 
+            // 从当前待处理的历史记录中获取查询文本
+            const pendingItem = history.find(item => item.pending);
+            const queryText = pendingItem ? pendingItem.query : '';
+
             // 解析流式数据
-            const finalHistory = parseStreamingToHistory(inputQuestionValue, streamingRef.current);
+            const finalHistory = parseStreamingToHistory(queryText, streamingRef.current);
 
             // 更新历史记录
             setHistory(prev => {
@@ -225,7 +271,7 @@ export default function MainWindowContents() {
             window.removeEventListener('conversationDoneRetrieval', handleDoneRetrieval);
             window.removeEventListener('conversationDone', handleDone);
         };
-    }, [inputQuestionValue]);
+    }, [history]); // 更新依赖项为 history，因为 handleDone 现在依赖于 history 状态
 
     //information related
     const handleInfoClick = async () => {
@@ -696,6 +742,9 @@ export default function MainWindowContents() {
             return;
         }
 
+        // 保存当前的问题文本，避免提前清空影响后续处理
+        const currentQuestion = inputQuestionValue;
+
         setConvLoading(true);
         setStopped(false);
         setStreaming([]);
@@ -706,7 +755,7 @@ export default function MainWindowContents() {
 
         // 添加待处理的对话项
         const newHistoryItem = {
-            query: inputQuestionValue,
+            query: currentQuestion,
             retrieval: [],
             answer: '',
             time: Date.now(),
@@ -714,11 +763,14 @@ export default function MainWindowContents() {
         };
         setHistory(prev => [...prev, newHistoryItem]);
 
+        // 清空输入框，但在创建 newHistoryItem 之后
+        setInputQuestionValue('');
+
         try {
             // 调用 beginConversation，如果没有ID会自动创建
             const returnedId = await window.beginConversation(
                 selectedModel,
-                inputQuestionValue,
+                currentQuestion, // 使用保存的问题文本
                 conversationId
             );
 
@@ -732,8 +784,6 @@ export default function MainWindowContents() {
             console.error('Failed to start conversation:', err);
             setConvLoading(false);
         }
-
-        setInputQuestionValue('');
     };
 
     //stop conversation

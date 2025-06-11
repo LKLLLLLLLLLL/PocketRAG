@@ -31,32 +31,34 @@ body,
     min-width: 500px;
     justify-content: center;
     align-items: center;
-    overflow: auto;
+    overflow: auto; /* 恢复为auto，让滚动条在这一层 */
     -webkit-app-region: no-drag;
+    /* 确保滚动条在最右侧 */
+    position: relative;
 }
 
 .maindemo-content {
     width: 820px;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    flex: 1;
-    overflow: hidden;
+    min-height: 0; /* 恢复为0 */
+    flex: 1; /* 恢复为flex: 1 */
+    overflow: hidden; /* 恢复为hidden，保持Panel正常工作 */
 }
 
 /* ====== 2. 面板布局 ====== */
 .conversation-panelgroup {
-    flex: 1;
-    overflow: hidden;
+    flex: 1; /* 恢复为 flex: 1 */
+    overflow: hidden; /* 恢复为 hidden */
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: 0; /* 恢复为 0 */
 }
 
 .conversation-panel_1 {
     display: flex;
-    flex: 1;
-    min-height: 0;
+    flex: 1; /* 恢复为 flex: 1 */
+    min-height: 0; /* 恢复为 0 */
     flex-direction: column;
 }
 
@@ -84,8 +86,9 @@ body,
 
 .conversation-container {
     background-color: #222222;
-    flex: 1;
+    flex: 1; /* 恢复flex: 1 */
     display: flex;
+    flex-direction: column; /* 确保垂直布局 */
 }
 
 /* ====== 3. 顶部工具栏与标签栏 - 关键修复 ====== */

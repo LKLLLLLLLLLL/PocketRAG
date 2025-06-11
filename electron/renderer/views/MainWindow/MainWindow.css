@@ -3,6 +3,30 @@
     padding: 0;
     text-decoration: none;
     list-style: none;
+    /* user-select: none; 移除全局禁止选择，允许对话内容被选中 */
+}
+
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
+    width: 8px;
+    background: #333333;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #555555;
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #666666;
+}
+
+::-webkit-scrollbar-corner {
+    background: #333333;
+}
+
+/* 对特定UI控制元素禁止选择 */
+button, .ant-btn, .ant-select, .ant-dropdown {
     user-select: none;
 }
 .main-window-container{
