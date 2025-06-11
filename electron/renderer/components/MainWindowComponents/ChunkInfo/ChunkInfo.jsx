@@ -148,17 +148,99 @@ const ChunkInfo = ({ className }) => {
         </div>
     );
 
-    // 渲染分块内容 - 保持左对齐，默认显示三行
+    // 渲染分块内容 - 保持左对齐，默认显示三行，展开按钮在第三行末尾
     const renderContent = (text, recordKey) => {
         const key = `content-${recordKey}`;
         const isExpanded = expandedRows.has(key);
 
-        // 估算三行能容纳的字符数（根据容器宽度400px，每行大约50-60个中文字符）
-        const estimatedThreeLineChars = 150;
+        // 降低字符数阈值，让更多内容显示展开按钮
+        // 考虑到行宽、字符宽度等因素，设置一个较低的阈值
+        const estimatedThreeLineChars = 80; // 降低阈值，约2-3行的内容
 
         // 判断是否需要展开/收起按钮
         const shouldShowExpand = text && text.length > estimatedThreeLineChars;
 
+        if (isExpanded) {
+            // 展开状态 - 显示全部内容，收起按钮在末尾
+            return (
+                <div
+                    style={{
+                        color: '#cccccc',
+                        lineHeight: '1.4',
+                        fontSize: '13px',
+                        fontFamily: "'Microsoft YaHei', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                        textAlign: 'left',
+                        wordBreak: 'break-word',
+                        padding: '4px 0',
+                        minHeight: '32px',
+                        width: '100%'
+                    }}
+                >
+                    {text || '无内容'}{' '}
+                    <a
+                        onClick={() => handleExpand(key, false)}
+                        style={{
+                            color: '#00b0b0',
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            fontSize: '12px'
+                        }}
+                    >
+                        收起
+                    </a>
+                </div>
+            );
+        }
+
+        if (shouldShowExpand) {
+            // 需要截断 - 使用CSS来控制行数，同时在文本末尾添加展开按钮
+            return (
+                <div
+                    style={{
+                        color: '#cccccc',
+                        lineHeight: '1.4',
+                        fontSize: '13px',
+                        fontFamily: "'Microsoft YaHei', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                        textAlign: 'left',
+                        wordBreak: 'break-word',
+                        padding: '4px 0',
+                        minHeight: '32px',
+                        width: '100%',
+                        position: 'relative'
+                    }}
+                >
+                    <div
+                        style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            paddingRight: '40px' // 为展开按钮预留空间
+                        }}
+                    >
+                        {text || '无内容'}
+                    </div>
+                    <a
+                        onClick={() => handleExpand(key, true)}
+                        style={{
+                            color: '#00b0b0',
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            fontSize: '12px',
+                            position: 'absolute',
+                            bottom: '4px',
+                            right: '0px',
+                            backgroundColor: '#222',
+                            paddingLeft: '4px'
+                        }}
+                    >
+                        展开
+                    </a>
+                </div>
+            );
+        }
+
+        // 内容不需要截断 - 直接显示
         return (
             <div
                 style={{
@@ -173,34 +255,7 @@ const ChunkInfo = ({ className }) => {
                     width: '100%'
                 }}
             >
-                <div
-                    style={{
-                        // 使用CSS来限制显示行数
-                        display: isExpanded ? 'block' : '-webkit-box',
-                        WebkitLineClamp: isExpanded ? 'unset' : 3,
-                        WebkitBoxOrient: isExpanded ? 'unset' : 'vertical',
-                        overflow: isExpanded ? 'visible' : 'hidden',
-                        textOverflow: isExpanded ? 'unset' : 'ellipsis'
-                    }}
-                >
-                    {text || '无内容'}
-                </div>
-
-                {shouldShowExpand && (
-                    <div style={{ marginTop: '4px' }}>
-                        <a
-                            onClick={() => handleExpand(key, !isExpanded)}
-                            style={{
-                                color: '#00b0b0',
-                                cursor: 'pointer',
-                                textDecoration: 'none',
-                                fontSize: '12px'
-                            }}
-                        >
-                            {isExpanded ? '收起' : '展开'}
-                        </a>
-                    </div>
-                )}
+                {text || '无内容'}
             </div>
         );
     };
@@ -251,11 +306,11 @@ const ChunkInfo = ({ className }) => {
                 <div>
                     {isExpanded ? metadataStr : truncateText(metadataStr, 100)}
                     {shouldShowExpand && (
-                        <span>
+                        <span style={{ background: 'none' }}>
                             {' '}
                             <a
                                 onClick={() => handleExpand(key, !isExpanded)}
-                                style={{ color: '#00b0b0', cursor: 'pointer', textDecoration: 'none' }}
+                                style={{ color: '#00b0b0', cursor: 'pointer', textDecoration: 'none'}}
                             >
                                 {isExpanded ? '收起' : '展开'}
                             </a>
@@ -372,20 +427,20 @@ const ChunkInfo = ({ className }) => {
                             backgroundColor: "#222" 
                         }}>
                         <div
-                            className="custom-table-container"
+                            className="custom-table0-container"
                             style={{
                                 height: '100%',
                                 overflow: 'auto', // 确保滚动
                                 border: '1px solid #555555'
                             }}
                         >
-                            <table className="custom-table">
+                            <table className="custom-table0">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: '120px', position: 'sticky', left: 0, zIndex: 10 }}>分块ID</th>
-                                        <th style={{ width: '250px' }}>文件路径</th>
-                                        <th style={{ width: '100px' }}>行号范围</th>
-                                        <th style={{ width: '120px' }}>嵌入模型</th>
+                                        <th style={{ width: '80px', position: 'sticky', left: 0, zIndex: 10 }}>分块ID</th>
+                                        <th style={{ width: '100px' }}>文件路径</th>
+                                        <th style={{ width: '80px' }}>行号范围</th>
+                                        <th style={{ width: '100px' }}>嵌入模型</th>
                                         <th style={{ width: '400px' }}>分块内容</th>
                                         <th style={{ width: '200px' }}>元数据</th>
                                     </tr>

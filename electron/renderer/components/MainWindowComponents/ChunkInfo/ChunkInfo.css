@@ -6,7 +6,7 @@
 }
 
 /* 自定义表格容器 - 去掉所有边框 */
-.custom-table-container {
+.custom-table0-container {
     height: 100%;
     overflow: auto !important;
     /* 移除所有边框 */
@@ -16,7 +16,7 @@
 }
 
 /* 自定义表格样式 */
-.custom-table {
+.custom-table0 {
     width: 1290px;
     min-width: 100%;
     border-collapse: separate;
@@ -25,19 +25,19 @@
     font-family: 'Microsoft YaHei', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.custom-table thead{
+.custom-table0 thead{
     border-bottom: 1px solid #555555 !important;
     box-sizing: border-box;
 }
 
-.custom-table thead th:nth-child(odd),
-.custom-table thead th:nth-child(even){
+.custom-table0 thead th:nth-child(odd),
+.custom-table0 thead th:nth-child(even){
     border-bottom: 1px solid #555555 !important;
     box-sizing: border-box;
 }
 
 /* 表头样式 - 只保留底边框 */
-.custom-table thead th {
+.custom-table0 thead th {
     background-color: #222;
     color: #e0e0e0;
     text-align: center;
@@ -55,7 +55,7 @@
 }
 
 /* 表头第一列固定 */
-.custom-table thead th:first-child {
+.custom-table0 thead th:first-child {
     position: sticky;
     left: 0;
     z-index: 11;
@@ -63,7 +63,7 @@
 }
 
 /* 表格内容样式 */
-.custom-table tbody td {
+.custom-table0 tbody td {
     background-color: #222;
     color: #cccccc;
     padding: 8px 12px;
@@ -77,27 +77,27 @@
 }
 
 /* 只为最后一行添加底边框 */
-.custom-table tbody tr:last-child td {
+.custom-table0 tbody tr:last-child td {
     border-bottom: 1px solid #555555;
 }
 
 /* 表格内容对齐 - 除了分块内容，其他都居中 */
-.custom-table tbody td:nth-child(1), /* 分块ID */
-.custom-table tbody td:nth-child(2), /* 文件路径 */
-.custom-table tbody td:nth-child(3), /* 行号范围 */
-.custom-table tbody td:nth-child(4), /* 嵌入模型 */
-.custom-table tbody td:nth-child(6) /* 元数据 */ {
+.custom-table0 tbody td:nth-child(1), /* 分块ID */
+.custom-table0 tbody td:nth-child(2), /* 文件路径 */
+.custom-table0 tbody td:nth-child(3), /* 行号范围 */
+.custom-table0 tbody td:nth-child(4), /* 嵌入模型 */
+.custom-table0 tbody td:nth-child(6) /* 元数据 */ {
     text-align: center;
     vertical-align: middle;
 }
 
-.custom-table tbody td:nth-child(5) { /* 分块内容 - 保持左对齐 */
+.custom-table0 tbody td:nth-child(5) { /* 分块内容 - 保持左对齐 */
     text-align: left;
     vertical-align: top;
 }
 
 /* 固定列样式 */
-.custom-table tbody td:first-child {
+.custom-table0 tbody td:first-child {
     position: sticky;
     left: 0;
     background-color: #222;
@@ -105,11 +105,11 @@
 }
 
 /* hover效果 */
-.custom-table tbody tr:hover td {
+.custom-table0 tbody tr:hover td {
     background-color: #333;
 }
 
-.custom-table tbody tr:hover td:first-child {
+.custom-table0 tbody tr:hover td:first-child {
     background-color: #333;
 }
 
@@ -139,32 +139,32 @@
 }
 
 /* 确保表格容器的滚动条也使用全局样式 */
-.custom-table-container::-webkit-scrollbar {
+.custom-table0-container::-webkit-scrollbar {
     width: 8px;
     height: 8px;
     background: #333333;
 }
 
-.custom-table-container::-webkit-scrollbar-thumb {
+.custom-table0-container::-webkit-scrollbar-thumb {
     background: #555555;
     border-radius: 6px; /* 滚动条保留圆角 */
 }
 
-.custom-table-container::-webkit-scrollbar-thumb:hover {
+.custom-table0-container::-webkit-scrollbar-thumb:hover {
     background: #666666;
 }
 
-.custom-table-container::-webkit-scrollbar-track {
+.custom-table0-container::-webkit-scrollbar-track {
     background: #333333;
     border-radius: 6px; /* 滚动条轨道保留圆角 */
 }
 
-.custom-table-container::-webkit-scrollbar-corner {
+.custom-table0-container::-webkit-scrollbar-corner {
     background: #333333;
 }
 
 /* 确保代码块样式 - 去掉圆角 */
-.custom-table code {
+.custom-table0 code {
     background-color: rgba(255, 255, 255, 0.1);
     padding: 2px 4px;
     border-radius: 0; /* 去掉圆角 */
@@ -173,30 +173,30 @@
 }
 
 /* 链接样式 */
-.custom-table a {
+.custom-table0 a {
     color: #00b0b0;
     text-decoration: none;
     cursor: pointer;
 }
 
-.custom-table a:hover {
+.custom-table0 a:hover {
     color: #00d4d4;
     text-decoration: underline;
 }
 
 /* 统一背景色 - 所有列相同 */
-.custom-table tbody td:nth-child(odd),
-.custom-table tbody td:nth-child(even) {
+.custom-table0 tbody td:nth-child(odd),
+.custom-table0 tbody td:nth-child(even) {
     background-color: #222;
 }
 
-.custom-table tbody tr:hover td:nth-child(odd),
-.custom-table tbody tr:hover td:nth-child(even) {
+.custom-table0 tbody tr:hover td:nth-child(odd),
+.custom-table0 tbody tr:hover td:nth-child(even) {
     background-color: #333;
 }
 
 /* 表头也保持统一背景色 */
-.custom-table thead th:nth-child(odd),
-.custom-table thead th:nth-child(even) {
+.custom-table0 thead th:nth-child(odd),
+.custom-table0 thead th:nth-child(even) {
     background-color: #222;
 }
