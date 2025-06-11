@@ -1,81 +1,59 @@
 /* 引入共享样式 */
 @import '../shared-styles.css';
 
+.about-wrapper {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    background-color: #1a1a1a;
+}
+
 .about-container {
     display: flex;
     flex: 1;
-    height: 100%;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    color: #a0a0a0;
-    padding: 40px 0;
-    background: transparent;
+    color: #ffffff;
+    padding: 40px;
     text-align: center;
+    min-height: 100vh;
+    transform: translateY(-80px);
 }
 
-/* 关于页面标题样式 */
 .about-title {
-    font-size: 24px;
-    font-weight: 700;
-    color: #f5f5f5;
-    margin-bottom: 8px;
-    letter-spacing: 0.5px;
-}
-
-.about-subtitle {
-    font-size: 14px;
-    color: #00cccc;
-    margin-bottom: 32px;
-    font-weight: 500;
+    font-size: 32px;
+    font-weight: 600;
+    margin: 0 0 20px 0;
+    color: #ffffff;
 }
 
 .about-version {
-    font-size: 13px;
-    color: #d0d0d0;
-    margin-bottom: 16px;
-    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 16px;
+    color: #cccccc;
+    margin-bottom: 40px;
 }
 
-.about-description {
-    font-size: 12px;
-    color: #a0a0a0;
-    line-height: 1.6;
-    margin-bottom: 24px;
-}
-
-.about-links {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.about-link {
-    padding: 8px 16px;
-    background: rgba(0, 144, 144, 0.1);
-    border: 1px solid rgba(0, 144, 144, 0.3);
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background-color: #00cccc;
+    color: white;
+    border: none;
     border-radius: 6px;
-    color: #00cccc;
-    text-decoration: none;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+    text-decoration: none;
 }
 
-.about-link:hover {
-    background: rgba(0, 144, 144, 0.2);
-    border-color: rgba(0, 144, 144, 0.5);
-    color: #fff;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 144, 144, 0.3);
+.github-link:hover {
+    background-color: #009999;
 }
- a:link{
-    color: grey;
- }
- a:visited{
-    color: darkgrey;
- }
- a:active{
-    color: rgb(45, 45, 45);
- }
+
+.github-link svg {
+    flex-shrink: 0;
+}

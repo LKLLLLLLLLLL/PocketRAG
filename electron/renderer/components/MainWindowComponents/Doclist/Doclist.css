@@ -299,9 +299,18 @@
     flex-direction: column;
     height: calc(100% - 40px);
     /* 减去顶部容器高度 */
-    overflow: hidden;
+    overflow: auto;
     width: 100%;
     /* 确保宽度限制 */
+}
+
+/* 文件树容器 - 确保可滚动 */
+.file-tree-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    width: 100%;
 }
 
 /* 嵌入进度部分 */

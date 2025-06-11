@@ -235,13 +235,15 @@ const Doclist = ({
                 <MenuOutlined style={{ fontSize: "16px" }} />
             </div>
             <div className="doclist_main-container">
-                <RepoFileTree
-                    setSelectNode={setSelectNode}
-                    treeData={treeData}
-                    selectedKeys={selectedKeys}
-                    setSelectedKeys={setSelectedKeys}
-                    renderEmbeddingProgress={renderEmbeddingProgress}
-                />
+                <div className="file-tree-container">
+                    <RepoFileTree
+                        setSelectNode={setSelectNode}
+                        treeData={treeData}
+                        selectedKeys={selectedKeys}
+                        setSelectedKeys={setSelectedKeys}
+                        renderEmbeddingProgress={renderEmbeddingProgress}
+                    />
+                </div>
                 {children}
             </div>
         </div>

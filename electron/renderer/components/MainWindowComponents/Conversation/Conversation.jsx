@@ -186,9 +186,16 @@ const Conversation = ({
                                                                 </div>
                                                             )}
                                                             {retr.result.length > 0 && (
-                                                                <div className="conversation-result-list">
-                                                                    {retr.result.map((res, j) => (
-                                                                        <div key={`result-${i}-${j}`} className="result0-item">
+                                                                <div className="conversation-result-list">                                                                    {retr.result.map((res, j) => (
+                                                                        <div 
+                                                                            key={`result-${i}-${j}`} 
+                                                                            className="result0-item"
+                                                                            onDoubleClick={() => {
+                                                                                if (jumpToFile && res.filePath) {
+                                                                                    jumpToFile(res.filePath, res.beginLine, res.endLine);
+                                                                                }
+                                                                            }}
+                                                                        >
                                                                             <div className="result0-item-container">
                                                                                 <div className="chunkcontent-container">
                                                                                     <div className="chunkcontent-content">
@@ -252,9 +259,16 @@ const Conversation = ({
                                                             )}
                                                             {/* FIX: Ensure retr.result is an array before mapping */}
                                                             {retr.result && retr.result.length > 0 && (
-                                                            <ul className="conversation-result-list">
-                                                                {retr.result.map((res, j) => (
-                                                                    <li key={`result-${i}-${j}`} className="result0-item">
+                                                            <ul className="conversation-result-list">                                                                {retr.result.map((res, j) => (
+                                                                    <li 
+                                                                        key={`result-${i}-${j}`} 
+                                                                        className="result0-item"
+                                                                        onDoubleClick={() => {
+                                                                            if (jumpToFile && res.filePath) {
+                                                                                jumpToFile(res.filePath, res.beginLine, res.endLine);
+                                                                            }
+                                                                        }}
+                                                                    >
                                                                         <div className="result0-item-container">
                                                                             <div className="chunkcontent-container">
                                                                                 <div className="chunkcontent-content">

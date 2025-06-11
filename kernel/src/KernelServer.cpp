@@ -317,6 +317,23 @@ void KernelServer::handleMessage(nlohmann::json &json, std::shared_ptr<Utils::Ti
         else if(type == "updateSettings")
         {
             updateSettings();
+            for(auto& session : sessions)
+            {
+                auto sessionId = session.first;
+                nlohmann::json msgJson;
+                msgJson["message"]["type"] = "config";
+                msgJson["sessionId"] = sessionId;
+                msgJson["toMain"] = false;
+                msgJson["isReply"] = false;
+                msgJson["callbackId"] = 0;
+                session.second->sendMessage(
+                    std::make_shared<Utils::MessageQueue::Message>(
+                        session.first,
+                        std::move(msgJson),
+                        nullptr 
+                    )
+                );
+            }
             json["status"]["code"] = "SUCCESS";
             json["status"]["message"] = "";
         }
