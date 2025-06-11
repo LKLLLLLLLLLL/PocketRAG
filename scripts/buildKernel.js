@@ -213,7 +213,7 @@ async function main() {
         await installDependency('ONNX Runtime', getOnnxRuntimeInfo, onnxruntimeDir);
         await installDependency('CUDNN', getCudnnInfo, cudnnDir);
 
-        console.log('[INFO] Cleaning bin directory...');
+        console.log('[INFO] Cleaning bin and build directory...');
         removeDirectory(binDir);
         removeDirectory(buildDir);
         fs.mkdirSync(binDir, { recursive: true });

@@ -768,9 +768,188 @@ button,
     background-color: #555 !important;
 }
 
-.send-button:disabled {
-    background: #333 !important;
-    color: #666 !important;
-    cursor: not-allowed !important;
+/* ========== Markdown渲染美化样式 ========== */
 
+/* 改善对话气泡中Markdown内容的渲染 */
+.chat-bubble-answer p {
+    line-height: 1.8 !important;
+    margin-bottom: 12px !important;
+    margin-top: 8px !important;
+}
+
+.chat-bubble-answer p:first-child {
+    margin-top: 0 !important;
+}
+
+.chat-bubble-answer p:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* 标题样式 */
+.chat-bubble-answer h1,
+.chat-bubble-answer h2,
+.chat-bubble-answer h3,
+.chat-bubble-answer h4,
+.chat-bubble-answer h5,
+.chat-bubble-answer h6 {
+    line-height: 1.6 !important;
+    margin-top: 16px !important;
+    margin-bottom: 12px !important;
+    color: #ffffff !important;
+}
+
+.chat-bubble-answer h1:first-child,
+.chat-bubble-answer h2:first-child,
+.chat-bubble-answer h3:first-child,
+.chat-bubble-answer h4:first-child,
+.chat-bubble-answer h5:first-child,
+.chat-bubble-answer h6:first-child {
+    margin-top: 0 !important;
+}
+
+/* 分割线样式 - 改为灰色 */
+.chat-bubble-answer hr {
+    border: none !important;
+    height: 1px !important;
+    background-color: #666666 !important;
+    margin: 16px 0 !important;
+    opacity: 0.6 !important;
+}
+
+/* 列表样式 */
+.chat-bubble-answer ul,
+.chat-bubble-answer ol {
+    line-height: 1.8 !important;
+    margin: 12px 0 !important;
+    padding-left: 20px !important;
+}
+
+.chat-bubble-answer li {
+    margin-bottom: 6px !important;
+    line-height: 1.8 !important;
+}
+
+.chat-bubble-answer li:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* 代码块和行内代码样式 */
+.chat-bubble-answer pre {
+    background-color: #1a1a1a !important;
+    border: 1px solid #333333 !important;
+    border-radius: 6px !important;
+    padding: 12px !important;
+    margin: 12px 0 !important;
+    overflow-x: auto !important;
+    line-height: 1.6 !important;
+}
+
+.chat-bubble-answer code {
+    background-color: #1a1a1a !important;
+    color: #e6e6e6 !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    border: 1px solid #333333 !important;
+    font-family: 'JetBrains Mono', 'Fira Mono', 'Consolas', monospace !important;
+    font-size: 14px !important;
+}
+
+.chat-bubble-answer pre code {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+/* 引用块样式 */
+.chat-bubble-answer blockquote {
+    border-left: 4px solid #666666 !important;
+    margin: 12px 0 !important;
+    padding: 8px 0 8px 16px !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 0 6px 6px 0 !important;
+    line-height: 1.8 !important;
+}
+
+.chat-bubble-answer blockquote p {
+    margin: 0 !important;
+    color: #cccccc !important;
+}
+
+/* 表格样式 */
+.chat-bubble-answer table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    margin: 12px 0 !important;
+    border: 1px solid #666666 !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
+}
+
+.chat-bubble-answer th,
+.chat-bubble-answer td {
+    border: 1px solid #666666 !important;
+    padding: 8px 12px !important;
+    text-align: left !important;
+    line-height: 1.6 !important;
+}
+
+.chat-bubble-answer th {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    font-weight: 600 !important;
+}
+
+/* 链接样式 */
+.chat-bubble-answer a {
+    color: #66ccff !important;
+    text-decoration: underline !important;
+}
+
+.chat-bubble-answer a:hover {
+    color: #99ddff !important;
+}
+
+/* 强调文本样式 */
+.chat-bubble-answer strong {
+    font-weight: 600 !important;
+    color: #ffffff !important;
+}
+
+.chat-bubble-answer em {
+    font-style: italic !important;
+    color: #e6e6e6 !important;
+}
+
+/* 改善分块内容的Markdown渲染 */
+.chunkcontent-content p {
+    line-height: 1.7 !important;
+    margin-bottom: 10px !important;
+}
+
+.chunkcontent-content hr {
+    border: none !important;
+    height: 1px !important;
+    background-color: #555555 !important;
+    margin: 12px 0 !important;
+    opacity: 0.7 !important;
+}
+
+.chunkcontent-content h1,
+.chunkcontent-content h2,
+.chunkcontent-content h3,
+.chunkcontent-content h4,
+.chunkcontent-content h5,
+.chunkcontent-content h6 {
+    line-height: 1.5 !important;
+    margin: 12px 0 8px 0 !important;
+}
+
+.chunkcontent-content ul,
+.chunkcontent-content ol {
+    line-height: 1.7 !important;
+    margin: 8px 0 !important;
+    padding-left: 16px !important;
+}
+
+.chunkcontent-content li {
+    margin-bottom: 4px !important;
 }
