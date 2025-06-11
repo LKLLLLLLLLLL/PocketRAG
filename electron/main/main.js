@@ -1248,23 +1248,29 @@ function showMessageBoxSync(event, content) {
 
 
 function generateTree(dir) {
-    const items = fs.readdirSync(dir, { withFileTypes: true }).filter(item => !item.name.startsWith('.'))
-    return items.map((item) => {
-        const fullPath = path.join(dir, item.name)
-        if (item.isDirectory()) {
+  const items = fs.readdirSync(dir, { withFileTypes: true }).filter(item => !item.name.startsWith('.'))
+  return items.map((item) => {
+      const fullPath = path.join(dir, item.name)
+      if (item.isDirectory()) {
+        const children = generateTree(fullPath)
+        if(children.length > 0) {
           return {
             title: item.name,
             key: fullPath,
-            children: generateTree(fullPath)
-          }
-        } else if (item.isFile()) {
+            children: children
+          }          
+        }// filter empty directories
+      } else if (item.isFile()) {
+        const validExt = new Set(['.txt', '.md', '.json', '.xml', '.html', '.css', '.js', '.c', '.cpp', '.h', '.hpp', '.py', '.java', '.cs', '.php']) // filter invalid files
+        if(validExt.has(path.extname(item.name))) {
           return {
             title: item.name,
             key: fullPath,
             isLeaf: true
           }
         }
-      }).filter(Boolean)
+      }
+    }).filter(Boolean)
 }// to generate the tree of files in the repo
 
 
