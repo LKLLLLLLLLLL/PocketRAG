@@ -1318,7 +1318,7 @@ function getConversation(event, repoPath) {
     if(!fs.existsSync(convDir)) return []
     return fs.readdirSync(convDir).filter(name => name.endsWith('.json') && !name.includes('_full')).map(name => {
       const match = name.match(/^conversation-(\d+)\.json$/)
-      return match ? match[1] : null
+      return match ? parseInt(match[1]) : null
     }).filter(Boolean)
   }catch(err) {
     console.error('getConversation failed: ', err)
@@ -1423,6 +1423,11 @@ function getLastUsedGenModel(event) {
 }
 
 
+function pathBasename(event, ...paths) {
+  return path.basename(...paths)
+}
+
+
 app.whenReady().then(async () => {
   ipcMain.handle('createNewWindow', createWindow)
   ipcMain.on('getRepos', getRepos)
@@ -1467,6 +1472,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('sessionNotPrepared', sessionNotPrepared)
   ipcMain.handle('getRepoNameAndPath', getRepoNameAndPath)
   ipcMain.handle('getLastUsedGenModel', getLastUsedGenModel)
+  ipcMain.handle('pathBasename', pathBasename)
   //add the event listeners before the window is created
 
   const defaultSettingsPath = isDev

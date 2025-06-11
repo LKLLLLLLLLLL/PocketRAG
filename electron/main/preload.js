@@ -104,5 +104,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getLastUsedGenModel : () => ipcRenderer.invoke('getLastUsedGenModel'),
 
+  pathBasename : (...paths) => ipcRenderer.invoke('pathBasename', ...paths)
+  //expose path.basename
+
 })
 //expose apis to the renderer process 
