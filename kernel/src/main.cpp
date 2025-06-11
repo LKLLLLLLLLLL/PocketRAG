@@ -5,7 +5,11 @@
 
 // std::filesystem::path dataPath = std::filesystem::path (".") / "userData";
 std::filesystem::path dataPath = std::filesystem::path(std::getenv("POCKETRAG_USERDATA_PATH"));
+#ifdef NDEBUG
+Logger logger(dataPath / "logs", false, Logger::Level::INFO, 20);
+#else
 Logger logger(dataPath / "logs", false, Logger::Level::DEBUG, 20);
+#endif
 
 void crash_handler();
 void server_terminate_handler();
