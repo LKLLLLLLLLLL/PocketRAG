@@ -15,12 +15,6 @@ const About = ({version, onSaveAllSettings}) => {
                     <div className="content version">
                         Version: v{version}
                     </div>
-                    <div className="content author">
-                        Author: LKL XZR WEH
-                    </div>
-                    <div className="content update">
-                        Update: 2025-6-11
-                    </div>
                 </div>
             </div>
             <div className="link-container" style={{display:'flex', justifyContent: 'center', alignItems: 'center', color:"darkgrey"}}>
