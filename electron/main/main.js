@@ -1357,7 +1357,7 @@ async function openDir(event) {
 
 function getVersion(event) {
   try {
-    const versionPath = path.join(__dirname, '..', 'public', 'version.json')
+    const versionPath = isDev ? path.join(__dirname, '..', 'public', 'version.json') : path.join(process.resourcesPath, 'public', 'version.json')
     const data = fs.readFileSync(versionPath, 'utf-8')
     const version = JSON.parse(data)
     return version.version
