@@ -1,88 +1,125 @@
 /* LeftBar.css */
 .leftbar-container {
-    width: 180px;
+    width: 200px;
     height: 100%;
-    background-color: #333333;
-    color: #fff;
+    background: #333333;
+    color: #e8e8e8;
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-right: 1px solid #555555;
 }
 
 .leftbar-header {
-    height: 35px;
+    height: 50px;
     display: flex;
     align-items: center;
-    margin-bottom: auto;
-    color: white;
+    color: #f0f0f0;
     padding: 0 20px;
     box-sizing: border-box;
 }
 
 .leftbar-header h3 {
     margin: 0;
-    font-size: 18px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #f5f5f5;
 }
 
 .leftbar-main {
     flex: 1 1 0%;
-    background-color: #333333;
-    color: #fff;
+    background: transparent;
+    color: #e8e8e8;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
     -webkit-app-region: no-drag;
-    gap: 8px;
-    padding: 0 12px;
+    gap: 1px;
+    padding: 8px 4px;
 }
 
 .set-lb-button {
     width: 100%;
-    margin: 0 auto;
-    height: 44px;
-    font-size: 15px;
-    background-color: #333333;
-    color: #e0e0e0;
+    margin: 0;
+    height: 40px;
+    font-size: 14px;
+    background: transparent;
+    color: #b0b0b0;
     border-radius: 6px;
     border: none;
-    transition: background 0.2s, color 0.2s;
+    transition: background 0.15s ease, color 0.15s ease;
     text-align: left;
     padding: 0 16px;
     display: flex;
     align-items: center;
     outline: none;
+    position: relative;
+    font-weight: 400;
+    cursor: pointer;
 }
 
-/* 选中高亮 */
+/* 选中状态 - 最高优先级 */
 .set-lb-button.selected,
 .set-lb-button.active {
-    background-color: #444444 !important;
-    color: #00b0b0 !important;
+    background: rgba(0, 144, 144, 0.15) !important;
+    color: #00d4d4 !important;
+    font-weight: 500 !important;
+    transition: none !important;
 }
 
-/* 鼠标悬停 */
-.set-lb-button:hover {
-    background-color: #555555;
-    color: #00b0b0;
+.set-lb-button.selected::before,
+.set-lb-button.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background: #00d4d4;
+    border-radius: 0 2px 2px 0;
+}
+
+/* 悬停状态 - 仅在非选中状态下生效 */
+.set-lb-button:hover:not(.selected):not(.active) {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #e0e0e0 !important;
 }
 
 .button-icon {
     margin-right: 12px;
-    font-size: 16px;
-    width: 24px;
+    font-size: 14px;
+    width: 16px;
     display: flex;
     justify-content: center;
+    opacity: 0.8;
 }
 
 .button-label {
     flex: 1;
+    font-weight: inherit;
+}
+
+/* 选中状态下的图标和文字样式 */
+.set-lb-button.selected .button-icon,
+.set-lb-button.active .button-icon {
+    opacity: 1;
+}
+
+.set-lb-button.selected .button-label,
+.set-lb-button.active .button-label {
+    font-weight: 500;
+}
+
+/* 悬停状态下的图标样式 */
+.set-lb-button:hover .button-icon {
+    opacity: 1;
 }
 
 .leftbar-footer {
     padding: 20px;
-    border-top: 1px solid #555555;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .version-info {
@@ -92,9 +129,29 @@
 }
 
 .leftbar-container .ant-btn.ant-btn-icon-only {
-    width: 44px !important;
-    height: 44px !important;
+    width: 36px !important;
+    height: 36px !important;
     min-width: 0 !important;
     min-height: 0 !important;
     padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* 强制覆盖Ant Design Button的所有默认样式 */
+.leftbar-container .ant-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: inherit !important;
+}
+
+.leftbar-container .ant-btn:hover,
+.leftbar-container .ant-btn:focus,
+.leftbar-container .ant-btn:active {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: inherit !important;
 }

@@ -1,3 +1,6 @@
+/* 引入共享样式 */
+@import '../shared-styles.css';
+
 /* ========== 基础容器样式 ========== */
 .conversation-settings-container {
     display: flex;
@@ -5,7 +8,8 @@
     width: 100%;
     height: 100%;
     -webkit-app-region: no-drag;
-    margin-bottom: 30px;
+    overflow-y: auto;
+    background: transparent;
 }
 
 .model-list-container {
@@ -14,89 +18,124 @@
 
 /* ========== 说明文字样式 ========== */
 .conversation-settings-explanation {
-    margin-left: 40px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .conversation-settings-explanation h4 {
-    color: #ffffff;
-    margin-bottom: 8px;
-    font-size: 16px;
-    font-weight: 500;
+    color: #f5f5f5;
+    margin-bottom: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
 }
 
 .conversation-settings-explanation p {
-    color: #696969;
-    /* 改为darkgrey */
+    color: #a0a0a0;
     margin: 0;
     font-size: 12px;
-    /* 从14px减小到12px */
+    line-height: 1.5;
 }
 
 /* ========== 表格容器和样式 ========== */
 .generation-model-table-wrapper {
-    width: 90%;
-    max-width: 90%;
-    margin: auto;
+    width: 100%;
+    margin: 0;
     overflow: hidden;
-    border-radius: 6px;
-    border: 1px solid #555555;
-    display: flex;
-    justify-content: center;
+    border: none;
+    background: transparent;
+    box-shadow: none;
 }
 
-/* 深色表格样式 */
+/* 深色表格样式 - 重新设计为macOS风格 */
 .dark-table {
     width: 100%;
 }
 
 .dark-table .ant-table {
-    background-color: #333333 !important;
-    color: #ffffff !important;
+    background: transparent !important;
+    color: #e8e8e8 !important;
     width: 100%;
+    font-size: 12px !important;
 }
 
-.dark-table .ant-table-thead>tr>th {
-    background-color: #2a2a2a !important;
-    color: #ffffff !important;
-    border-bottom: 1px solid #555555 !important;
-    border-right: 1px solid #555555 !important;
+.dark-table .ant-table-thead > tr > th {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #d0d0d0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     text-align: center !important;
+    font-weight: 600 !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    padding: 10px 12px !important;
 }
 
-.dark-table .ant-table-tbody>tr>td {
-    background-color: #333333 !important;
-    color: #ffffff !important;
-    border-bottom: 1px solid #555555 !important;
-    border-right: 1px solid #555555 !important;
+.dark-table .ant-table-thead > tr > th:last-child {
+    border-right: none !important;
 }
 
-.dark-table .ant-table-tbody>tr:hover>td {
-    background-color: #404040 !important;
+.dark-table .ant-table-tbody > tr > td {
+    background: transparent !important;
+    color: #e0e0e0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+    vertical-align: middle !important;
+}
+
+.dark-table .ant-table-tbody > tr > td:last-child {
+    border-right: none !important;
+}
+
+.dark-table .ant-table-tbody > tr:hover > td {
+    background: rgba(0, 144, 144, 0.08) !important;
+}
+
+.dark-table .ant-table-tbody > tr:last-child > td {
+    border-bottom: none !important;
 }
 
 .dark-table .ant-table-cell {
-    border-right: 1px solid #555555 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
 /* 分页器样式 */
 .dark-table .ant-pagination {
-    color: #ffffff !important;
+    color: #e8e8e8 !important;
     text-align: center;
+    margin-top: 16px !important;
 }
 
 .dark-table .ant-pagination .ant-pagination-item {
-    background-color: #333333 !important;
-    border-color: #555555 !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 4px !important;
 }
 
 .dark-table .ant-pagination .ant-pagination-item a {
-    color: #ffffff !important;
+    color: #e0e0e0 !important;
+    font-size: 12px !important;
 }
 
 .dark-table .ant-pagination .ant-pagination-item:hover {
-    background-color: #404040 !important;
-    border-color: #666666 !important;
+    background: rgba(0, 144, 144, 0.15) !important;
+    border-color: rgba(0, 144, 144, 0.3) !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item:hover a {
+    color: #00cccc !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active {
+    background: linear-gradient(135deg, rgba(0, 144, 144, 0.2), rgba(0, 144, 144, 0.15)) !important;
+    border-color: rgba(0, 144, 144, 0.4) !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active a {
+    color: #00cccc !important;
+    font-weight: 600 !important;
 }
 
 .dark-table .ant-pagination .ant-pagination-item-active {
@@ -257,12 +296,16 @@
 /* ========== 按钮控制区域样式 ========== */
 .model-controls-container,
 .history-controls-container {
-    width: 90%;
-    margin: 16px auto 0;
+    width: 100%;
+    margin: 16px 0 0;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 16px;
+    box-sizing: border-box;
+    /* 确保按钮容器与表格对齐 */
+    padding-right: 0;
+    margin-right: 0;
 }
 
 .model-action-buttons,
@@ -291,9 +334,9 @@
 /* 主要按钮样式 */
 .add-model-button,
 .save-settings-button {
-    background-color: #00ffff !important;
-    border-color: #00ffff !important;
-    color: #000000 !important;
+    background-color: #009090 !important;
+    border-color: #009090 !important;
+    color: #ffffff !important;
     font-weight: 500;
     display: flex;
     align-items: center;
@@ -308,16 +351,16 @@
 
 .add-model-button:hover,
 .save-settings-button:hover {
-    background-color: #33ffff !important;
-    border-color: #33ffff !important;
-    color: #000000 !important;
+    background-color: #007070 !important;
+    border-color: #007070 !important;
+    color: #ffffff !important;
 }
 
 .add-model-button:active,
 .save-settings-button:active {
-    background-color: #00cccc !important;
-    border-color: #00cccc !important;
-    color: #000000 !important;
+    background-color: #005050 !important;
+    border-color: #005050 !important;
+    color: #ffffff !important;
 }
 
 .save-settings-button.ant-btn-loading {

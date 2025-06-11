@@ -248,151 +248,88 @@ const Performance = ({
                 trackColorToggled: '#00ffff',
             },
         },
-    };
-
-    return (
+    };    return (
         <div className="performance-settings-container">
+            {/* 线程配置 */}
+            <div className="settings-group-title">线程配置</div>
+            
             {/* 最大线程数设置 */}
-            <div className="performance-section">
-                <div className="performance-settings-explanation">
-                    <h4>线程配置</h4>
-                    <p>设置ONNX运行时的最大线程数</p>
-                </div>
-                <div className="performance-demo-container">
-                    <div className="performance-setting-display">
-                        <div className="performance-setting-label">
-                            <span>最大线程数：</span>
-                        </div>
-                        <div className="performance-setting-input-wrapper">
-                            <ConfigProvider theme={darkTheme}>
-                                <Input
-                                    type="number"
-                                    value={maxThreads}
-                                    onChange={handleMaxThreadsChange}
-                                    min={0}
-                                    placeholder="0表示使用最大可用线程数"
-                                    className="performance-setting-input"
-                                    suffix="线程"
-                                />
-                            </ConfigProvider>
-                        </div>
+            <div className="setting-item">
+                <div className="setting-content">
+                    <div className="setting-info">
+                        <div className="setting-title">最大线程数</div>
+                        <div className="setting-description">设置ONNX运行时的最大线程数，0表示使用最大可用线程数</div>
                     </div>
-                    <div className="performance-setting-hint">
-                        <span>0 表示使用最大可用线程数，建议设置为 0 或 CPU 核心数</span>
+                    <div className="setting-control">
+                        <ConfigProvider theme={darkTheme}>
+                            <Input
+                                type="number"
+                                value={maxThreads}
+                                onChange={handleMaxThreadsChange}
+                                min={0}
+                                placeholder="线程数"
+                                className="compact-input"
+                                suffix="线程"
+                            />
+                        </ConfigProvider>
                     </div>
                 </div>
             </div>
 
-            {/* 分隔线 */}
-            <div className="section-divider"></div>
-
+            {/* 硬件加速 */}
+            <div className="settings-group-title">硬件加速</div>
+            {hardwareLoading && <div className="settings-group-description">正在检测硬件...</div>}
+            
             {/* CUDA设置 */}
-            <div className="performance-section">
-                <div className="performance-settings-explanation">
-                    <h4>CUDA 加速</h4>
-                    <p>使用NVIDIA GPU进行计算加速</p>
-                    {hardwareLoading && <p style={{ color: '#999999', fontSize: '12px' }}>正在检测硬件...</p>}
-                </div>
-                <div className="performance-demo-container">
-                    <div className="performance-setting-display">
-                        <div className="performance-setting-label">
-                            <span>启用 CUDA：</span>
-                        </div>
-                        <div className="performance-setting-switch-wrapper">
-                            <ConfigProvider theme={darkTheme}>
-                                <Switch
-                                    checked={useCuda}
-                                    onChange={handleCudaChange}
-                                    disabled={!hardwareAvailability['cuda available'] || hardwareLoading}
-                                    className="performance-setting-switch"
-                                    loading={hardwareLoading}
-                                />
-                            </ConfigProvider>
-                            <span className="performance-availability-status">
-                                {hardwareLoading ? '检测中...' :
-                                    hardwareAvailability['cuda available'] ? '可用' : '不可用'}
-                            </span>
-                        </div>
+            <div className="setting-item">
+                <div className="setting-content">
+                    <div className="setting-info">
+                        <div className="setting-title">CUDA 加速</div>
+                        <div className="setting-description">使用NVIDIA GPU进行计算加速，需要CUDA驱动支持</div>
                     </div>
-                    <div className="performance-setting-hint">
-                        <span>需要NVIDIA GPU和CUDA驱动支持，启用后可显著提升计算性能</span>
+                    <div className="setting-control">
+                        <ConfigProvider theme={darkTheme}>
+                            <Switch
+                                checked={useCuda}
+                                onChange={handleCudaChange}
+                                disabled={!hardwareAvailability['cuda available'] || hardwareLoading}
+                                className="performance-setting-switch"
+                                loading={hardwareLoading}
+                            />
+                        </ConfigProvider>
+                        <span className="performance-availability-status">
+                            {hardwareLoading ? '检测中...' :
+                                hardwareAvailability['cuda available'] ? '可用' : '不可用'}
+                        </span>
                     </div>
                 </div>
             </div>
 
             {/* 分隔线 */}
-            <div className="section-divider"></div>
-
-            {/* CoreML设置 */}
-            <div className="performance-section">
-                <div className="performance-settings-explanation">
-                    <h4>CoreML 加速</h4>
-                    <p>使用Apple CoreML进行计算加速</p>
-                    {hardwareLoading && <p style={{ color: '#999999', fontSize: '12px' }}>正在检测硬件...</p>}
-                </div>
-                <div className="performance-demo-container">
-                    <div className="performance-setting-display">
-                        <div className="performance-setting-label">
-                            <span>启用 CoreML：</span>
-                        </div>
-                        <div className="performance-setting-switch-wrapper">
-                            <ConfigProvider theme={darkTheme}>
-                                <Switch
-                                    checked={useCoreML}
-                                    onChange={handleCoreMlChange}
-                                    disabled={!hardwareAvailability['coreML available'] || hardwareLoading}
-                                    className="performance-setting-switch"
-                                    loading={hardwareLoading}
-                                />
-                            </ConfigProvider>
-                            <span className="performance-availability-status">
-                                {hardwareLoading ? '检测中...' :
-                                    hardwareAvailability['coreML available'] ? '可用' : '不可用'}
-                            </span>
-                        </div>
+            <div className="section-divider"></div>            {/* CoreML设置 */}
+            <div className="setting-item">
+                <div className="setting-content">
+                    <div className="setting-info">
+                        <div className="setting-title">CoreML 加速</div>
+                        <div className="setting-description">使用Apple CoreML进行计算加速，仅在macOS系统上可用</div>
                     </div>
-                    <div className="performance-setting-hint">
-                        <span>仅在macOS系统上可用，启用后可利用Apple Neural Engine加速</span>
+                    <div className="setting-control">
+                        <ConfigProvider theme={darkTheme}>
+                            <Switch
+                                checked={useCoreML}
+                                onChange={handleCoreMlChange}
+                                disabled={!hardwareAvailability['coreML available'] || hardwareLoading}
+                                className="performance-setting-switch"
+                                loading={hardwareLoading}
+                            />
+                        </ConfigProvider>
+                        <span className="performance-availability-status">
+                            {hardwareLoading ? '检测中...' :
+                                hardwareAvailability['coreML available'] ? '可用' : '不可用'}
+                        </span>
                     </div>
                 </div>
-            </div>
-
-            {/* 分隔线 */}
-            <div className="section-divider"></div>
-
-            {/* 保存按钮和硬件刷新 */}
-            <div className="performance-controls-container">
-                <div className="performance-action-buttons">
-                    {/* <ConfigProvider theme={darkTheme}>
-                        <Button
-                            type="default"
-                            onClick={handleRefreshHardware}
-                            loading={hardwareLoading}
-                            size="small"
-                            className="refresh-hardware-button"
-                            title="重新检测硬件"
-                        >
-                            {hardwareLoading ? '检测中...' : '刷新硬件'}
-                        </Button>
-                    </ConfigProvider> */}
-                </div>
-                <div className="performance-save-button-container">
-                    <ConfigProvider theme={darkTheme}>
-                        <Button
-                            type="primary"
-                            icon={<CheckOutlined />}
-                            onClick={handleSaveAllSettings}
-                            loading={isSaving}
-                            size="small"
-                            className="save-settings-button"
-                            title="保存设置"
-                        >
-                            保存设置
-                        </Button>
-                    </ConfigProvider>
-                </div>
-            </div>
-        </div>
+            </div>        </div>
     );
 };
 

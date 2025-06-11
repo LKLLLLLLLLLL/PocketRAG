@@ -1,0 +1,311 @@
+/* 自定义表格容器 - macOS风格 */
+.custom-table-container {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.custom-table-container.bordered {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.custom-table-wrapper {
+    overflow: auto;
+    max-width: 100%;
+    border-radius: 8px;
+    position: relative;
+}
+
+/* 表格样式 - macOS风格 */
+.custom-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    color: #e0e0e0;
+    background: rgba(30, 30, 30, 0.8);
+    table-layout: auto;
+}
+
+.custom-table-container.small .custom-table {
+    font-size: 11px;
+}
+
+/* 表头样式 - macOS风格 */
+.custom-table thead {
+    background: rgba(40, 40, 40, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.custom-table th {
+    padding: 10px 12px;
+    background: rgba(40, 40, 40, 0.9);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    font-weight: 600;
+    font-size: 13px;
+    color: #b0b0b0;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.custom-table-container.small .custom-table th {
+    padding: 8px 10px;
+    font-size: 10px;
+}
+
+.custom-table th:last-child {
+    border-right: none;
+}
+
+/* 表格行样式 - macOS风格 */
+.custom-table tbody tr {
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.custom-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.custom-table tbody tr:nth-child(odd) {
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.custom-table tbody tr:nth-child(odd):hover {
+    background: rgba(255, 255, 255, 0.055);
+}
+
+.custom-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+/* 单元格样式 - macOS风格 */
+.custom-table td {
+    padding: 10px 12px;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: middle;
+    word-break: break-word;
+    color: #e8e8e8;
+}
+
+.custom-table-container.small .custom-table td {
+    padding: 8px 10px;
+}
+
+.custom-table td:last-child {
+    border-right: none;
+}
+
+.custom-table td.ellipsis {
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 空状态样式 */
+.custom-table-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 12px;
+    background: rgba(26, 26, 26, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: none;
+}
+
+/* 表格内的组件样式 */
+.custom-table .model-type-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.custom-table .model-path {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 200px;
+}
+
+.custom-table .path-icon {
+    color: rgba(0, 144, 144, 0.6);
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+.custom-table .path-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.custom-table .file-size {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.custom-table .api-key-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.custom-table .api-key-status {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 10px;
+}
+
+.custom-table .api-key-visible {
+    color: rgba(0, 144, 144, 0.8);
+}
+
+.custom-table .api-key-loading {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.custom-table .view-api-key-button {
+    background: transparent !important;
+    border: none !important;
+    color: rgba(0, 144, 144, 0.6) !important;
+    padding: 2px !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: unset !important;
+}
+
+.custom-table .view-api-key-button:hover {
+    color: rgba(0, 144, 144, 1) !important;
+    background: rgba(0, 144, 144, 0.1) !important;
+}
+
+.custom-table .action-button-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.custom-table .delete-model-button {
+    background: transparent !important;
+    border: none !important;
+    color: rgba(255, 99, 99, 0.6) !important;
+    padding: 2px !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: unset !important;
+}
+
+.custom-table .delete-model-button:hover {
+    color: rgba(255, 99, 99, 1) !important;
+    background: rgba(255, 99, 99, 0.1) !important;
+}
+
+/* 开关组件样式 */
+.custom-table .config-switch {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    min-width: 32px !important;
+    height: 18px !important;
+}
+
+.custom-table .config-switch.ant-switch-checked {
+    background: rgba(0, 144, 144, 0.8) !important;
+    border-color: rgba(0, 144, 144, 1) !important;
+}
+
+.custom-table .config-switch .ant-switch-handle {
+    width: 14px !important;
+    height: 14px !important;
+    top: 1px !important;
+    left: 1px !important;
+    background: #ffffff !important;
+    border-radius: 50% !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.2s ease !important;
+}
+
+.custom-table .config-switch.ant-switch-checked .ant-switch-handle {
+    left: calc(100% - 15px) !important;
+}
+
+.custom-table .config-switch .ant-switch-handle::before {
+    content: none !important;
+}
+
+/* 滚动条样式 - macOS风格 */
+.custom-table-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.custom-table-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+}
+
+.custom-table-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(200, 200, 200, 0.2);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.custom-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 200, 200, 0.4);
+}
+
+.custom-table-wrapper::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .custom-table {
+        font-size: 11px;
+    }
+    
+    .custom-table th,
+    .custom-table td {
+        padding: 6px 8px;
+    }
+}
+
+/* ========== 单选约束样式 ========== */
+/* 为重排序配置添加特殊的视觉提示 */
+.custom-table .config-checkbox.single-select {
+    position: relative;
+}
+
+.custom-table .config-checkbox.single-select::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: border-color 0.2s ease;
+    pointer-events: none;
+}
+
+.custom-table .config-checkbox.single-select:hover::after {
+    border-color: rgba(0, 144, 144, 0.3);
+}
+
+.custom-table .config-checkbox.single-select .ant-checkbox-checked::after {
+    border-color: rgba(0, 144, 144, 0.6);
+}

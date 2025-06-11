@@ -1,4 +1,6 @@
-import { ConfigProvider, Input, Button, Switch, Table, message } from 'antd';
+import { ConfigProvider, Input, Button, Switch, Checkbox, message } from 'antd';
+import CustomTable from '../CustomTable/CustomTable';
+import AddConfigModal from '../AddConfigModal/AddConfigModal';
 import { CheckOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import React, { useState, useEffect } from 'react';
 import './SearchSettings.css';
@@ -13,11 +15,13 @@ const SearchSettings = ({
     // -----------------------检索设置状态管理-------------------------
 
     // 搜索结果数限制
-    const [searchLimit, setSearchLimit] = useState(10);
-    // 嵌入配置
+    const [searchLimit, setSearchLimit] = useState(10);    // 嵌入配置
     const [embeddingConfigs, setEmbeddingConfigs] = useState([]);
     // 重排序配置
-    const [rerankConfigs, setRerankConfigs] = useState([]);
+    const [rerankConfigs, setRerankConfigs] = useState([]);    // 统一模态框状态
+    const [addModalVisible, setAddModalVisible] = useState(false);
+    const [addModalType, setAddModalType] = useState('');
+    const [addModalTitle, setAddModalTitle] = useState('');
 
     //------------------------初始化函数-------------------------
 
@@ -47,16 +51,111 @@ const SearchSettings = ({
                     : config
             )
         );
+    };    // 处理重排序配置选择变化（只能选择一个）
+    const handleRerankSelectionChange = (selectedName, checked) => {
+        setRerankConfigs(prev => {
+            if (checked) {
+                // 如果用户要选中某个项目，自动取消其他所有项目的选中状态
+                const previouslySelected = prev.find(config => config.selected);
+                const updatedConfigs = prev.map(config => ({
+                    ...config,
+                    selected: config.modelName === selectedName
+                }));
+                
+                // 提供用户反馈
+                if (previouslySelected && previouslySelected.modelName !== selectedName) {
+                    message.info(`已切换至重排序模型: ${selectedName}，自动取消了之前的选择`);
+                } else {
+                    message.success(`已选择重排序模型: ${selectedName}`);
+                }
+                
+                return updatedConfigs;
+            } else {
+                // 如果用户要取消选中，允许取消（这样可以实现没有任何选中的状态）
+                const updatedConfigs = prev.map(config => ({
+                    ...config,
+                    selected: config.modelName === selectedName ? false : config.selected
+                }));
+                
+                message.info(`已取消选择重排序模型: ${selectedName}`);
+                return updatedConfigs;
+            }        });
+    };    // 处理添加嵌入配置
+    const handleAddEmbeddingConfig = () => {
+        setAddModalType('embedding');
+        setAddModalTitle('添加嵌入配置');
+        setAddModalVisible(true);
     };
 
-    // 处理重排序配置选择变化（只能选择一个）
-    const handleRerankSelectionChange = (selectedName, checked) => {
-        setRerankConfigs(prev =>
-            prev.map(config => ({
-                ...config,
-                selected: config.modelName === selectedName && checked
-            }))
-        );
+    // 处理添加重排序配置
+    const handleAddRerankConfig = () => {
+        setAddModalType('rerank');
+        setAddModalTitle('添加重排序配置');
+        setAddModalVisible(true);
+    };
+
+    // 处理添加配置确认
+    const handleAddConfigConfirm = (formData) => {
+        try {
+            if (addModalType === 'embedding') {
+                // 检查配置名称是否重复
+                if (embeddingConfigs.some(config => config.name === formData.name)) {
+                    message.error('配置名称已存在');
+                    return;
+                }
+
+                // 添加新的嵌入配置
+                const newConfig = {
+                    name: formData.name,
+                    modelName: formData.modelName,
+                    inputLength: formData.inputLength,
+                    selected: false
+                };
+
+                setEmbeddingConfigs(prev => [...prev, newConfig]);
+                message.success('嵌入配置添加成功');
+
+            } else if (addModalType === 'rerank') {
+                // 检查模型是否已存在
+                if (rerankConfigs.some(config => config.modelName === formData.modelName)) {
+                    message.error('该重排序模型已添加');
+                    return;
+                }
+
+                // 添加新的重排序配置
+                const newConfig = {
+                    modelName: formData.modelName,
+                    selected: false
+                };
+
+                setRerankConfigs(prev => [...prev, newConfig]);
+                message.success('重排序配置添加成功');
+            }
+
+            setAddModalVisible(false);
+
+        } catch (error) {
+            console.error('添加配置失败:', error);
+            message.error('添加配置失败');
+        }
+    };
+
+    // 处理添加配置取消
+    const handleAddConfigClose = () => {
+        setAddModalVisible(false);
+        setAddModalType('');
+        setAddModalTitle('');    };
+
+    // 删除嵌入配置
+    const handleDeleteEmbeddingConfig = (configName) => {
+        setEmbeddingConfigs(prev => prev.filter(config => config.name !== configName));
+        message.success(`嵌入配置 "${configName}" 已删除`);
+    };
+
+    // 删除重排序配置
+    const handleDeleteRerankConfig = (modelName) => {
+        setRerankConfigs(prev => prev.filter(config => config.modelName !== modelName));
+        message.success(`重排序配置 "${modelName}" 已删除`);
     };
 
     // 处理保存检索设置
@@ -111,310 +210,265 @@ const SearchSettings = ({
     // 获取可用的重排序模型
     const getAvailableRerankModels = () => {
         return localModelManagement?.models?.filter(model => model.type === 'rerank') || [];
-    };
-
-    // 嵌入配置表格列定义
-    const embeddingColumns = [
-        {
+    };    // 嵌入配置表格列定义
+    const embeddingColumns = [        {
+            title: '启用',
+            dataIndex: 'selected',
+            key: 'selected',
+            width: 50,
+            align: 'center',
+            render: (selected, record) => (
+                <ConfigProvider theme={darkTheme}>
+                    <Checkbox
+                        checked={selected}
+                        onChange={(e) => handleEmbeddingSelectionChange(record.name, e.target.checked)}
+                        className="config-checkbox"
+                    />
+                </ConfigProvider>
+            )
+        },        {
             title: '配置名称',
             dataIndex: 'name',
             key: 'name',
-            width: 150,
+            width: 140,
             align: 'center',
         },
         {
             title: '模型名称',
             dataIndex: 'modelName',
             key: 'modelName',
-            width: 150,
+            width: 140,
             align: 'center',
-        },
-        {
-            title: '输入长度',
+        },        {
+            title: '分块长度',
             dataIndex: 'inputLength',
             key: 'inputLength',
             width: 120,
             align: 'center',
-            render: (length) => `${length} 字符`
-        },
+            render: (length) => `${length} 字符`        },
         {
-            title: '启用状态',
+            title: '操作',
+            key: 'action',
+            width: 80,
+            align: 'center',
+            render: (_, record) => (
+                <div className="action-button-container">
+                    <ConfigProvider theme={darkTheme}>
+                        <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            className="delete-config-button"
+                            onClick={() => handleDeleteEmbeddingConfig(record.name)}
+                            title="删除配置"
+                        />
+                    </ConfigProvider>
+                </div>
+            )
+        }
+    ];// 重排序配置表格列定义
+    const rerankColumns = [        {
+            title: '启用',
             dataIndex: 'selected',
             key: 'selected',
-            width: 100,
+            width: 50,
             align: 'center',
             render: (selected, record) => (
                 <ConfigProvider theme={darkTheme}>
-                    <Switch
+                    <Checkbox
                         checked={selected}
-                        onChange={(checked) => handleEmbeddingSelectionChange(record.name, checked)}
-                        size="small"
-                        className="config-switch"
+                        onChange={(e) => handleRerankSelectionChange(record.modelName, e.target.checked)}
+                        className="config-checkbox single-select"
+                        title="重排序模型只能选择一个，选择新的会自动取消其他选项"
                     />
                 </ConfigProvider>
             )
-        }
-    ];
-
-    // 重排序配置表格列定义
-    const rerankColumns = [
-        {
+        },        {
             title: '模型名称',
             dataIndex: 'modelName',
             key: 'modelName',
             width: 200,
-            align: 'center',
-        },
+            align: 'center',        },
         {
-            title: '启用状态',
-            dataIndex: 'selected',
-            key: 'selected',
-            width: 120,
+            title: '操作',
+            key: 'action',
+            width: 80,
             align: 'center',
-            render: (selected, record) => (
-                <ConfigProvider theme={darkTheme}>
-                    <Switch
-                        checked={selected}
-                        onChange={(checked) => handleRerankSelectionChange(record.modelName, checked)}
-                        size="small"
-                        className="config-switch"
-                    />
-                </ConfigProvider>
-            )
-        }
-    ];
-
-    // 深色主题配置
-    const darkTheme = {
-        token: {
-            colorBgContainer: '#333333',
-            colorText: '#ffffff',
-            colorBorder: '#555555',
-            colorBgElevated: '#2a2a2a',
-            colorTextHeading: '#ffffff',
-            colorPrimary: '#00ffff',
-        },
-        components: {
-            Table: {
-                headerBg: '#2a2a2a',
-                headerColor: '#ffffff',
-                rowHoverBg: '#404040',
-                borderColor: '#555555',
-            },
-            Button: {
-                colorPrimary: '#00ffff',
-                colorPrimaryHover: '#33ffff',
-                colorPrimaryActive: '#00cccc',
-            },
-            Input: {
-                colorBgContainer: '#333333',
-                colorText: '#ffffff',
-                colorBorder: '#555555',
-                colorPrimaryHover: '#33ffff',
-                colorPrimary: '#00ffff',
-            },
-            Switch: {
-                colorPrimary: '#00ffff',
-                colorPrimaryHover: '#33ffff',
-                trackColorToggled: '#00ffff',
-            },
-        },
-    };
-
-    return (
-        <div className="search-settings-container">
-            {/* 搜索限制设置区域 */}
-            <div className="search-section">
-                <div className="search-settings-explanation">
-                    <h4>搜索配置</h4>
-                    <p>设置搜索结果的数量限制</p>
-                </div>
-                <div className="search-demo-container">
-                    <div className="search-setting-display">
-                        <div className="search-setting-label">
-                            <span>搜索结果数：</span>
-                        </div>
-                        <div className="search-setting-input-wrapper">
-                            <ConfigProvider theme={darkTheme}>
-                                <Input
-                                    type="number"
-                                    value={searchLimit}
-                                    onChange={handleSearchLimitChange}
-                                    min={1}
-                                    max={100}
-                                    placeholder="设置搜索结果数量"
-                                    className="search-setting-input"
-                                    suffix="条"
-                                />
-                            </ConfigProvider>
-                        </div>
-                    </div>
-                    <div className="search-setting-hint">
-                        <span>建议设置为 5-20 条，过多可能影响响应速度</span>
-                    </div>
-                </div>
-                {/* 搜索配置保存按钮 */}
-                {/* <div className="search-controls-container">
-                    <div className="search-action-buttons">
-                        
-                    </div>
-                    <div className="search-save-button-container">
-                        <ConfigProvider theme={darkTheme}>
-                            <Button
-                                type="primary"
-                                icon={<CheckOutlined />}
-                                onClick={handleSaveSearchSettings}
-                                loading={isSaving}
-                                size="small"
-                                className="save-settings-button"
-                                title="保存搜索配置"
-                            >
-                                保存搜索配置
-                            </Button>
-                        </ConfigProvider>
-                    </div>
-                </div> */}
-            </div>
-
-            {/* 分隔线 */}
-            <div className="section-divider"></div>
-
-            {/* 嵌入模型配置区域 */}
-            <div className="search-section">
-                <div className="search-settings-explanation">
-                    <h4>嵌入模型配置</h4>
-                    <p>配置文档嵌入使用的模型和参数（可选择多个）</p>
-                </div>
-                <div className="search-table-container">
-                    <ConfigProvider theme={darkTheme}>
-                        <Table
-                            className="dark-table"
-                            columns={embeddingColumns}
-                            dataSource={embeddingConfigs.map((config, index) => ({
-                                ...config,
-                                key: config.name || index,
-                            }))}
-                            pagination={{
-                                pageSize: 5,
-                                showSizeChanger: false,
-                                size: 'small',
-                            }}
-                            size="small"
-                            bordered
-                            scroll={{ x: 520 }}
-                            locale={{
-                                emptyText: '暂无嵌入模型配置'
-                            }}
-                        />
-                    </ConfigProvider>
-                </div>
-                <div className="config-hint">
-                    <span>提示：可以同时启用多个嵌入配置以提高检索效果</span>
-                </div>
-                {/* 嵌入配置保存按钮 */}
-                {/* <div className="search-controls-container">
-                    <div className="search-action-buttons">
-                        
-                    </div>
-                    <div className="search-save-button-container">
-                        <ConfigProvider theme={darkTheme}>
-                            <Button
-                                type="primary"
-                                icon={<CheckOutlined />}
-                                onClick={handleSaveSearchSettings}
-                                loading={isSaving}
-                                size="small"
-                                className="save-settings-button"
-                                title="保存嵌入配置"
-                            >
-                                保存嵌入配置
-                            </Button>
-                        </ConfigProvider>
-                    </div>
-                </div> */}
-            </div>
-
-            {/* 分隔线 */}
-            <div className="section-divider"></div>
-
-            {/* 重排序模型配置区域 */}
-            <div className="search-section">
-                <div className="search-settings-explanation">
-                    <h4>重排序模型配置</h4>
-                    <p>配置检索结果重排序使用的模型（只能选择一个）</p>
-                </div>
-                <div className="search-table-container">
-                    <ConfigProvider theme={darkTheme}>
-                        <Table
-                            className="dark-table"
-                            columns={rerankColumns}
-                            dataSource={rerankConfigs.map((config, index) => ({
-                                ...config,
-                                key: config.modelName || index,
-                            }))}
-                            pagination={{
-                                pageSize: 5,
-                                showSizeChanger: false,
-                                size: 'small',
-                            }}
-                            size="small"
-                            bordered
-                            scroll={{ x: 320 }}
-                            locale={{
-                                emptyText: '暂无重排序模型配置'
-                            }}
-                        />
-                    </ConfigProvider>
-                </div>
-                <div className="config-hint">
-                    <span>提示：重排序可以提高检索精度，但会增加计算时间。不选择任何模型将跳过重排序</span>
-                </div>
-                {/* 重排序配置保存按钮 */}
-                {/* <div className="search-controls-container">
-                    <div className="search-action-buttons">
-                        
-                    </div>
-                    <div className="search-save-button-container">
-                        <ConfigProvider theme={darkTheme}>
-                            <Button
-                                type="primary"
-                                icon={<CheckOutlined />}
-                                onClick={handleSaveSearchSettings}
-                                loading={isSaving}
-                                size="small"
-                                className="save-settings-button"
-                                title="保存重排序配置"
-                            >
-                                保存重排序配置
-                            </Button>
-                        </ConfigProvider>
-                    </div>
-                </div> */}
-            </div>
-
-            {/* 分隔线 */}
-            <div className="section-divider"></div>
-
-            <div className="search-controls-container">
-                <div className="search-action-buttons">
-                    {/* 左侧空白区域，保持布局对称 */}
-                </div>
-                <div className="search-save-button-container">
+            render: (_, record) => (
+                <div className="action-button-container">
                     <ConfigProvider theme={darkTheme}>
                         <Button
-                            type="primary"
-                            icon={<CheckOutlined />}
-                            onClick={handleSaveAllSettings}
-                            loading={isSaving}
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
                             size="small"
-                            className="save-settings-button"
-                            title="保存设置"
+                            className="delete-config-button"
+                            onClick={() => handleDeleteRerankConfig(record.modelName)}
+                            title="删除配置"
+                        />
+                    </ConfigProvider>
+                </div>
+            )
+        }
+    ];// 深色主题配置
+    const darkTheme = {
+        token: {
+            colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+            colorText: '#e0e0e0',
+            colorBorder: 'rgba(255, 255, 255, 0.1)',
+            colorBgElevated: 'rgba(26, 26, 26, 0.8)',
+            colorTextHeading: 'rgba(0, 144, 144, 0.9)',
+            colorPrimary: 'rgba(0, 144, 144, 1)',
+        },
+        components: {
+            Button: {
+                colorPrimary: 'rgba(0, 144, 144, 1)',
+                colorPrimaryHover: 'rgba(0, 144, 144, 0.8)',
+                colorPrimaryActive: 'rgba(0, 144, 144, 0.9)',
+                colorText: '#e0e0e0',
+                colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+                colorBorder: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: 4,
+            },
+            Input: {
+                colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+                colorBorder: 'rgba(255, 255, 255, 0.1)',
+                colorText: '#e0e0e0',
+                colorTextPlaceholder: 'rgba(255, 255, 255, 0.4)',
+                colorPrimary: 'rgba(0, 144, 144, 1)',
+                colorPrimaryHover: 'rgba(0, 144, 144, 0.8)',
+                activeBorderColor: 'rgba(0, 144, 144, 0.6)',
+                hoverBorderColor: 'rgba(0, 144, 144, 0.4)',
+            },            Switch: {
+                colorPrimary: 'rgba(0, 144, 144, 1)',
+                colorPrimaryHover: 'rgba(0, 144, 144, 0.8)',
+            },            Checkbox: {
+                colorPrimary: 'rgba(0, 144, 144, 1)',
+                colorPrimaryHover: 'rgba(0, 144, 144, 0.8)',
+                colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+                colorBorder: 'rgba(255, 255, 255, 0.3)',
+            },
+            Radio: {
+                colorPrimary: 'rgba(0, 144, 144, 1)',
+                colorPrimaryHover: 'rgba(0, 144, 144, 0.8)',
+                colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+                colorBorder: 'rgba(255, 255, 255, 0.3)',
+            },
+        },
+    };    return (
+        <div className="search-settings-container">
+            {/* 基础搜索设置 */}
+            <div className="settings-group-title">基础设置</div>
+            
+            {/* 搜索结果数设置 */}
+            <div className="setting-item">
+                <div className="setting-content">
+                    <div className="setting-info">
+                        <div className="setting-title">搜索结果数</div>
+                        <div className="setting-description">设置搜索返回的结果数量限制，建议 5-20 条</div>
+                    </div>
+                    <div className="setting-control">
+                        <ConfigProvider theme={darkTheme}>
+                            <Input
+                                type="number"
+                                value={searchLimit}
+                                onChange={handleSearchLimitChange}
+                                min={1}
+                                max={100}
+                                placeholder="数量"
+                                className="compact-input"
+                                suffix="条"
+                            />
+                        </ConfigProvider>
+                    </div>
+                </div>
+            </div>
+
+            {/* 嵌入模型配置 */}
+            <div className="settings-group-title">嵌入模型配置</div>
+            <div className="settings-group-description">配置文档嵌入使用的模型和参数（可选择多个）</div>
+              <div className="search-table-container">
+                <CustomTable
+                    className="dark-table"
+                    columns={embeddingColumns}
+                    dataSource={embeddingConfigs.map((config, index) => ({
+                        ...config,
+                        key: config.name || index,
+                    }))}
+                    pagination={{
+                        pageSize: 5,
+                        showSizeChanger: false,
+                        size: 'small',
+                    }}
+                    size="small"
+                    bordered
+                    locale={{
+                        emptyText: '暂无嵌入模型配置'
+                    }}
+                />
+            </div>            {/* 嵌入模型添加按钮 */}
+            <div className="model-controls-container">
+                <div className="model-action-buttons">
+                    <ConfigProvider theme={darkTheme}>                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={handleAddEmbeddingConfig}
+                            size="small"
+                            className="model-button add-model-button"
                         >
-                            保存设置
+                            添加
                         </Button>
                     </ConfigProvider>
                 </div>
             </div>
+
+            {/* 重排序模型配置 */}
+            <div className="settings-group-title">重排序模型配置</div>
+            <div className="settings-group-description">配置检索结果重排序使用的模型（只能选择一个）</div>
+              <div className="search-table-container">
+                <CustomTable
+                    className="dark-table"
+                    columns={rerankColumns}
+                    dataSource={rerankConfigs.map((config, index) => ({
+                        ...config,
+                        key: config.modelName || index,
+                    }))}
+                    pagination={{
+                        pageSize: 5,
+                        showSizeChanger: false,
+                        size: 'small',
+                    }}
+                    size="small"
+                    bordered
+                    locale={{
+                        emptyText: '暂无重排序模型配置'
+                    }}
+                />
+            </div>            {/* 重排序模型添加按钮 */}
+            <div className="model-controls-container">
+                <div className="model-action-buttons">
+                    <ConfigProvider theme={darkTheme}>                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={handleAddRerankConfig}
+                            size="small"
+                            className="model-button add-model-button"
+                        >
+                            添加
+                        </Button>
+                    </ConfigProvider>                </div>            </div>
+
+            {/* 添加配置弹窗 */}
+            <AddConfigModal
+                visible={addModalVisible}
+                onClose={handleAddConfigClose}
+                onConfirm={handleAddConfigConfirm}
+                type={addModalType}
+                title={addModalTitle}
+                localModels={localModelManagement?.models || []}
+                darkTheme={darkTheme}
+            />
         </div>
     );
 };

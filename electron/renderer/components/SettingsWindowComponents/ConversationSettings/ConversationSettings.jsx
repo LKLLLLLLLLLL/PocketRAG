@@ -1,4 +1,6 @@
-import { Tooltip, Table, ConfigProvider, Input, Button, Checkbox, message } from 'antd';
+import { Tooltip, ConfigProvider, Input, Button, Checkbox, message } from 'antd';
+import CustomTable from '../CustomTable/CustomTable';
+import AddConfigModal from '../AddConfigModal/AddConfigModal';
 import { EditOutlined, CheckOutlined, CloseOutlined, PlusOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import React, { useState, useEffect } from 'react';
 import './ConversationSettings.css';
@@ -18,10 +20,11 @@ const ConversationSettings = ({
     // 历史长度
     const [historyLength, setHistoryLength] = useState(0);
 
-    // -------------------------模型状态管理-------------------------
-
-    // 存储删除加载状态
+    // -------------------------模型状态管理-------------------------    // 存储删除加载状态
     const [deletingModels, setDeletingModels] = useState({});
+
+    // 添加模型弹窗状态
+    const [addModalVisible, setAddModalVisible] = useState(false);
 
     //------------------------API Key状态管理-------------------------
 
@@ -47,13 +50,61 @@ const ConversationSettings = ({
         if (onHistoryLengthChange) {
             onHistoryLengthChange(value);
         }
+    };    // 处理添加模型
+    const handleAddModel = () => {
+        setAddModalVisible(true);
     };
 
-    // 处理添加模型
-    const handleAddModel = () => {
-        if (onAddGenerationModel) {
-            onAddGenerationModel();
+    // 处理添加模型确认
+    const handleAddModelConfirm = (formData) => {
+        try {
+            // 检查模型名称是否重复
+            const isDuplicateName = conversationSettings?.generationModel?.some(
+                model => model.name === formData.name
+            );
+            if (isDuplicateName) {
+                message.error('模型名称已存在，请使用其他名称');
+                return;
+            }
+
+            // 检查模型标识是否重复
+            const isDuplicateModelName = conversationSettings?.generationModel?.some(
+                model => model.modelName === formData.modelName
+            );
+            if (isDuplicateModelName) {
+                message.error('模型标识已存在，请使用其他标识');
+                return;
+            }
+
+            // 创建新的模型配置
+            const newModel = {
+                name: formData.name,
+                modelName: formData.modelName,
+                url: formData.url,
+                enabled: true,
+                setApiKey: formData.setApiKey || true
+            };
+
+            // 更新模型列表
+            const updatedModels = [...(conversationSettings?.generationModel || []), newModel];
+            
+            // 通知父组件模型列表变化
+            if (onModelListChange) {
+                onModelListChange(updatedModels);
+            }
+
+            message.success(`对话模型 "${formData.name}" 添加成功`);
+            setAddModalVisible(false);
+
+        } catch (error) {
+            console.error('添加模型失败:', error);
+            message.error('添加模型失败');
         }
+    };
+
+    // 处理添加模型取消
+    const handleAddModalClose = () => {
+        setAddModalVisible(false);
     };
 
     // 处理保存模型设置
@@ -177,8 +228,7 @@ const ConversationSettings = ({
     // 准备表格数据
     const dataSource = conversationSettings?.generationModel?.map((model, index) => ({
         ...model,
-        key: model.name || index,
-    })) || [];
+        key: model.name || index,    })) || [];
 
     // 更新表格列定义
     const columns = [
@@ -186,21 +236,20 @@ const ConversationSettings = ({
             title: '名称',
             dataIndex: 'name',
             key: 'name',
-            width: 110,
+            width: 90,
             align: 'center',
-        },
-        {
+        },        {
             title: '模型名称',
             dataIndex: 'modelName',
             key: 'modelName',
-            width: 120,
+            width: 100,
             align: 'center',
-        },
-        {
+        },        {
             title: 'URL',
             dataIndex: 'url',
             key: 'url',
-            width: 180,
+            width: 200,
+            align: 'center',
             ellipsis: {
                 showTitle: false,
             },
@@ -217,13 +266,12 @@ const ConversationSettings = ({
                     </div>
                 </Tooltip>
             )
-        },
-        // 修改API Key列的渲染逻辑
+        },        // 修改API Key列的渲染逻辑
         {
             title: 'API Key',
             dataIndex: 'setApiKey',
             key: 'setApiKey',
-            width: 130,
+            width: 150,
             align: 'center',
             render: (setApiKey, record) => {
                 const isVisible = visibleApiKeys[record.name];
@@ -291,152 +339,113 @@ const ConversationSettings = ({
     // 在主题配置的 components 中添加 Checkbox
     const darkTheme = {
         token: {
-            colorBgContainer: '#333333',
-            colorText: '#ffffff',
-            colorBorder: '#555555',
-            colorBgElevated: '#2a2a2a',
-            colorTextHeading: '#ffffff',
-            colorPrimary: '#00ffff',
+            colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+            colorText: '#e0e0e0',
+            colorBorder: 'rgba(255, 255, 255, 0.1)',
+            colorBgElevated: 'rgba(26, 26, 26, 0.8)',
+            colorTextHeading: 'rgba(0, 144, 144, 0.9)',
+            colorPrimary: 'rgba(0, 144, 144, 1)',
         },
         components: {
-            Table: {
-                headerBg: '#2a2a2a',
-                headerColor: '#ffffff',
-                rowHoverBg: '#404040',
-                borderColor: '#555555',
-            },
             Button: {
-                colorPrimary: '#00ffff',
-                colorPrimaryHover: '#33ffff',
-                colorPrimaryActive: '#00cccc',
+                colorPrimary: 'rgba(0, 144, 144, 1)',
+                colorPrimaryHover: 'rgba(0, 144, 144, 0.8)',
+                colorPrimaryActive: 'rgba(0, 144, 144, 0.9)',
+                colorText: '#e0e0e0',
+                colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+                colorBorder: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: 4,
             },
             Input: {
-                colorBgContainer: '#333333',
-                colorText: '#ffffff',
-                colorBorder: '#555555',
-                colorPrimaryHover: '#33ffff',
-                colorPrimary: '#00ffff',
+                colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+                colorBorder: 'rgba(255, 255, 255, 0.1)',
+                colorText: '#e0e0e0',
+                colorTextPlaceholder: 'rgba(255, 255, 255, 0.4)',
+                colorPrimary: 'rgba(0, 144, 144, 1)',
+                colorPrimaryHover: 'rgba(0, 144, 144, 0.8)',
+                activeBorderColor: 'rgba(0, 144, 144, 0.6)',
+                hoverBorderColor: 'rgba(0, 144, 144, 0.4)',
             },
             Checkbox: {
-                colorPrimary: '#00ffff',
-                colorPrimaryHover: '#33ffff',
+                colorPrimary: 'rgba(0, 144, 144, 1)',
+                colorPrimaryHover: 'rgba(0, 144, 144, 0.8)',
             },
         },
     };
 
     return (
-        <div className="conversation-settings-container">
-            <div className="model-list-container">
-                <div className="conversation-settings-explanation">
-                    <h4>对话模型设置</h4>
-                    <p>当前配置的生成模型列表</p>
-                </div>
-                <div className="generation-model-table-wrapper">
+        <div className="conversation-settings-container">            {/* 对话模型配置 */}
+            <div className="settings-group-title">对话模型设置</div>
+            <div className="settings-group-description">当前配置的生成模型列表</div>
+            
+            <div className="generation-model-table-wrapper">
+                <CustomTable
+                    className="dark-table"
+                    columns={columns}
+                    dataSource={dataSource}
+                    pagination={{
+                        pageSize: 5,
+                        showSizeChanger: false,
+                        size: 'small',
+                    }}
+                    size="small"
+                    bordered
+                    locale={{
+                        emptyText: '暂无生成模型配置'
+                    }}
+                />
+            </div>
+            
+            {/* 添加模型按钮 */}
+            <div className="model-controls-container">
+                <div className="model-action-buttons">
                     <ConfigProvider theme={darkTheme}>
-                        <Table
-                            className="dark-table"
-                            columns={columns}
-                            dataSource={dataSource}
-                            pagination={{
-                                pageSize: 5,
-                                showSizeChanger: false,
-                                size: 'small',
-                            }}
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={handleAddModel}
                             size="small"
-                            bordered
-                            scroll={{ x: 650 }}
-                            locale={{
-                                emptyText: '暂无生成模型配置'
-                            }}
-                        />
+                            className="model-button add-model-button"
+                        >
+                            添加
+                        </Button>
                     </ConfigProvider>
                 </div>
-                {/* 模型操作按钮和保存按钮 */}
-                <div className="model-controls-container">
-                    <div className="model-action-buttons">
-                        <ConfigProvider theme={darkTheme}>
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={handleAddModel}
-                                size="small"
-                                className="model-button add-model-button"
-                            >
-                                添加
-                            </Button>
-                        </ConfigProvider>
-                    </div>
-                    <div className="save-button-container">
-                        {/* <ConfigProvider theme={darkTheme}>
-                            <Button
-                                type="primary"
-                                icon={<CheckOutlined />}
-                                onClick={handleSaveModelSettings}
-                                loading={isSaving}
-                                size="small"
-                                className="save-settings-button"
-                                title="保存模型设置"
-                            >
-                                保存模型设置
-                            </Button>
-                        </ConfigProvider> */}
-                    </div>
-                </div>
             </div>
 
-            {/* 分隔线 */}
-            <div className="section-divider"></div>
-
-            {/* 简化后的历史长度设置 */}
-            <div className="history-length-container">
-                <div className="conversation-settings-explanation">
-                    <h4>对话历史设置</h4>
-                    <p>设置对话历史保留长度（字符数）</p>
-                </div>
-                <div className="history-demo-container">
-                    <div className="history-length-display history-length-split-align">
-                        <div className="history-length-label">
-                            <span>历史长度：</span>
-                        </div>
-                        <div className="history-length-input-wrapper">
-                            <ConfigProvider theme={darkTheme}>
-                                <Input
-                                    type="number"
-                                    value={historyLength}
-                                    onChange={handleHistoryLengthChange}
-                                    min={0}
-                                    placeholder="请输入历史长度"
-                                    className="history-length-input"
-                                    suffix="字符"
-                                />
-                            </ConfigProvider>
-                        </div>
+            {/* 对话历史设置 */}
+            <div className="settings-group-title">对话历史设置</div>
+            
+            {/* 历史长度设置 */}
+            <div className="setting-item">
+                <div className="setting-content">
+                    <div className="setting-info">
+                        <div className="setting-title">历史长度</div>
+                        <div className="setting-description">设置对话历史保留长度（字符数）</div>
                     </div>
-                    <div className="history-length-hint">
-                        <span>0 表示无限制，建议设置为 2000-8000 字符</span>
-                    </div>
-                </div>
-                <div className="history-controls-container">
-                    <div className="history-action-buttons">
-                        {/* 左侧空白区域，保持布局对称 */}
-                    </div>
-                    <div className="history-save-button-container">
+                    <div className="setting-control">
                         <ConfigProvider theme={darkTheme}>
-                            <Button
-                                type="primary"
-                                icon={<CheckOutlined />}
-                                onClick={handleSaveAllSettings}
-                                loading={isSaving}
-                                size="small"
-                                className="save-settings-button"
-                                title="保存设置"
-                            >
-                                保存设置
-                            </Button>
+                            <Input
+                                type="number"
+                                value={historyLength}
+                                onChange={handleHistoryLengthChange}
+                                min={0}
+                                placeholder="历史长度"                                className="compact-input"
+                                suffix="字符"
+                            />
                         </ConfigProvider>
-                    </div>
-                </div>
+                    </div>                </div>
             </div>
+
+            {/* 添加模型弹窗 */}
+            <AddConfigModal
+                visible={addModalVisible}
+                onClose={handleAddModalClose}
+                onConfirm={handleAddModelConfirm}
+                type="conversation"
+                title="添加对话模型"
+                darkTheme={darkTheme}
+            />
         </div>
     );
 }

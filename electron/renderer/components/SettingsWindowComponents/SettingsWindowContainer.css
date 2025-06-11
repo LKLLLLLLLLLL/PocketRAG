@@ -1,11 +1,12 @@
 .settingswindow-container {
     flex: 1 1 0%;
     display: flex;
-    background-color: #222222;
-    color: #fff;
+    background: #1a1a1a;
+    color: #e8e8e8;
     overflow: hidden;
     min-height: 0;
     -webkit-app-region: drag;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
 }
 
 .settingswindow-main {
@@ -17,21 +18,27 @@
     height: 100vh;
 }
 
-/* 全局滚动条样式 */
-::-webkit-scrollbar {
-    width: 8px;
-    background: #333333;
+/* 设置窗口专用的滚动条样式 */
+.settingswindow-container ::-webkit-scrollbar {
+    width: 6px;
+    background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
-    background: #555555;
-    border-radius: 6px;
+.settingswindow-container ::-webkit-scrollbar-thumb {
+    background: rgba(200, 200, 200, 0.3);
+    border-radius: 3px;
+    transition: background 0.15s ease;
 }
 
-::-webkit-scrollbar-thumb:hover {
-    background: #444444;
+.settingswindow-container ::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 200, 200, 0.5);
 }
 
-::-webkit-scrollbar-corner {
-    background: #333333;
+.settingswindow-container ::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+}
+
+.settingswindow-container ::-webkit-scrollbar-corner {
+    background: transparent;
 }

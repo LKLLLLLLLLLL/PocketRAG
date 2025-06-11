@@ -1,4 +1,6 @@
-import { ConfigProvider, Table, Button, message, Tooltip } from 'antd';
+import { ConfigProvider, Button, message, Tooltip } from 'antd';
+import CustomTable from '../CustomTable/CustomTable';
+import AddConfigModal from '../AddConfigModal/AddConfigModal';
 import { CheckOutlined, DeleteOutlined, PlusOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import React, { useState, useEffect } from 'react';
 import './LocalModelManagement.css';
@@ -17,6 +19,8 @@ const LocalModelManagement = ({
     const [localModels, setLocalModels] = useState([]);
     // 删除加载状态
     const [deletingModels, setDeletingModels] = useState({});
+    // 添加模型弹窗状态
+    const [addModalVisible, setAddModalVisible] = useState(false);
 
     //------------------------初始化函数-------------------------
 
@@ -30,13 +34,57 @@ const LocalModelManagement = ({
         }
     }, [localModelManagement]);
 
-    //------------------------处理函数-------------------------
-
-    // 处理添加模型
+    //------------------------处理函数-------------------------    // 处理添加模型
     const handleAddModel = () => {
-        if (onAddLocalModel) {
-            onAddLocalModel();
+        setAddModalVisible(true);
+    };
+
+    // 处理添加模型确认
+    const handleAddModelConfirm = (formData) => {
+        try {
+            // 检查模型名称是否重复
+            const isDuplicateName = localModels.some(model => model.name === formData.name);
+            if (isDuplicateName) {
+                message.error('模型名称已存在，请使用其他名称');
+                return;
+            }
+
+            // 检查模型路径是否重复
+            const isDuplicatePath = localModels.some(model => model.path === formData.path);
+            if (isDuplicatePath) {
+                message.error('模型路径已存在，请使用其他路径');
+                return;
+            }
+
+            // 创建新的模型配置
+            const newModel = {
+                name: formData.name,
+                type: formData.type,
+                path: formData.path,
+                fileSize: formData.fileSize || 0
+            };
+
+            // 更新本地模型列表
+            const updatedModels = [...localModels, newModel];
+            setLocalModels(updatedModels);
+
+            // 通知父组件
+            if (onModelListChange) {
+                onModelListChange(updatedModels);
+            }
+
+            message.success(`${formData.type === 'embedding' ? '嵌入' : '重排序'}模型 "${formData.name}" 添加成功`);
+            setAddModalVisible(false);
+
+        } catch (error) {
+            console.error('添加模型失败:', error);
+            message.error('添加模型失败');
         }
+    };
+
+    // 处理添加模型取消
+    const handleAddModalClose = () => {
+        setAddModalVisible(false);
     };
 
     // 处理删除模型
@@ -152,12 +200,11 @@ const LocalModelManagement = ({
                     {getModelTypeTag(type)}
                 </span>
             )
-        },
-        {
+        },        {
             title: '模型路径',
             dataIndex: 'path',
             key: 'path',
-            width: 250,
+            width: 200,
             ellipsis: {
                 showTitle: false,
             },
@@ -179,8 +226,7 @@ const LocalModelManagement = ({
             render: (fileSize) => (
                 <span className="file-size">{formatFileSize(fileSize)}</span>
             )
-        },
-        {
+        },        {
             title: '操作',
             key: 'action',
             width: 80,
@@ -188,15 +234,14 @@ const LocalModelManagement = ({
             render: (_, record) => {
                 const isDeleting = deletingModels[record.name];
 
-                return (
-                    <div className="action-button-container">
+                return (                    <div className="action-button-container">
                         <ConfigProvider theme={darkTheme}>
                             <Button
                                 type="text"
                                 danger
                                 icon={<DeleteOutlined />}
                                 size="small"
-                                className="delete-model-button delete-button-center"
+                                className="delete-config-button"
                                 onClick={() => handleDeleteModel(record.name)}
                                 loading={isDeleting}
                                 title="删除模型"
@@ -212,129 +257,75 @@ const LocalModelManagement = ({
     const dataSource = localModels.map((model, index) => ({
         ...model,
         key: model.name || index,
-    }));
-
-    // 深色主题配置
+    }));    // 深色主题配置
     const darkTheme = {
         token: {
-            colorBgContainer: '#333333',
-            colorText: '#ffffff',
-            colorBorder: '#555555',
-            colorBgElevated: '#2a2a2a',
-            colorTextHeading: '#ffffff',
-            colorPrimary: '#00ffff',
+            colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+            colorText: '#e0e0e0',
+            colorBorder: 'rgba(255, 255, 255, 0.1)',
+            colorBgElevated: 'rgba(26, 26, 26, 0.8)',
+            colorTextHeading: 'rgba(0, 144, 144, 0.9)',
+            colorPrimary: 'rgba(0, 144, 144, 1)',
         },
         components: {
-            Table: {
-                headerBg: '#2a2a2a',
-                headerColor: '#ffffff',
-                rowHoverBg: '#404040',
-                borderColor: '#555555',
-            },
             Button: {
-                colorPrimary: '#00ffff',
-                colorPrimaryHover: '#33ffff',
-                colorPrimaryActive: '#00cccc',
+                colorPrimary: 'rgba(0, 144, 144, 1)',
+                colorPrimaryHover: 'rgba(0, 144, 144, 0.8)',
+                colorPrimaryActive: 'rgba(0, 144, 144, 0.9)',
+                colorText: '#e0e0e0',
+                colorBgContainer: 'rgba(255, 255, 255, 0.05)',
+                colorBorder: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: 4,
             },
         },
-    };
-
-    return (
+    };    return (
         <div className="local-model-management-container">
-            <div className="model-list-container">
-                <div className="local-model-settings-explanation">
-                    <h4>本地模型管理</h4>
-                    <p>管理用于检索的本地嵌入和重排序模型</p>
-                </div>
-                <div className="local-model-table-wrapper">
+            {/* 本地模型管理 */}
+            <div className="settings-group-title">本地模型管理</div>
+            <div className="settings-group-description">管理用于检索的本地嵌入和重排序模型</div>
+            <div className="search-table-container">
+                <CustomTable
+                    className="dark-table"
+                    columns={columns}
+                    dataSource={dataSource}
+                    pagination={{
+                        pageSize: 8,
+                        showSizeChanger: false,
+                        size: 'small',
+                        showTotal: (total, range) => `第 ${range[0]}-${range[1]} 项，共 ${total} 个模型`,
+                    }}
+                    size="small"
+                    bordered
+                    locale={{
+                        emptyText: '暂无本地检索模型，请点击添加按钮添加嵌入或重排序模型'
+                    }}
+                />
+            </div>
+            {/* 模型操作按钮 */}
+            <div className="model-controls-container">
+                <div className="model-action-buttons">
                     <ConfigProvider theme={darkTheme}>
-                        <Table
-                            className="dark-table"
-                            columns={columns}
-                            dataSource={dataSource}
-                            pagination={{
-                                pageSize: 8,
-                                showSizeChanger: false,
-                                size: 'small',
-                                showTotal: (total, range) => `第 ${range[0]}-${range[1]} 项，共 ${total} 个模型`,
-                            }}
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={handleAddModel}
                             size="small"
-                            bordered
-                            scroll={{ x: 700 }}
-                            locale={{
-                                emptyText: '暂无本地检索模型，请点击添加按钮添加嵌入或重排序模型'
-                            }}
-                        />
+                            className="model-button add-model-button"
+                        >
+                            添加
+                        </Button>
                     </ConfigProvider>
                 </div>
-                {/* 模型操作按钮和保存按钮 */}
-                <div className="model-controls-container">
-                    <div className="model-action-buttons">
-                        <ConfigProvider theme={darkTheme}>
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={handleAddModel}
-                                size="small"
-                                className="model-button add-model-button"
-                            >
-                                添加
-                            </Button>
-                        </ConfigProvider>
-                    </div>
-                    <div className="save-button-container">
-                        <ConfigProvider theme={darkTheme}>
-                            <Button
-                                type="primary"
-                                icon={<CheckOutlined />}
-                                onClick={handleSaveAllSettings}
-                                loading={isSaving}
-                                size="small"
-                                className="save-settings-button"
-                                title="保存设置"
-                            >
-                                保存设置
-                            </Button>
-                        </ConfigProvider>
-                    </div>
-                </div>
             </div>
-
-            {/* 模型统计信息 */}
-            <div className="section-divider"></div>
-
-            <div className="model-statistics-container">
-                <div className="local-model-settings-explanation">
-                    <h4>检索模型统计</h4>
-                    <p>当前本地检索模型的统计信息</p>
-                </div>
-                <div className="model-statistics-content">
-                    <div className="statistics-item">
-                        <span className="statistics-label">嵌入模型：</span>
-                        <span className="statistics-value">
-                            {localModels.filter(m => m.type === 'embedding').length} 个
-                        </span>
-                    </div>
-                    <div className="statistics-item">
-                        <span className="statistics-label">重排序模型：</span>
-                        <span className="statistics-value">
-                            {localModels.filter(m => m.type === 'rerank').length} 个
-                        </span>
-                    </div>
-                    <div className="statistics-item">
-                        <span className="statistics-label">总数量：</span>
-                        <span className="statistics-value">
-                            {localModels.length} 个
-                        </span>
-                    </div>
-                    <div className="statistics-item">
-                        <span className="statistics-label">总占用空间：</span>
-                        <span className="statistics-value">
-                            {formatFileSize(localModels.reduce((sum, model) => sum + model.fileSize, 0))}
-                        </span>
-                    </div>
-                </div>
-            </div>
+            {/* 添加模型弹窗 */}
+            <AddConfigModal
+                visible={addModalVisible}
+                onClose={handleAddModalClose}
+                onConfirm={handleAddModelConfirm}
+                type="localModel"
+                title="添加本地模型"
+                darkTheme={darkTheme}
+            />
         </div>
     );
 };

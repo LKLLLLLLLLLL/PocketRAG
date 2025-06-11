@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './RightScreen.css';
-import { Button, Input, Select, Switch, Table, message, Space } from 'antd';
+import { Button, Input, Select, Switch, message, Space } from 'antd';
 import { CloseOutlined, PlusOutlined, DeleteOutlined, CheckOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import ConversationModelModal from '../ConversationModelModal/ConversationModelModal';
 import LocalModelModal from '../LocalModelModal/LocalModelModal';
@@ -520,7 +520,7 @@ export default function RightScreen({ content, onClick }) {
             return(
                 <div className = 'rightscreen-container'>
                     <Header onClick={onClick}></Header>
-                    <div>
+                    <div className="settings-content-wrapper">
                         <LocalModelManagement
                             localModelManagement={localModelManagement}
                             onAddLocalModel={handleAddLocalModel}
@@ -537,14 +537,25 @@ export default function RightScreen({ content, onClick }) {
                             </LocalModelModal>
                         }
                     </div>
-                    
+                    {/* 悬浮保存按钮 */}
+                    <div className="floating-save-button">
+                        <Button
+                            type="primary"
+                            icon={<CheckOutlined />}
+                            onClick={handleSaveAllSettings}
+                            loading={isSaving}
+                            size="small"
+                        >
+                            保存设置
+                        </Button>
+                    </div>
                 </div>
             )
         case 'conversationSettings':
             return(
                 <div className = 'rightscreen-container'>
                     <Header onClick={onClick}></Header>
-                    <div>
+                    <div className="settings-content-wrapper">
                         <ConversationSettings
                             conversationSettings={conversationSettings}
                             onAddGenerationModel={handleAddGenerationModel}
@@ -561,41 +572,83 @@ export default function RightScreen({ content, onClick }) {
                                 onOk={handleConversationModelOk}
                                 onCancel={handleConversationModelCancel}></ConversationModelModal>}
                     </div>
+                    {/* 悬浮保存按钮 */}
+                    <div className="floating-save-button">
+                        <Button
+                            type="primary"
+                            icon={<CheckOutlined />}
+                            onClick={handleSaveAllSettings}
+                            loading={isSaving}
+                            size="small"
+                        >
+                            保存设置
+                        </Button>
+                    </div>
                 </div>
             )
         case 'performance':
             return(
                 <div className='rightscreen-container'>
                     <Header onClick={onClick}></Header>
-                    <Performance
-                        performanceSettings={performanceSettings}
-                        onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
-                        onSavePerformanceSettings={handleSavePerformanceSettings}
-                        isSaving={isSaving}>
-                    </Performance>
+                    <div className="settings-content-wrapper">
+                        <Performance
+                            performanceSettings={performanceSettings}
+                            onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                            onSavePerformanceSettings={handleSavePerformanceSettings}
+                            isSaving={isSaving}>
+                        </Performance>
+                    </div>
+                    {/* 悬浮保存按钮 */}
+                    <div className="floating-save-button">
+                        <Button
+                            type="primary"
+                            icon={<CheckOutlined />}
+                            onClick={handleSaveAllSettings}
+                            loading={isSaving}
+                            size="small"
+                        >
+                            保存设置
+                        </Button>
+                    </div>
                 </div>
             )
         case 'page':
             return(
                 <div className='rightscreen-container'>
                     <Header onClick={onClick}></Header>
-                    <Page
-                        onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
-                        >
-                    </Page>
+                    <div className="settings-content-wrapper">
+                        <Page
+                            onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                            >
+                        </Page>
+                    </div>
                 </div>
             )
         case 'searchSettings':
             return(
                 <div className='rightscreen-container'>
                     <Header onClick={onClick}></Header>
-                    <SearchSettings
-                        searchSettings={searchSettings}
-                        localModelManagement={settings?.localModelManagement}
-                        onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
-                        onSaveSearchSettings={handleSaveSearchSettings}
-                        isSaving={isSaving}>
-                    </SearchSettings>
+                    <div className="settings-content-wrapper">
+                        <SearchSettings
+                            searchSettings={searchSettings}
+                            localModelManagement={settings?.localModelManagement}
+                            onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                            onSaveSearchSettings={handleSaveSearchSettings}
+                            isSaving={isSaving}>
+                        </SearchSettings>
+                    </div>
+                    {/* 悬浮保存按钮 */}
+                    <div className="floating-save-button">
+                        <Button
+                            type="primary"
+                            icon={<CheckOutlined />}
+                            onClick={handleSaveAllSettings}
+                            loading={isSaving}
+                            size="small"
+                        >
+                            保存设置
+                        </Button>
+                    </div>
                 </div>
             )
         case 'about':
@@ -603,11 +656,13 @@ export default function RightScreen({ content, onClick }) {
             return(
                 <div className='rightscreen-container'>
                     <Header onClick={onClick}></Header>
-                    <About 
-                        version={version}
-                        onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
-                    >
-                    </About>
+                    <div className="settings-content-wrapper">
+                        <About 
+                            version={version}
+                            onSaveAllSettings={handleSaveAllSettings} // 保存所有设置
+                        >
+                        </About>
+                    </div>
                 </div>
             )
     }

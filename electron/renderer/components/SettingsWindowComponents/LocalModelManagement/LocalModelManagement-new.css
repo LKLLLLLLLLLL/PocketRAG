@@ -1,0 +1,259 @@
+/* 引入共享样式 */
+@import '../shared-styles.css';
+
+/* ========== 基础容器样式 ========== */
+.local-model-management-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    -webkit-app-region: no-drag;
+    padding: 20px 24px;
+    overflow-y: auto;
+    background: transparent;
+}
+
+.model-list-container {
+    width: 100%;
+}
+
+/* ========== 说明文字样式 ========== */
+.local-model-settings-explanation {
+    margin-bottom: 20px;
+}
+
+.local-model-settings-explanation h4 {
+    color: #f5f5f5;
+    margin-bottom: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.local-model-settings-explanation p {
+    color: #a0a0a0;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+/* ========== 表格容器和样式 ========== */
+.local-model-table-wrapper {
+    width: 100%;
+    margin: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 深色表格样式 - 重新设计为macOS风格 */
+.dark-table {
+    width: 100%;
+}
+
+.dark-table .ant-table {
+    background: transparent !important;
+    color: #e8e8e8 !important;
+    width: 100%;
+    font-size: 12px !important;
+}
+
+.dark-table .ant-table-thead > tr > th {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #d0d0d0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    padding: 10px 12px !important;
+}
+
+.dark-table .ant-table-thead > tr > th:last-child {
+    border-right: none !important;
+}
+
+.dark-table .ant-table-tbody > tr > td {
+    background: transparent !important;
+    color: #e0e0e0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+    vertical-align: middle !important;
+}
+
+.dark-table .ant-table-tbody > tr > td:last-child {
+    border-right: none !important;
+}
+
+.dark-table .ant-table-tbody > tr:hover > td {
+    background: rgba(0, 144, 144, 0.08) !important;
+}
+
+.dark-table .ant-table-tbody > tr:last-child > td {
+    border-bottom: none !important;
+}
+
+.dark-table .ant-table-cell {
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 分页器样式 */
+.dark-table .ant-pagination {
+    color: #e8e8e8 !important;
+    text-align: center;
+    margin-top: 16px !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 4px !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item a {
+    color: #e0e0e0 !important;
+    font-size: 12px !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item:hover {
+    background: rgba(0, 144, 144, 0.15) !important;
+    border-color: rgba(0, 144, 144, 0.3) !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item:hover a {
+    color: #00cccc !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active {
+    background: linear-gradient(135deg, rgba(0, 144, 144, 0.2), rgba(0, 144, 144, 0.15)) !important;
+    border-color: rgba(0, 144, 144, 0.4) !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active a {
+    color: #00cccc !important;
+    font-weight: 600 !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-prev,
+.dark-table .ant-pagination .ant-pagination-next {
+    color: #e0e0e0 !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 4px !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-prev:hover,
+.dark-table .ant-pagination .ant-pagination-next:hover {
+    color: #00cccc !important;
+    background: rgba(0, 144, 144, 0.15) !important;
+    border-color: rgba(0, 144, 144, 0.3) !important;
+}
+
+.dark-table .ant-empty {
+    color: #a0a0a0 !important;
+}
+
+.dark-table .ant-empty-description {
+    color: #a0a0a0 !important;
+}
+
+/* ========== 表格内容样式 ========== */
+/* 模型名称样式 */
+.model-name {
+    font-weight: 600;
+    color: #f0f0f0;
+    font-size: 12px;
+}
+
+/* 模型类型标签样式 */
+.model-type-tag {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+    display: inline-block;
+    white-space: nowrap;
+    background: rgba(0, 144, 144, 0.15);
+    color: #00cccc;
+    border: 1px solid rgba(0, 144, 144, 0.3);
+}
+
+/* 模型路径样式 */
+.model-path {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 11px;
+    color: #b0b0b0;
+}
+
+.path-icon {
+    color: #00cccc;
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.path-text {
+    color: #b0b0b0;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 文件大小样式 */
+.file-size {
+    color: #e0e0e0;
+    font-weight: 500;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 11px;
+}
+
+/* 删除按钮样式 */
+.action-button-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 24px;
+}
+
+.delete-button-center {
+    color: #ff6b6b !important;
+    padding: 0 !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 4px !important;
+    margin: 0 auto;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+}
+
+.delete-button-center:hover {
+    color: #ff5252 !important;
+    background: rgba(255, 107, 107, 0.1) !important;
+    border-color: rgba(255, 107, 107, 0.3) !important;
+}
+
+.delete-button-center:active {
+    color: #ff1744 !important;
+    background: rgba(255, 107, 107, 0.2) !important;
+}
+
+.delete-button-center .anticon {
+    font-size: 14px !important;
+}
