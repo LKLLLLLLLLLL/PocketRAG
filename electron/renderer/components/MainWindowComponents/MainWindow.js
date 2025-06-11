@@ -163,6 +163,7 @@ export function MainWindowInit() {
       if(!id)window.conversations.set(conversationId, await window.electronAPI.pathJoin(window.repoPath, '.PocketRAG','conversation',`conversation-${conversationId}.json`))
       window.electronAPI.beginConversation(callbackId, modelName, conversationId, query)
       window.addEventListener('conversation', window.callbacks.get(callbackId))
+      return conversationId
     }
 
     window.stopConversation = async (conversationId) => {
