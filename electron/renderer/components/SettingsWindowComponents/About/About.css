@@ -4,6 +4,7 @@
 .about-container {
     display: flex;
     flex: 1;
+    height: 100%;
     flex-direction: column;
     justify-content: center;
     align-items: center;
@@ -11,26 +12,6 @@
     padding: 40px 0;
     background: transparent;
     text-align: center;
-}
-
-.content {
-    margin: 8px 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    max-width: 500px;
-    padding: 16px 24px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.content:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(0, 144, 144, 0.2);
-    transform: translateY(-1px);
 }
 
 /* 关于页面标题样式 */
@@ -89,11 +70,12 @@
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0, 144, 144, 0.3);
 }
-
-/* ========== 底部空白块 ========== */
-.about-container .bottom-spacer {
-    height: 30vh;
-    width: 100%;
-    background: transparent;
-    flex-shrink: 0;
-}
+ a:link{
+    color: grey;
+ }
+ a:visited{
+    color: darkgrey;
+ }
+ a:active{
+    color: rgb(45, 45, 45);
+ }
