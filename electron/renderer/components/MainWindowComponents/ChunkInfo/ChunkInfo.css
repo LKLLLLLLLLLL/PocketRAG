@@ -1,187 +1,202 @@
-/* ====== 10. 分块信息表格样式 ====== */
+/* ====== 分块信息表格样式 ====== */
 .chunkinfo-container {
     background-color: #222 !important;
     color: #fff;
+    font-family: 'Microsoft YaHei', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.chunk-info-table {
-    background-color: #222 !important;
+/* 自定义表格容器 - 去掉所有边框 */
+.custom-table-container {
+    height: 100%;
+    overflow: auto !important;
+    /* 移除所有边框 */
+    position: relative;
+    border: none !important;
+    border-radius: none !important;
 }
 
-.chunk-info-table .ant-table {
-    background-color: #222 !important;
-    color: #fff !important;
-    border: 1px solid #555 !important;
-    border-radius: 0 !important;
+/* 自定义表格样式 */
+.custom-table {
+    width: 1290px;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: #222;
+    font-family: 'Microsoft YaHei', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* 表头样式 - 统一样式，包含所有边框 */
-.chunk-info-table .ant-table-thead>tr>th {
-    background-color: #222 !important;
-    color: #999 !important;
-    /* 标题改为灰色 */
-    border-bottom: 1px solid #555 !important;
-    border-right: 1px solid #555 !important;
-    border-left: 1px solid #555 !important;
-    border-top: 1px solid #555 !important;
-    border-radius: 0 !important;
-    font-weight: bold !important;
-    text-align: center !important;
+.custom-table thead{
+    border-bottom: 1px solid #555555 !important;
+    box-sizing: border-box;
+}
+
+.custom-table thead th:nth-child(odd),
+.custom-table thead th:nth-child(even){
+    border-bottom: 1px solid #555555 !important;
+    box-sizing: border-box;
+}
+
+/* 表头样式 - 只保留底边框 */
+.custom-table thead th {
+    background-color: #222;
+    color: #e0e0e0;
+    text-align: center;
+    vertical-align: middle;
+    padding: 8px 12px;
+    border-bottom: 1px solid #555555; /* 只保留底边框 */
+    border-right: none;
+    border-left: none;
+    font-weight: bold;
+    font-size: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    height: 40px;
+}
+
+/* 表头第一列固定 */
+.custom-table thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 11;
+    background-color: #222;
 }
 
 /* 表格内容样式 */
-.chunk-info-table .ant-table-tbody>tr>td {
-    background-color: #222 !important;
-    border-bottom: 1px solid #555 !important;
-    border-right: 1px solid #555 !important;
-    border-left: 1px solid #555 !important;
-    border-top: 1px solid #555 !important;
-    border-radius: 0 !important;
-    color: #fff !important;
+.custom-table tbody td {
+    background-color: #222;
+    color: #cccccc;
+    padding: 8px 12px;
+    border-top: 1px solid #555555;
+    border-bottom: 1px solid #555555;
+    border-right: none;
+    border-left: none;
+    vertical-align: middle;
+    font-size: 13px;
+    min-height: 40px;
 }
 
-/* 特定列内容居中（短内容） */
-.chunk-info-table .ant-table-tbody>tr>td:nth-child(1),
-/* 分块ID */
-.chunk-info-table .ant-table-tbody>tr>td:nth-child(3),
-/* 行号范围 */
-.chunk-info-table .ant-table-tbody>tr>td:nth-child(4)
-
-/* 嵌入模型 */
-    {
-    text-align: center !important;
+/* 只为最后一行添加底边框 */
+.custom-table tbody tr:last-child td {
+    border-bottom: 1px solid #555555;
 }
 
-/* 文件路径列（居中对齐） */
-.chunk-info-table .ant-table-tbody>tr>td:nth-child(2) {
-    text-align: center !important;
+/* 表格内容对齐 - 除了分块内容，其他都居中 */
+.custom-table tbody td:nth-child(1), /* 分块ID */
+.custom-table tbody td:nth-child(2), /* 文件路径 */
+.custom-table tbody td:nth-child(3), /* 行号范围 */
+.custom-table tbody td:nth-child(4), /* 嵌入模型 */
+.custom-table tbody td:nth-child(6) /* 元数据 */ {
+    text-align: center;
+    vertical-align: middle;
 }
 
-/* 分块内容列（很长，保持左对齐） */
-.chunk-info-table .ant-table-tbody>tr>td:nth-child(5) {
-    text-align: left !important;
+.custom-table tbody td:nth-child(5) { /* 分块内容 - 保持左对齐 */
+    text-align: left;
+    vertical-align: top;
 }
 
-/* 元数据列（可能很长，居中对齐，但超长时左对齐） */
-.chunk-info-table .ant-table-tbody>tr>td:nth-child(6) {
-    text-align: center !important;
+/* 固定列样式 */
+.custom-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    background-color: #222;
+    z-index: 2;
 }
 
-/* 当单元格内容过长时，自动左对齐 */
-.chunk-info-table .ant-table-tbody>tr>td .ant-typography {
-    text-align: inherit !important;
+/* hover效果 */
+.custom-table tbody tr:hover td {
+    background-color: #333;
 }
 
-.chunk-info-table .ant-table-tbody>tr:hover>td {
-    background-color: #333 !important;
+.custom-table tbody tr:hover td:first-child {
+    background-color: #333;
 }
 
-.chunk-info-table .ant-table-tbody>tr.ant-table-row-selected>td {
-    background-color: #444 !important;
+/* 滚动条样式 - 保留圆角 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: #333333;
 }
 
-/* 确保表格容器有边框，去掉圆角 */
-.chunk-info-table .ant-table-container {
-    border: 1px solid #555 !important;
-    border-radius: 0 !important;
-    background-color: #222 !important;
+::-webkit-scrollbar-thumb {
+    background: #555555;
+    border-radius: 6px; /* 滚动条保留圆角 */
 }
 
-/* 表格内容区域使用全局滚动条 */
-.chunk-info-table .ant-table-body {
-    overflow: auto !important;
-    background-color: #222 !important;
+::-webkit-scrollbar-thumb:hover {
+    background: #666666;
 }
 
-/* 禁用antd自带的滚动条样式 */
-.chunk-info-table .ant-table-body::-webkit-scrollbar {
-    width: 8px !important;
-    background: #333333 !important;
+::-webkit-scrollbar-track {
+    background: #333333;
+    border-radius: 6px; /* 滚动条轨道保留圆角 */
 }
 
-.chunk-info-table .ant-table-body::-webkit-scrollbar-thumb {
-    background: #555555 !important;
-    border-radius: 6px !important;
+::-webkit-scrollbar-corner {
+    background: #333333;
 }
 
-.chunk-info-table .ant-table-body::-webkit-scrollbar-thumb:hover {
-    background: #666666 !important;
+/* 确保表格容器的滚动条也使用全局样式 */
+.custom-table-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: #333333;
 }
 
-.chunk-info-table .ant-table-body::-webkit-scrollbar-corner {
-    background: #333333 !important;
+.custom-table-container::-webkit-scrollbar-thumb {
+    background: #555555;
+    border-radius: 6px; /* 滚动条保留圆角 */
 }
 
-/* 强制覆盖antd的边框半径设置 - 去掉所有圆角 */
-.chunk-info-table .ant-table-container,
-.chunk-info-table .ant-table,
-.chunk-info-table .ant-table-content,
-.chunk-info-table .ant-table-header,
-.chunk-info-table .ant-table-body,
-.chunk-info-table .ant-table-tbody,
-.chunk-info-table .ant-table-thead,
-.chunk-info-table .ant-table-thead>tr>th,
-.chunk-info-table .ant-table-tbody>tr>td {
-    border-radius: 0 !important;
+.custom-table-container::-webkit-scrollbar-thumb:hover {
+    background: #666666;
 }
 
-/* 分页器样式 - 背景改为#222，去掉圆角 */
-.chunk-info-table .ant-pagination {
-    background-color: #222 !important;
-    padding: 12px !important;
-    border-top: 1px solid #555 !important;
-    border-radius: 0 !important;
+.custom-table-container::-webkit-scrollbar-track {
+    background: #333333;
+    border-radius: 6px; /* 滚动条轨道保留圆角 */
 }
 
-.chunk-info-table .ant-pagination .ant-pagination-item {
-    background-color: #222 !important;
-    border-color: #555 !important;
-    border-radius: 0 !important;
+.custom-table-container::-webkit-scrollbar-corner {
+    background: #333333;
 }
 
-.chunk-info-table .ant-pagination .ant-pagination-item a {
-    color: #fff !important;
+/* 确保代码块样式 - 去掉圆角 */
+.custom-table code {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 2px 4px;
+    border-radius: 0; /* 去掉圆角 */
+    font-size: 12px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
-.chunk-info-table .ant-pagination .ant-pagination-item-active {
-    background-color: #00b0b0 !important;
-    border-color: #00b0b0 !important;
-    border-radius: 0 !important;
+/* 链接样式 */
+.custom-table a {
+    color: #00b0b0;
+    text-decoration: none;
+    cursor: pointer;
 }
 
-.chunk-info-table .ant-pagination .ant-pagination-item-active a {
-    color: #fff !important;
+.custom-table a:hover {
+    color: #00d4d4;
+    text-decoration: underline;
 }
 
-.chunk-info-table .ant-pagination .ant-pagination-prev,
-.chunk-info-table .ant-pagination .ant-pagination-next {
-    color: #fff !important;
-    border-radius: 0 !important;
+/* 统一背景色 - 所有列相同 */
+.custom-table tbody td:nth-child(odd),
+.custom-table tbody td:nth-child(even) {
+    background-color: #222;
 }
 
-.chunk-info-table .ant-pagination .ant-pagination-prev:hover,
-.chunk-info-table .ant-pagination .ant-pagination-next:hover {
-    color: #00b0b0 !important;
+.custom-table tbody tr:hover td:nth-child(odd),
+.custom-table tbody tr:hover td:nth-child(even) {
+    background-color: #333;
 }
 
-.chunk-info-table .ant-select {
-    background-color: #222 !important;
-    border-radius: 0 !important;
-}
-
-.chunk-info-table .ant-select-selector {
-    background-color: #222 !important;
-    border-color: #555 !important;
-    border-radius: 0 !important;
-    color: #fff !important;
-}
-
-/* 表格内Typography组件"展开"按钮颜色 */
-.chunk-info-table .ant-typography-expand {
-    color: #00b0b0 !important;
-}
-
-.chunk-info-table .ant-typography-edit,
-.chunk-info-table .ant-typography-copy {
-    color: #00b0b0 !important;
+/* 表头也保持统一背景色 */
+.custom-table thead th:nth-child(odd),
+.custom-table thead th:nth-child(even) {
+    background-color: #222;
 }
