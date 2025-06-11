@@ -104,18 +104,22 @@
 }
 
 .result0-item {
-    background: #2b2b2b;
+    background: #333; /* 统一为对话界面的背景色 */
     border-radius: 8px;
     margin-bottom: 14px;
     padding: 14px 14px 10px 14px;
     color: #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
-    transition: box-shadow 0.2s, background 0.2s;
+    box-shadow: none; /* 移除阴影，与对话界面一致 */
+    transition: background 0.2s;
     cursor: pointer;
-    border: 1.5px solid transparent;
+    border: none; /* 移除边框，与对话界面一致 */
     display: flex;
     flex-direction: column;
     gap: 0;
+}
+
+.result0-item:hover {
+    background: #3a3a3a; /* 悬浮时略微增加背景亮度 */
 }
 
 .result0-item-container {
@@ -126,4 +130,140 @@
     border-radius: 4px;
     padding: 0;
     overflow: visible;
+}
+
+/* 统一代码块样式，与对话界面一致 */
+.chunkcontent-container pre, .chunkcontent-container code {
+    font-family: 'JetBrains Mono', 'Fira Mono', 'Menlo', 'Consolas', 'Liberation Mono', 'DejaVu Sans Mono', 'monospace' !important;
+    font-size: 14px;
+    background: #111 !important;
+    color: #fff;
+    border-radius: 4px;
+    padding: 0 2px;
+    line-height: 1.7;
+}
+
+/* 统一文件路径样式，与对话界面一致 */
+.filepath-content {
+    font-size: 11px;
+    color: #888;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    text-align: right;
+}
+
+/* ReactMarkdown 样式支持 - 确保搜索结果中的markdown正确渲染 */
+.result0-item .markdown-body {
+    color: #e6e6e6 !important;
+    background-color: transparent !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Ubuntu', 'Cantarell', 'Helvetica Neue', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.result0-item .markdown-body h1,
+.result0-item .markdown-body h2,
+.result0-item .markdown-body h3,
+.result0-item .markdown-body h4,
+.result0-item .markdown-body h5,
+.result0-item .markdown-body h6 {
+    color: #fff !important;
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.result0-item .markdown-body h2 {
+    border-bottom: 1px solid #444 !important;
+    padding-bottom: 8px;
+}
+
+.result0-item .markdown-body p {
+    margin-top: 0;
+    margin-bottom: 16px;
+    color: #e6e6e6 !important;
+}
+
+.result0-item .markdown-body a {
+    color: #00b0b0 !important;
+    text-decoration: none;
+}
+
+.result0-item .markdown-body a:hover,
+.result0-item .markdown-body a:active {
+    color: #79b8ff !important;
+}
+
+.result0-item .markdown-body blockquote {
+    color: #aaa !important;
+    background-color: #333 !important;
+    border-left: 4px solid #666 !important;
+    padding: 8px 16px;
+    margin: 16px 0;
+}
+
+.result0-item .markdown-body code {
+    background-color: #111 !important;
+    color: #fff !important;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-family: 'JetBrains Mono', 'Fira Mono', 'Menlo', 'Consolas', 'Liberation Mono', 'DejaVu Sans Mono', 'monospace' !important;
+    font-size: 13px;
+}
+
+.result0-item .markdown-body pre {
+    background-color: #111 !important;
+    color: #fff !important;
+    border-radius: 6px;
+    padding: 16px;
+    overflow-x: auto;
+    margin: 16px 0;
+}
+
+.result0-item .markdown-body pre code {
+    background-color: transparent !important;
+    padding: 0;
+    border-radius: 0;
+}
+
+.result0-item .markdown-body ul,
+.result0-item .markdown-body ol {
+    padding-left: 30px;
+    margin: 16px 0;
+}
+
+.result0-item .markdown-body li {
+    margin: 4px 0;
+    color: #e6e6e6 !important;
+}
+
+.result0-item .markdown-body table {
+    border-collapse: collapse;
+    margin: 16px 0;
+    width: 100%;
+}
+
+.result0-item .markdown-body th,
+.result0-item .markdown-body td {
+    border: 1px solid #444 !important;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.result0-item .markdown-body th {
+    background: #333 !important;
+    color: #fff !important;
+    font-weight: bold;
+}
+
+.result0-item .markdown-body tr:nth-child(2n) {
+    background-color: #2a2a2a !important;
+}
+
+.result0-item .markdown-body strong {
+    color: #fff !important;
+    font-weight: bold;
+}
+
+.result0-item .markdown-body em {
+    color: #e6e6e6 !important;
+    font-style: italic;
 }
