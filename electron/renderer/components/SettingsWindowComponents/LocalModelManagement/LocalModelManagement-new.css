@@ -6,10 +6,9 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    min-height: 0;
     -webkit-app-region: no-drag;
     padding: 20px 24px;
-    overflow-y: auto;
     background: transparent;
 }
 
@@ -41,7 +40,6 @@
 .local-model-table-wrapper {
     width: 100%;
     margin: 0;
-    overflow: hidden;
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
@@ -256,4 +254,12 @@
 
 .delete-button-center .anticon {
     font-size: 14px !important;
+}
+
+/* ========== 底部空白块 ========== */
+.local-model-management-container .bottom-spacer {
+    height: 10vh;
+    width: 100%;
+    background: transparent;
+    flex-shrink: 0;
 }

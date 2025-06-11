@@ -6,3 +6,11 @@
     -webkit-app-region: no-drag;
     padding: 10px;
 }
+
+/* ========== 底部空白块 ========== */
+.page-settings-container .bottom-spacer {
+    height: 10vh;
+    width: 100%;
+    background: transparent;
+    flex-shrink: 0;
+}

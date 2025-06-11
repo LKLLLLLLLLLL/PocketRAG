@@ -338,10 +338,13 @@ const Performance = ({
                         <span className="performance-availability-status">
                             {hardwareLoading ? '检测中...' :
                                 hardwareAvailability['coreMLAvailable'] ? '可用' : '不可用'}
-                        </span>
-                    </div>
+                        </span>                    </div>
                 </div>
-            </div>        </div>
+            </div>
+            
+            {/* 底部空白块，防止被悬浮按钮遮挡 */}
+            <div className="bottom-spacer"></div>
+        </div>
     );
 };
 

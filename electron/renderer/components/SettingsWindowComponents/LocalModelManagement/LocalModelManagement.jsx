@@ -362,6 +362,9 @@ const LocalModelManagement = ({
                 title="添加本地模型"
                 darkTheme={darkTheme}
             />
+            
+            {/* 底部空白块，防止被悬浮按钮遮挡 */}
+            <div className="bottom-spacer"></div>
         </div>
     );
 };

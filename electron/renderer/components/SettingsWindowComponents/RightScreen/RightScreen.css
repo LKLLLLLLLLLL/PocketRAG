@@ -2,7 +2,8 @@
     display: flex;
     flex-direction: column;
     flex: 1;
-    overflow: hidden;
+    height: 100%;
+    min-height: 0;
     -webkit-app-region: no-drag;
     background: #1a1a1a;
 }
@@ -58,8 +59,31 @@
 .settings-content-wrapper {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px 0;
     background: transparent;
+    min-height: 0;
+}
+
+/* 优化滚动条样式 */
+.settings-content-wrapper::-webkit-scrollbar {
+    width: 8px;
+    background: transparent;
+}
+
+.settings-content-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(200, 200, 200, 0.4);
+    border-radius: 4px;
+    transition: background 0.15s ease;
+}
+
+.settings-content-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(200, 200, 200, 0.6);
+}
+
+.settings-content-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
 }
 
 /* 设置内容的内边距通过子元素控制 */

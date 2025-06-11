@@ -89,3 +89,11 @@
     transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0, 144, 144, 0.3);
 }
+
+/* ========== 底部空白块 ========== */
+.about-container .bottom-spacer {
+    height: 30vh;
+    width: 100%;
+    background: transparent;
+    flex-shrink: 0;
+}

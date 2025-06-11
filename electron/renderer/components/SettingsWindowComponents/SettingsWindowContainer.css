@@ -14,8 +14,8 @@
     display: flex;
     min-height: 0;
     min-width: 0;
-    overflow: hidden;
     height: 100vh;
+    max-height: 100vh;
 }
 
 /* 设置窗口专用的滚动条样式 */

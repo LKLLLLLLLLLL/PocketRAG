@@ -54,6 +54,12 @@
     border-radius: 6px;
     overflow: hidden;
     position: relative;
+    max-height: 400px; /* 添加最大高度限制 */
+}
+
+.macos-table-wrapper {
+    overflow-y: auto;
+    max-height: 400px; /* 确保表格可以滚动 */
 }
 
 .macos-table {
@@ -98,6 +104,27 @@
 
 .macos-table tr:last-child td {
     border-bottom: none;
+}
+
+/* ========== 设置组件统一表格容器样式 ========== */
+.search-table-container,
+.generation-model-table-wrapper,
+.local-model-table-wrapper {
+    width: 100%;
+    margin: 0 0 20px 0;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    max-height: 450px; /* 设置最大高度以支持滚动 */
+}
+
+.search-table-container .custom-table-wrapper,
+.generation-model-table-wrapper .custom-table-wrapper,
+.local-model-table-wrapper .custom-table-wrapper {
+    max-height: 400px !important; /* 确保表格容器可以滚动 */
+    overflow-y: auto !important;
 }
 
 /* ========== 表格控制按钮 ========== */

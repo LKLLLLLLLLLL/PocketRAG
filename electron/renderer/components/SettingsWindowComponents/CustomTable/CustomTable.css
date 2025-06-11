@@ -16,7 +16,7 @@
 }
 
 .custom-table-wrapper {
-    overflow: auto;
+    overflow: visible;
     max-width: 100%;
     border-radius: 8px;
     position: relative;

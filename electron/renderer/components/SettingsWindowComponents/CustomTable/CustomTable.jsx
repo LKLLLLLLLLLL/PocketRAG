@@ -28,8 +28,7 @@ const CustomTable = ({
         return (
             <div className={`custom-table-container ${className} ${size} ${bordered ? 'bordered' : ''}`}>
                 <div className="custom-table-wrapper" style={{ 
-                    maxWidth: scroll.x,
-                    maxHeight: scroll.y || '300px'
+                    maxWidth: scroll.x
                 }}>
                     <table className="custom-table">
                         <thead>
@@ -59,8 +58,7 @@ const CustomTable = ({
     return (
         <div className={`custom-table-container ${className} ${size} ${bordered ? 'bordered' : ''}`}>
             <div className="custom-table-wrapper" style={{ 
-                maxWidth: scroll.x,
-                maxHeight: scroll.y || '300px'
+                maxWidth: scroll.x
             }}>
                 <table className="custom-table">
                     <thead>

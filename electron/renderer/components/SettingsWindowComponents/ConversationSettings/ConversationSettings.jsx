@@ -430,9 +430,7 @@ const ConversationSettings = ({
                             />
                         </ConfigProvider>
                     </div>                </div>
-            </div>
-
-            {/* 添加模型弹窗 */}
+            </div>            {/* 添加模型弹窗 */}
             <AddConfigModal
                 visible={addModalVisible}
                 onClose={handleAddModalClose}
@@ -441,6 +439,9 @@ const ConversationSettings = ({
                 title="添加对话模型"
                 darkTheme={darkTheme}
             />
+            
+            {/* 底部空白块，防止被悬浮按钮遮挡 */}
+            <div className="bottom-spacer"></div>
         </div>
     );
 }

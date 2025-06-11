@@ -482,9 +482,7 @@ const SearchSettings = ({
                         >
                             添加
                         </Button>
-                    </ConfigProvider>                </div>            </div>
-
-            {/* 添加配置弹窗 */}
+                    </ConfigProvider>                </div>            </div>            {/* 添加配置弹窗 */}
             <AddConfigModal
                 visible={addModalVisible}
                 onClose={handleAddConfigClose}
@@ -494,6 +492,9 @@ const SearchSettings = ({
                 localModels={localModelManagement?.models || []}
                 darkTheme={darkTheme}
             />
+            
+            {/* 底部空白块，防止被悬浮按钮遮挡 */}
+            <div className="bottom-spacer"></div>
         </div>
     );
 };
