@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Input, Button } from 'antd';
-import { LoadingOutlined } from '@ant-design/icons';
+import { LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
+import ConversationTopicContainer from './ConversationTopicContainer';
+import ModelSelectionContainer from './ModelSelectionContainer';
 import './Conversation.css';
 
 const { TextArea } = Input;
@@ -22,16 +24,38 @@ const Conversation = ({
     onStop,
     handleInfoClick,
     showInfo,
-    info
+    info,
+    // 新增props
+    selectedConversationId,
+    onSelectConversation,
+    onNewConversation,
+    selectedModel,
+    onModelSelect,
+    currentConversationTopic,
+    conversationList,
+    loadConversationList
 }) => {
-    return(
+
+    return (
         <div className={className}>
             <div className='maindemo-content'>
                 <PanelGroup direction="vertical" className='conversation-panelgroup'>
                     <Panel minSize={50} maxSize={80} defaultSize={70} className='conversation-panel_1'>
+                        {/* 对话标题容器 */}
+                        <div className="conversation-topic-container">
+                            <ConversationTopicContainer
+                                selectedConversationId={selectedConversationId}
+                                onSelectConversation={onSelectConversation}
+                                onNewConversation={onNewConversation}
+                                currentConversationTopic={currentConversationTopic}
+                                conversationList={conversationList}
+                                loadConversationList={loadConversationList}
+                            />
+                        </div>
+
                         <div className='conversation-container' style={{ height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', marginTop: 24 }}>
                             <div className="chat-history" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-                                {history.map((item, idx) => (
+                                {(history || []).map((item, idx) => (
                                     <div key={idx} className="chat-history-item" style={{ display: 'flex', flexDirection: 'column' }}>
                                         <div className="chat-row chat-row-question">
                                             <div className="chat-bubble chat-bubble-question">{item.query}</div>
@@ -125,40 +149,47 @@ const Conversation = ({
                                         ) : (
                                             <>
                                                 {/* 显示完成的检索结果 */}
-                                                {item.retrieval?.map((retr, i) => (
-                                                    <React.Fragment key={i}>
-                                                        <div className="annotation-container">
-                                                            检索目的：{retr.annotation}
-                                                        </div>
-                                                        <div className="searchkey-container">
-                                                            关键词：{Array.isArray(retr.search) ? retr.search.join('、') : retr.search}
-                                                        </div>
-                                                        <div className="conversation-result-list">
-                                                            {retr.result.map((res, j) => (
-                                                                <div key={j} className="result0-item">
-                                                                    <div className="result0-item-container">
-                                                                        <div className="chunkcontent-container">
-                                                                            <div className="chunkcontent-content">
-                                                                                {res.highlightedContent ? (
-                                                                                    <div dangerouslySetInnerHTML={{ __html: res.highlightedContent }} />
-                                                                                ) : (
-                                                                                    <ReactMarkdown>{res.content || res}</ReactMarkdown>
+                                                    {item.retrieval?.map((retr, i) => (
+                                                        <React.Fragment key={`completed-retrieval-${idx}-${i}`}>
+                                                            {retr.annotation && (
+                                                                <div className="annotation-container">
+                                                                    检索目的：{retr.annotation}
+                                                                </div>
+                                                            )}
+                                                            {retr.search && retr.search.length > 0 && (
+                                                                <div className="searchkey-container">
+                                                                    关键词：{Array.isArray(retr.search) ? retr.search.join('、') : retr.search}
+                                                                </div>
+                                                            )}
+                                                            {/* FIX: Ensure retr.result is an array before mapping */}
+                                                            {retr.result && retr.result.length > 0 && (
+                                                                <ul className="conversation-result-list"> {/* 使用 ul 结构 */}
+                                                                    {retr.result.map((res, j) => (
+                                                                        <li key={`result-${i}-${j}`} className="result0-item"> {/* 使用 li 结构 */}
+                                                                            <div className="result0-item-container">
+                                                                                <div className="chunkcontent-container">
+                                                                                    <div className="chunkcontent-content">
+                                                                                        {res.highlightedContent ? (
+                                                                                            <div dangerouslySetInnerHTML={{ __html: res.highlightedContent }} />
+                                                                                        ) : (
+                                                                                            <ReactMarkdown>{res.content || ''}</ReactMarkdown>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                                {res.filePath && (
+                                                                                    <div className="filepath-container">
+                                                                                        <div className="filepath-content">
+                                                                                            {res.filePath} {res.beginLine !== undefined && res.endLine !== undefined ? `[${res.beginLine}-${res.endLine}]` : ''}
+                                                                                        </div>
+                                                                                    </div>
                                                                                 )}
                                                                             </div>
-                                                                        </div>
-                                                                        {res.filePath && (
-                                                                            <div className="filepath-container">
-                                                                                <div className="filepath-content">
-                                                                                    {res.filePath} {res.beginLine && res.endLine ? `[${res.beginLine}-${res.endLine}]` : ''}
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </React.Fragment>
-                                                ))}
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            )}
+                                                        </React.Fragment>
+                                                    ))}
                                                 {/* 显示完成的答案 */}
                                                 <div className="chat-row chat-row-answer">
                                                     <div className="chat-bubble chat-bubble-answer">
@@ -181,7 +212,7 @@ const Conversation = ({
                                         {Object.entries(info[0]).map(([key, value]) => (
                                             <tr key={key}>
                                                 <td>{key}</td>
-                                                <td>{value}</td>
+                                                <td>{String(value)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -202,6 +233,14 @@ const Conversation = ({
                                     showCount="true"
                                 />
                             </div>
+                            {/* 模型选择容器 */}
+                            <div className="model-selection-container">
+                                <ModelSelectionContainer
+                                    selectedModel={selectedModel}
+                                    onModelSelect={onModelSelect}
+                                    disabled={convLoading}
+                                />
+                            </div>
                             <div className='button-area'>
                                 <div className="model-information-area">
                                     <Button
@@ -216,7 +255,7 @@ const Conversation = ({
                                 <div className="conversation-control-area">
                                     <Button
                                         onClick={convLoading ? onStop : onClick_Conv}
-                                        disabled={convLoading ? false : !inputQuestionValue.trim()}
+                                        disabled={convLoading ? false : (!inputQuestionValue.trim() || !selectedModel)}
                                         className={convLoading ? 'stop-button' : 'send-button'}
                                         style={{
                                             height: 48,
@@ -236,4 +275,5 @@ const Conversation = ({
         </div>
     )
 }
+
 export default Conversation;

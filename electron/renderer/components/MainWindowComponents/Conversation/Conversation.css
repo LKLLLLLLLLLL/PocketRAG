@@ -401,3 +401,42 @@
     color: #fff !important;
     cursor: not-allowed;
 }
+
+.conversation-result-list {
+    margin-top: 10px;
+    padding-left: 0;
+    list-style: none;
+}
+
+.result0-item {
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.result0-item:hover {
+    background-color: #f0f0f0;
+}
+
+.result0-item-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.chunkcontent-container {
+    margin-bottom: 5px;
+}
+
+.chunkcontent-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.filepath-container {
+    margin-top: 8px;
+    font-size: 0.8em;
+    color: #555;
+}

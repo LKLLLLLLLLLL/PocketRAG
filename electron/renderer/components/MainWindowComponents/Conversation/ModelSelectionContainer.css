@@ -1,0 +1,45 @@
+.model-selection-container {
+    margin: 8px 0;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e1e5e9;
+}
+
+.model-select-wrapper {
+    margin-bottom: 4px;
+}
+
+.model-option {
+    padding: 2px 0;
+}
+
+.model-option-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.api-key-badge {
+    background: #1890ff;
+    color: white;
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    line-height: 1;
+}
+
+.selected-model-info {
+    margin-top: 4px;
+    text-align: center;
+}
+
+.ant-select-selector {
+    border-radius: 4px !important;
+}
+
+.ant-select-selection-item {
+    display: flex;
+    align-items: center;
+}

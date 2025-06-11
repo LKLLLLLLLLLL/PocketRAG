@@ -1,7 +1,8 @@
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import React, { useState, useRef, useEffect } from "react";
+import { useCallback } from 'react';
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
-import { Table,Spin,Typography,Input, Button, message } from "antd";
+import { Table, Spin, Typography, Input, Button, message } from "antd";
 import ReactMarkdown from 'react-markdown';
 import LeftBar from "./LeftBar/LeftBar";
 import Doclist from "./Doclist/Doclist";
@@ -33,6 +34,13 @@ export default function MainWindowContents() {
     const [stopped, setStopped] = useState(false);
     const streamingRef = useRef([]);
 
+    // 新增：对话相关状态
+    const [selectedConversationId, setSelectedConversationId] = useState(null);
+    const [selectedModel, setSelectedModel] = useState(null);
+    // 添加缺失的状态
+    const [currentConversationTopic, setCurrentConversationTopic] = useState('新对话');
+    const [conversationList, setConversationList] = useState([]);
+
     // information state management
     const [showInfo, setShowInfo] = useState(false);
     const [info, setInfo] = useState([]);
@@ -47,6 +55,91 @@ export default function MainWindowContents() {
     // 在状态管理部分添加
     const [embeddingStatus, setEmbeddingStatus] = useState({}); // 嵌入状态管理
     const [showEmbeddingTable, setShowEmbeddingTable] = useState(false); // 控制表格显示
+
+    // 修改 useEffect 中的初始化顺序
+    useEffect(() => {
+        const initializeConversations = async () => {
+            try {
+                console.log('Starting conversation initialization...')
+
+                // 1. 等待仓库初始化完成
+                await window.repoInitializePromise;
+
+                // 2. 初始化对话映射
+                await window.initConversationMap();
+
+                // 3. 加载模型设置并自动选择第一个模型
+                await initializeModel();
+
+                // 4. 加载对话列表
+                await loadConversationList();
+
+            } catch (err) {
+                console.error('Failed to initialize conversations:', err);
+            }
+        };
+
+        initializeConversations();
+    }, []); // 移除依赖，避免循环
+
+    // 新增初始化模型的函数
+    const initializeModel = async () => {
+        try {
+            const settings = await window.electronAPI.getSettings()
+            const generationModels = settings.conversationSettings?.generationModel || [];
+
+            if (generationModels.length > 0 && !selectedModel) {
+                setSelectedModel(generationModels[0].name);
+            }
+        } catch (err) {
+            console.error('Failed to initialize model:', err);
+        }
+    };
+
+    // 修改 loadConversationList 函数，不使用 getAllConversations
+
+    const loadConversationList = useCallback(async () => {
+        try {
+            console.log('Loading conversation list...')
+
+            // 直接从 window.conversations Map 中获取数据
+            if (!window.conversations || window.conversations.size === 0) {
+                console.log('No conversations found in map')
+                setConversationList([]);
+                return;
+            }
+
+            const conversations = [];
+
+            for (const [conversationId, conversationPath] of window.conversations.entries()) {
+                try {
+                    const historyData = await window.electronAPI.getFile(conversationPath);
+                    const history = JSON.parse(historyData);
+                    conversations.push({
+                        conversationId: Number(conversationId), // 确保 ID 是数字类型
+                        topic: history.topic || `对话 ${conversationId}`,
+                        lastTime: history.history?.length > 0
+                            ? history.history[history.history.length - 1].time
+                            : Number(conversationId) // 确保时间戳是数字类型
+                    });
+                } catch (err) {
+                    console.error(`Failed to read conversation ${conversationId}:`, err);
+                    conversations.push({
+                        conversationId: Number(conversationId), // 确保 ID 是数字类型
+                        topic: `新对话 ${conversationId}`,
+                        lastTime: Number(conversationId) // 确保时间戳是数字类型
+                    });
+                }
+            }
+
+            console.log('Loaded conversation list:', conversations);
+            // 按时间倒序排列
+            setConversationList(conversations.sort((a, b) => b.lastTime - a.lastTime));
+        } catch (err) {
+            console.error('Failed to load conversation list:', err);
+            setConversationList([]);
+        }
+    }, []);
 
     // 在 useEffect 中修改事件处理，支持进度值
     useEffect(() => {
@@ -67,12 +160,74 @@ export default function MainWindowContents() {
             setShowEmbeddingTable(true);
         };
 
+        // 添加对话事件监听
+        const handleSearch = (e) => {
+            setStreaming(prev => [...prev, { type: 'search', content: e.detail, time: Date.now() }]);
+            streamingRef.current.push({ type: 'search', content: e.detail, time: Date.now() });
+        };
+
+        const handleAnnotation = (e) => {
+            setStreaming(prev => [...prev, { type: 'annotation', content: e.detail, time: Date.now() }]);
+            streamingRef.current.push({ type: 'annotation', content: e.detail, time: Date.now() });
+        };
+
+        const handleResult = (e) => {
+            setStreaming(prev => [...prev, { type: 'result', content: e.detail, time: Date.now() }]);
+            streamingRef.current.push({ type: 'result', content: e.detail, time: Date.now() });
+        };
+
+        const handleAnswer = (e) => {
+            setStreaming(prev => [...prev, { type: 'answer', content: e.detail, time: Date.now() }]);
+            streamingRef.current.push({ type: 'answer', content: e.detail, time: Date.now() });
+        };
+
+        const handleDoneRetrieval = (e) => {
+            console.log('检索完成:', e.detail);
+        };
+
+        const handleDone = (e) => {
+            console.log('对话完成:', e.detail);
+
+            // 解析流式数据
+            const finalHistory = parseStreamingToHistory(inputQuestionValue, streamingRef.current);
+
+            // 更新历史记录
+            setHistory(prev => {
+                const newHistory = [...prev];
+                const pendingIndex = newHistory.findIndex(item => item.pending);
+                if (pendingIndex !== -1) {
+                    newHistory[pendingIndex] = { ...finalHistory, pending: false };
+                }
+                return newHistory;
+            });
+
+            // 清理状态
+            setConvLoading(false);
+            setStopped(false);
+            setStreaming([]);
+            streamingRef.current = [];
+        };
+
+        // 添加事件监听器
+        window.addEventListener('conversationSearch', handleSearch);
+        window.addEventListener('conversationAnnotation', handleAnnotation);
+        window.addEventListener('conversationResult', handleResult);
+        window.addEventListener('conversationAnswer', handleAnswer);
+        window.addEventListener('conversationDoneRetrieval', handleDoneRetrieval);
+        window.addEventListener('conversationDone', handleDone);
+
         window.addEventListener('embedding', handleEmbeddingProgress);
 
         return () => {
-            window.removeEventListener('embedding', handleEmbeddingProgress);
+            window.removeEventListener('embedding', handleEmbeddingProgress); // 清理事件监听器
+            window.removeEventListener('conversationSearch', handleSearch);
+            window.removeEventListener('conversationAnnotation', handleAnnotation);
+            window.removeEventListener('conversationResult', handleResult);
+            window.removeEventListener('conversationAnswer', handleAnswer);
+            window.removeEventListener('conversationDoneRetrieval', handleDoneRetrieval);
+            window.removeEventListener('conversationDone', handleDone);
         };
-    }, []);
+    }, [inputQuestionValue]);
 
     //information related
     const handleInfoClick = async () => {
@@ -84,10 +239,10 @@ export default function MainWindowContents() {
     // 创建系统标签的通用函数
     const createSystemTab = (tabType, tabLabel) => {
         const tabKey = `system-${tabType}`;
-        
+
         // 检查是否已存在相同标签
         const exists = tabs.some(tab => tab.key === tabKey);
-        
+
         if (!exists) {
             // 添加新的系统标签
             setTabs(prev => [
@@ -102,7 +257,7 @@ export default function MainWindowContents() {
                 }
             ]);
         }
-        
+
         // 激活该标签
         setActiveKey(tabKey);
     };
@@ -173,14 +328,14 @@ export default function MainWindowContents() {
     // 处理标签切换 - 根据标签类型切换内容
     const handleTabChange = (key) => {
         setActiveKey(key);
-        
+
         // 找到对应的标签
         const tab = tabs.find(t => t.key === key);
         if (tab) {
             if (tab.isSystem) {
                 // 系统标签：根据系统类型切换内容
                 setContent(tab.systemType);
-                
+
                 // 如果是文件相关的系统标签，清除文件选择
                 if (tab.systemType !== 'edit') {
                     setSelectNode(null);
@@ -215,7 +370,7 @@ export default function MainWindowContents() {
                 // 切换到最后一个标签
                 const lastTab = newTabs[newTabs.length - 1];
                 setActiveKey(lastTab.key);
-                
+
                 if (lastTab.isSystem) {
                     setContent(lastTab.systemType);
                 } else {
@@ -439,16 +594,89 @@ export default function MainWindowContents() {
     };
 
     // conversation related - 修复对话逐字输出和分块显示
-    const handleSendConversation = () => {
-        if (convLoading) return;
-        if (!inputQuestionValue.trim()) return;
+
+    // 修改 handleSelectConversation 函数
+
+    const handleSelectConversation = async (conversationId) => {
+        setSelectedConversationId(conversationId);
+
+        try {
+            // 使用 window.conversations Map 获取路径
+            const conversationPath = window.conversations.get(conversationId);
+            if (!conversationPath) {
+                console.log(`No path found for conversation ${conversationId}`);
+                setCurrentConversationTopic(`对话 ${conversationId}`);
+                setHistory([]);
+                return;
+            }
+
+            const historyData = await window.electronAPI.getFile(conversationPath);
+            const conversationData = JSON.parse(historyData);
+
+            setCurrentConversationTopic(conversationData.topic || `对话 ${conversationId}`);
+            setHistory(conversationData.history || []);
+        } catch (err) {
+            console.error('Failed to load conversation:', err);
+            setCurrentConversationTopic(`对话 ${conversationId}`);
+            setHistory([]);
+        }
+
+        // 清理流式状态
+        setStreaming([]);
+        streamingRef.current = [];
+        setConvLoading(false);
+        setStopped(false);
+    };
+
+    // 在原有代码基础上，修复handleNewConversation函数
+
+    // 处理新建对话 - 修复异步调用问题
+    const handleNewConversation = async () => {
+        const newConversationId = Date.now();
+        setSelectedConversationId(newConversationId);
+        setCurrentConversationTopic('新对话');
+        setHistory([]);
+        setStreaming([]);
+        streamingRef.current = [];
+        setConvLoading(false);
+        setStopped(false);
+
+        // 将新对话添加到映射中 - 修复这里的异步调用
+        try {
+            const conversationPath = await window.electronAPI.pathJoin(
+                window.repoPath,
+                '.PocketRAG',
+                'conversation',
+                `conversation-${newConversationId}.json`
+            );
+            window.conversations.set(newConversationId, conversationPath);
+            console.log('Created new conversation:', newConversationId);
+        } catch (err) {
+            console.error('Failed to create conversation path:', err);
+        }
+    };
+
+    // 处理模型选择
+    const handleModelSelect = (modelName) => {
+        setSelectedModel(modelName);
+    };
+
+    // 优化后的发送逻辑
+    const handleSendConversation = async () => {
+        if (convLoading || !inputQuestionValue.trim() || !selectedModel) {
+            if (!selectedModel) message.error('请先选择对话模型');
+            return;
+        }
 
         setConvLoading(true);
         setStopped(false);
         setStreaming([]);
         streamingRef.current = [];
 
-        // 添加新的对话项到历史
+        // 使用当前的对话ID（如果存在）或让 beginConversation 创建新的
+        const conversationId = selectedConversationId || undefined;
+
+        // 添加待处理的对话项
         const newHistoryItem = {
             query: inputQuestionValue,
             retrieval: [],
@@ -456,89 +684,37 @@ export default function MainWindowContents() {
             time: Date.now(),
             pending: true
         };
-
         setHistory(prev => [...prev, newHistoryItem]);
 
-        const handleSearch = (e) => {
-            console.log('Search event:', e.detail);
-            streamingRef.current.push({ type: 'search', content: e.detail });
-            setStreaming([...streamingRef.current]);
-        };
+        try {
+            // 调用 beginConversation，如果没有ID会自动创建
+            const returnedId = await window.beginConversation(
+                selectedModel,
+                inputQuestionValue,
+                conversationId
+            );
 
-        const handleAnnotation = (e) => {
-            console.log('Annotation event:', e.detail);
-            streamingRef.current.push({ type: 'annotation', content: e.detail });
-            setStreaming([...streamingRef.current]);
-        };
+            // 如果是新对话，更新ID
+            if (!selectedConversationId) {
+                setSelectedConversationId(returnedId);
+                setCurrentConversationTopic('新对话');
+            }
 
-        const handleResult = (e) => {
-            console.log('Result event:', e.detail);
-            streamingRef.current.push({ type: 'result', content: e.detail });
-            setStreaming([...streamingRef.current]);
-        };
-
-        const handleAnswer = (e) => {
-            console.log('Answer event:', e.detail);
-            streamingRef.current.push({ type: 'answer', content: e.detail });
-            setStreaming([...streamingRef.current]);
-        };
-
-        const handleDoneRetrieval = (e) => {
-            console.log('Done retrieval event:', e.detail);
-            // 检索完成，但对话可能还在继续
-        };
-
-        const handleDone = (e) => {
-            console.log('Done event:', e.detail);
-
-            // 解析流式数据为最终历史记录
-            const finalHistory = parseStreamingToHistory(inputQuestionValue, streamingRef.current);
-
-            setHistory(prev => {
-                const newHistory = [...prev];
-                const pendingIndex = newHistory.findIndex(item => item.pending);
-                if (pendingIndex !== -1) {
-                    newHistory[pendingIndex] = { ...finalHistory, pending: false };
-                }
-                return newHistory;
-            });
-
-            // 清理状态
-            setStreaming([]);
-            streamingRef.current = [];
+        } catch (err) {
+            console.error('Failed to start conversation:', err);
             setConvLoading(false);
+        }
 
-            // 移除事件监听器
-            cleanup();
-        };
-
-        const cleanup = () => {
-            window.removeEventListener('conversationSearch', handleSearch);
-            window.removeEventListener('conversationAnnotation', handleAnnotation);
-            window.removeEventListener('conversationResult', handleResult);
-            window.removeEventListener('conversationAnswer', handleAnswer);
-            window.removeEventListener('conversationDoneRetrieval', handleDoneRetrieval);
-            window.removeEventListener('conversationDone', handleDone);
-        };
-
-        // 注册事件监听器
-        window.addEventListener('conversationSearch', handleSearch);
-        window.addEventListener('conversationAnnotation', handleAnnotation);
-        window.addEventListener('conversationResult', handleResult);
-        window.addEventListener('conversationAnswer', handleAnswer);
-        window.addEventListener('conversationDoneRetrieval', handleDoneRetrieval);
-        window.addEventListener('conversationDone', handleDone);
-
-        // 开始对话
-        window.beginConversation('deepseek', inputQuestionValue);
         setInputQuestionValue('');
     };
 
     //stop conversation
-    const handleStop = () => {
+    const handleStop = async () => {
         setStopped(true);
         setConvLoading(false);
-        if (window.stopConversation) window.stopConversation();
+        if (selectedConversationId && window.stopConversation) {
+            await window.stopConversation(selectedConversationId);
+        }
     };
 
     //press enter to retrieve
@@ -707,6 +883,14 @@ export default function MainWindowContents() {
                             onClick_Conv={onClick_Conv}
                             stopped={stopped}
                             onStop={handleStop}
+                            // 新增props
+                            selectedConversationId={selectedConversationId}
+                            onSelectConversation={handleSelectConversation}
+                            onNewConversation={handleNewConversation}
+                            selectedModel={selectedModel}
+                            onModelSelect={handleModelSelect}
+                            conversationList={conversationList}
+                            loadConversationList={loadConversationList}
                             //information related
                             handleInfoClick={handleInfoClick}
                             info={info}
@@ -732,7 +916,10 @@ const MainDemo = ({
     content, inputValue, resultItem, onChange, onKeyDown, onSearchClick, isLoading, showResult, isTimeout, className,
     history, streaming, inputQuestionValue, setInputQuestionValue, onSendConversation, onConvKeyDown, convLoading,
     onChange_Conv, onPressEnter_Conv, onClick_Conv, stopped, onStop, handleInfoClick, showInfo, info,
-    activeKey, tabs, fileContentMap, loadFileContent, updateFileContent, saveFileContent, lineRange, jumpToFile, setLineRange
+    activeKey, tabs, fileContentMap, loadFileContent, updateFileContent, saveFileContent, lineRange, jumpToFile, setLineRange,
+    // 新增的对话相关props
+    selectedConversationId, onSelectConversation, onNewConversation, selectedModel, onModelSelect,
+    currentConversationTopic, conversationList, loadConversationList
 }) => {
     switch (content) {
         case 'conversation':
@@ -752,8 +939,17 @@ const MainDemo = ({
                     onStop={onStop}
                     handleInfoClick={handleInfoClick}
                     showInfo={showInfo}
-                    info={info}>
-                </Conversation>
+                    info={info}
+                    // 新增props
+                    selectedConversationId={selectedConversationId}
+                    onSelectConversation={onSelectConversation}
+                    onNewConversation={onNewConversation}
+                    selectedModel={selectedModel}
+                    onModelSelect={onModelSelect}
+                    currentConversationTopic={currentConversationTopic}
+                    conversationList={conversationList}
+                    loadConversationList={loadConversationList}
+                />
             );
         case 'search':
             return (
@@ -780,19 +976,19 @@ const MainDemo = ({
                     updateFileContent={updateFileContent}
                     saveFileContent={saveFileContent}
                     lineRange={lineRange}
-                    onHighlightComplete={() => { setLineRange(null);}}
+                    onHighlightComplete={() => { setLineRange(null); }}
                 >
                 </TextEditor>
             );
         case 'chunkInfo':
             return (
-                <ChunkInfo className = {className}>
-                </ChunkInfo>    
+                <ChunkInfo className={className}>
+                </ChunkInfo>
             );
         case 'welcome':
         default:
             return (
-                <Welcome className = {className}>
+                <Welcome className={className}>
                 </Welcome>
             );
     }
