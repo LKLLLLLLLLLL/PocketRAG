@@ -935,9 +935,9 @@ function AreSettingsRight() {
   const pf = settings.performance
   if (!pf || typeof pf !== 'object') return false
   if (typeof pf.maxThreads !== 'number') return false
-  if (typeof pf['cuda available'] !== 'boolean') return false
+  if (typeof pf['cudaAvailable'] !== 'boolean') return false
   if (typeof pf.useCuda !== 'boolean') return false
-  if (typeof pf['coreML available'] !== 'boolean') return false
+  if (typeof pf['coreMLAvailable'] !== 'boolean') return false
   if (typeof pf.useCoreML !== 'boolean') return false
 
   return true

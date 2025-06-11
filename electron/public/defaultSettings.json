@@ -17,9 +17,9 @@
     },
     "performance": {
         "maxThreads" : 0,
-        "cuda available" : false,
+        "cudaAvailable" : false,
         "useCuda" : false,
-        "coreML available" : false, 
+        "coreMLAvailable" : false, 
         "useCoreML" : false
     }
 }
