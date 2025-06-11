@@ -4,8 +4,8 @@ import { Dropdown, Tree, message } from 'antd';
 import { EllipsisOutlined } from '@ant-design/icons';
 import { MenuOutlined } from '@ant-design/icons';
 import './Doclist.css';
-import { Progress, Table, Button, Collapse } from 'antd';
-import { CaretRightOutlined, CaretDownOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Progress } from 'antd';
+import { CheckCircleOutlined } from '@ant-design/icons';
 
 const { DirectoryTree } = Tree;
 
@@ -15,8 +15,6 @@ const Doclist = ({
     treeData,
     setTreeData,
     embeddingStatus = {},
-    showEmbeddingTable = false,
-    onToggleEmbeddingTable,
     children
 }) => {
     const [selectedKeys, setSelectedKeys] = useState([]);
@@ -28,15 +26,7 @@ const Doclist = ({
     //   progress: number,           // 0-1 的浮点数
     //   isCompleted: boolean,       // progress === 1
     //   showProgressBar: boolean,   // 是否显示进度条
-    //   showSuccessIcon: boolean,   // 是否显示成功图标
-    //   successTimer: number        // 成功图标定时器ID
     // }>
-
-    // 表格是否应该显示
-    const [shouldShowTable, setShouldShowTable] = useState(false);
-
-    // 所有文件完成后的5秒隐藏定时器
-    const [hideTableTimer, setHideTableTimer] = useState(null);
 
     // 监听 embeddingStatus 变化，更新文件进度
     useEffect(() => {
@@ -62,9 +52,7 @@ const Doclist = ({
                     fileName,
                     progress: 0,
                     isCompleted: false,
-                    showProgressBar: true,
-                    showSuccessIcon: false,
-                    successTimer: null
+                    showProgressBar: true
                 });
                 hasChanges = true;
                 return; // 跳过后续逻辑，等待下次 useEffect 触发
@@ -104,30 +92,12 @@ const Doclist = ({
                 hasChanges = true;
 
                 if (isCompleted && !currentState.isCompleted) {
-                    // 完成时隐藏进度条，显示成功图标
-                    if (currentState?.successTimer) clearTimeout(currentState.successTimer);
-                    const timer = setTimeout(() => {
-                        setFileProgressMap(prev => {
-                            const updated = new Map(prev);
-                            const state = updated.get(filePath);
-                            if (state) {
-                                updated.set(filePath, {
-                                    ...state,
-                                    showSuccessIcon: false,
-                                    successTimer: null
-                                });
-                            }
-                            return updated;
-                        });
-                    }, 3000);
-
+                    // 完成时隐藏进度条，不显示任何图标，但暂时保留在Map中
                     newFileProgressMap.set(filePath, {
                         ...currentState,
                         progress: normalizedProgress,
                         isCompleted: true,
-                        showProgressBar: false, // 关键：完成后隐藏进度条
-                        showSuccessIcon: true,
-                        successTimer: timer
+                        showProgressBar: false // 关键：完成后隐藏进度条
                     });
                 } else {
                     // 未完成时一直显示进度条
@@ -135,9 +105,7 @@ const Doclist = ({
                         ...currentState,
                         progress: normalizedProgress,
                         isCompleted,
-                        showProgressBar: true, // 关键：未完成时显示进度条
-                        showSuccessIcon: currentState?.showSuccessIcon || false,
-                        successTimer: currentState?.successTimer || null
+                        showProgressBar: true // 关键：未完成时显示进度条
                     });
                 }
             }
@@ -147,151 +115,89 @@ const Doclist = ({
         for (const filePath of newFileProgressMap.keys()) {
             if (!embeddingStatus[filePath]) {
                 hasChanges = true;
-                const state = newFileProgressMap.get(filePath);
-                if (state?.successTimer) clearTimeout(state.successTimer);
                 newFileProgressMap.delete(filePath);
             }
         }
 
-        if (hasChanges) setFileProgressMap(newFileProgressMap);
+        if (hasChanges) {
+            setFileProgressMap(newFileProgressMap);
+        }
     }, [embeddingStatus]);
 
-    // 监听文件进度变化，决定表格显示/隐藏
-    useEffect(() => {
-        const states = Array.from(fileProgressMap.values());
-
-        if (states.length === 0) {
-            setShouldShowTable(false);
-            if (hideTableTimer) {
-                clearTimeout(hideTableTimer);
-                setHideTableTimer(null);
-            }
-            return;
-        }
-
-        const allCompleted = states.every(state => state.isCompleted);
-        const hasIncompleteFiles = states.some(state => !state.isCompleted);
-
-        if (hasIncompleteFiles) {
-            setShouldShowTable(true);
-            if (hideTableTimer) {
-                clearTimeout(hideTableTimer);
-                setHideTableTimer(null);
-            }
-        } else if (allCompleted) {
-            const allSuccessIconsHidden = states.every(state => !state.showSuccessIcon);
-
-            if (allSuccessIconsHidden && !hideTableTimer) {
-                const timer = setTimeout(() => {
-                    setShouldShowTable(false);
-                    setFileProgressMap(new Map());
-                    setHideTableTimer(null);
-                }, 5000);
-                setHideTableTimer(timer);
-            }
-            setShouldShowTable(true);
-        }
-    }, [fileProgressMap, hideTableTimer]);
-
-    // 组件卸载时清理所有定时器
-    useEffect(() => {
-        return () => {
-            fileProgressMap.forEach(state => {
-                if (state.successTimer) {
-                    clearTimeout(state.successTimer);
+    // 获取文件的嵌入状态
+    const getFileEmbeddingStatus = (filePath) => {
+        // 首先尝试直接匹配
+        let status = fileProgressMap.get(filePath);
+        
+        if (!status) {
+            // 如果直接匹配失败，尝试使用相对路径匹配
+            // 从绝对路径中提取文件名或相对路径
+            const fileName = filePath.split('/').pop();
+            status = fileProgressMap.get(fileName);
+            
+            if (!status) {
+                // 尝试匹配 repo 路径后的相对路径
+                const repoPath = window.repoPath;
+                if (repoPath && filePath.startsWith(repoPath)) {
+                    const relativePath = filePath.substring(repoPath.length + 1);
+                    status = fileProgressMap.get(relativePath);
                 }
-            });
-            if (hideTableTimer) {
-                clearTimeout(hideTableTimer);
             }
-        };
-    }, []);
-
-    // 创建表格数据源
-    const createEmbeddingTableData = () => {
-        return Array.from(fileProgressMap.entries()).map(([filePath, state]) => ({
-            key: filePath,
-            fileName: state.fileName,
-            filePath,
-            progress: state.progress,
-            isCompleted: state.isCompleted,
-            showProgressBar: state.showProgressBar,
-            showSuccessIcon: state.showSuccessIcon
-        }));
+        }
+        
+        return status;
     };
 
-    // 表格列定义
-    const embeddingColumns = [
-        {
-            title: '文件名',
-            dataIndex: 'fileName',
-            key: 'fileName',
-            width: '60%',
-            ellipsis: true,
-            align: 'left',
-        },
-        {
-            title: '进度',
-            dataIndex: 'progress',
-            key: 'progress',
-            width: '40%',
-            align: 'center',
-            render: (progress, record) => {
-                // 完成后显示成功图标
-                if (record.showSuccessIcon) {
-                    return (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            gap: '6px'
-                        }}>
-                            <CheckCircleOutlined style={{
-                                fontSize: '16px',
-                                color: '#52c41a'
-                            }} />
-                            <span style={{
-                                fontSize: '12px',
-                                color: '#52c41a',
-                                minWidth: '35px'
-                            }}>
-                                完成
-                            </span>
-                        </div>
-                    );
+    // 渲染嵌入进度组件
+    const renderEmbeddingProgress = (filePath) => {
+        try {
+            const status = getFileEmbeddingStatus(filePath);
+            
+            // 添加路径匹配调试信息
+            if (fileProgressMap.size > 0 && filePath.includes('temp.db')) {
+                console.log('=== 路径匹配调试 ===');
+                console.log('文件树请求路径:', filePath);
+                console.log('当前repoPath:', window.repoPath);
+                
+                // 尝试提取相对路径
+                const fileName = filePath.split('/').pop();
+                console.log('提取的文件名:', fileName);
+                
+                if (window.repoPath && filePath.startsWith(window.repoPath)) {
+                    const relativePath = filePath.substring(window.repoPath.length + 1);
+                    console.log('提取的相对路径:', relativePath);
                 }
-                // 只在 showProgressBar 为 true 时显示进度条
-                if (record.showProgressBar) {
-                    const progressPercent = Math.round(progress * 100);
-                    const progressColor = progress >= 1 ? '#52c41a' : '#1890ff';
-                    return (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            gap: '6px'
-                        }}>
-                            <Progress
-                                type="circle"
-                                percent={progressPercent}
-                                size={20}
-                                strokeColor={progressColor}
-                                showInfo={false}
-                            />
-                            <span style={{
-                                fontSize: '12px',
-                                color: '#999',
-                                minWidth: '35px'
-                            }}>
-                                {progressPercent}%
-                            </span>
-                        </div>
-                    );
-                }
-                return null;
-            },
+                
+                console.log('进度Map中的所有键:', Array.from(fileProgressMap.keys()));
+                console.log('找到的状态:', status);
+                console.log('==================');
+            }
+            
+            if (!status) return null;
+
+            // 显示进度条
+            if (status.showProgressBar && typeof status.progress === 'number') {
+                const progressPercent = Math.max(0, Math.min(100, Math.round(status.progress * 100)));
+                return (
+                    <Progress
+                        type="circle"
+                        percent={progressPercent}
+                        size={16}
+                        strokeColor="#009090"
+                        trailColor="#555"
+                        strokeWidth={24}
+                        showInfo={false}
+                        style={{ marginLeft: '8px' }}
+                    />
+                );
+            }
+
+            return null;
+        } catch (error) {
+            console.error('渲染嵌入进度错误:', error, '文件路径:', filePath);
+            return null;
         }
-    ];
+    };
 
     useEffect(() => {
         if (selectNode && selectNode.key) {
@@ -334,47 +240,66 @@ const Doclist = ({
                     treeData={treeData}
                     selectedKeys={selectedKeys}
                     setSelectedKeys={setSelectedKeys}
+                    renderEmbeddingProgress={renderEmbeddingProgress}
                 />
-                {/* 嵌入进度表格 - 只有当应该显示时才显示 */}
-                {shouldShowTable && (
-                    <div className="embedding-progress-section">
-                        <div className="embedding-header">
-                            <Button
-                                type="text"
-                                icon={showEmbeddingTable ? <CaretDownOutlined /> : <CaretRightOutlined />}
-                                onClick={() => onToggleEmbeddingTable(!showEmbeddingTable)}
-                                className="embedding-toggle-btn"
-                                style={{ fontSize: '12px', padding: '4px 8px' }}
-                            >
-                                嵌入进度 ({fileProgressMap.size})
-                            </Button>
-                        </div>
-
-                        {showEmbeddingTable && (
-                            <div className="embedding-table-wrapper">
-                                <Table
-                                    columns={embeddingColumns}
-                                    dataSource={createEmbeddingTableData()}
-                                    size="small"
-                                    pagination={false}
-                                    scroll={{ y: 200 }}
-                                    className="embedding-progress-table"
-                                    rowKey="filePath"
-                                />
-                            </div>
-                        )}
-                    </div>
-                )}
                 {children}
             </div>
         </div>
     );
 }
 
-const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys }) => {
+const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys, renderEmbeddingProgress }) => {
     const [expandedKeys, setExpandedKeys] = useState([]);
     const [rightMenus, setRightMenus] = useState([]);
     const rightTriggerRef = useRef(null);
+
+    // 自定义标题渲染函数
+    const titleRender = (nodeData) => {
+        try {
+            if (!nodeData) return nodeData.title;
+            
+            const isFile = !nodeData.children || nodeData.children.length === 0;
+            let embeddingProgress = null;
+            
+            if (isFile && renderEmbeddingProgress) {
+                try {
+                    embeddingProgress = renderEmbeddingProgress(nodeData.key);
+                } catch (error) {
+                    console.error('嵌入进度渲染错误:', error);
+                    embeddingProgress = null;
+                }
+            }
+            
+            return (
+                <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    width: '100%',
+                    minWidth: 0
+                }}>
+                    <span style={{ 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis', 
+                        whiteSpace: 'nowrap',
+                        marginRight: '8px',
+                        flex: 1
+                    }}>
+                        {nodeData.title}
+                    </span>
+                    {embeddingProgress && (
+                        <span style={{ flexShrink: 0 }}>
+                            {embeddingProgress}
+                        </span>
+                    )}
+                </div>
+            );
+        } catch (error) {
+            console.error('titleRender 错误:', error);
+            // 回退到简单的文本渲染
+            return nodeData.title;
+        }
+    };
 
     const handleRightClick = ({ event, node }) => {
         const overlay = rightTriggerRef.current;
@@ -413,16 +338,19 @@ const RepoFileTree = ({ setSelectNode, treeData, selectedKeys, setSelectedKeys }
 
     return (
         <div>
-            <DirectoryTree
-                expandedKeys={expandedKeys}
-                onExpand={setExpandedKeys}
-                treeData={treeData}
-                onRightClick={handleRightClick}
-                onSelect={handleLeftClick}
-                selectedKeys={selectedKeys}
-                showIcon={false}
-                className="custom-directory-tree"
-            />
+            {treeData && treeData.length > 0 && (
+                <DirectoryTree
+                    expandedKeys={expandedKeys}
+                    onExpand={setExpandedKeys}
+                    treeData={treeData}
+                    onRightClick={handleRightClick}
+                    onSelect={handleLeftClick}
+                    selectedKeys={selectedKeys}
+                    showIcon={false}
+                    className="custom-directory-tree"
+                    titleRender={titleRender}
+                />
+            )}
             <Dropdown menu={{ items: rightMenus }} trigger={['contextMenu']}>
                 <div ref={rightTriggerRef} style={{ position: 'absolute' }} />
             </Dropdown>

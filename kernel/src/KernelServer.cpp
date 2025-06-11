@@ -1023,11 +1023,6 @@ auto KernelServer::Settings::readSettings(std::filesystem::path path) const -> S
         {
             throw Error{"Embedding config model name not found in localModelManagement: " + embeddingConfig.modelName, Error::Type::Input};
         }
-        if(modelNames.find(embeddingConfig.name) != modelNames.end())
-        {
-            throw Error{"Duplicate embedding config name: " + embeddingConfig.name, Error::Type::Input};
-        }
-        modelNames.insert(embeddingConfig.name);
     }
     // if model name reference to localModelManagement and only one selected
     int selectedCount = 0;

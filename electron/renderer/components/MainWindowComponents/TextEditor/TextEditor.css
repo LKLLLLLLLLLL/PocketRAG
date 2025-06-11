@@ -416,3 +416,27 @@
   /* 绿色 */
   font-style: italic !important;
 }
+
+/* 编辑器文本选中颜色 */
+.CodeMirror-selected {
+  background-color: #264f78 !important;
+  /* VSCode选中背景色 */
+}
+
+/* 当编辑器失去焦点时的选中颜色 */
+.CodeMirror-focused .CodeMirror-selected {
+  background-color: #264f78 !important;
+}
+
+/* 多行选中时的颜色 */
+.CodeMirror-line::selection,
+.CodeMirror-line>span::selection,
+.CodeMirror-line>span>span::selection {
+  background-color: #264f78 !important;
+}
+
+.CodeMirror-line::-moz-selection,
+.CodeMirror-line>span::-moz-selection,
+.CodeMirror-line>span>span::-moz-selection {
+  background-color: #264f78 !important;
+}

@@ -480,3 +480,20 @@
 .embedding-table-wrapper::-webkit-scrollbar-thumb:hover {
     background: #666666;
 }
+
+/* 让 antd tree title 区域撑满整行，保证进度条显示 */
+.custom-directory-tree .ant-tree-title {
+  width: 100% !important;
+  display: flex;
+  align-items: center;
+  padding-right: 0;
+}
+
+/* 文件树进度条支持样式 */
+.custom-directory-tree .ant-tree-node-content-wrapper {
+    padding-right: 28px; /* 为进度条留出更多空间 */
+}
+
+.custom-directory-tree .ant-tree-treenode .ant-tree-node-content-wrapper {
+    min-width: 0; /* 允许文本截断 */
+}
