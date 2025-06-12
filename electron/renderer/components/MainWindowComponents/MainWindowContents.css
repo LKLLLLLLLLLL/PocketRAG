@@ -24,9 +24,9 @@ body,
     flex-direction: column;
     overflow: hidden;
 }
-.mainwindow-panel_2{
+/* .mainwindow-panel_2{
     max-width: 80vw;
-}
+} */
 
 .maindemo {
     background-color: #222222;
