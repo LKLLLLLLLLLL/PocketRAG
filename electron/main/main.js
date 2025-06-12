@@ -1543,7 +1543,7 @@ app.whenReady().then(async () => {
   })
 
   createFirstWindow()
-
+  /*
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })// for macOS
@@ -1551,6 +1551,12 @@ app.whenReady().then(async () => {
   app.on('window-all-closed', function () {
     if (platform !== 'darwin') app.quit()
   })// for macOS
+  */
+  
+  app.on('window-all-closed', function () {
+    app.quit()
+  })// treat all platforms the same as windows
+
 })
 
 
