@@ -39,7 +39,7 @@
     align-items: center;
     gap: 8px;
     padding: 12px 24px;
-    background-color: #00cccc;
+    background-color: #009090;
     color: white;
     border: none;
     border-radius: 6px;
@@ -51,7 +51,7 @@
 }
 
 .github-link:hover {
-    background-color: #009999;
+    background-color: #00c0c0;
 }
 
 .github-link svg {

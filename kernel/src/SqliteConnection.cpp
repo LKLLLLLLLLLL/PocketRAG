@@ -7,8 +7,6 @@
 #include <sqlite3.h>
 #include <cppjieba/Jieba.hpp>
 
-#include "TextSearchTable.h"
-
 SqliteConnection::LocalDataManager SqliteConnection::dataManager;
 
 namespace
