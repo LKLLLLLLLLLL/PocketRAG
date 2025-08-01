@@ -12,7 +12,7 @@
 
 PocketRAG是一个轻量的本地化RAG（检索-增强-生成）应用。不需要复杂的配置，提供直装直用的检索体验。
 
-目前支持Windows和MacOS平台。
+目前支持Windows(x86_64)和MacOS(aarch64)平台。
 
 **CUDA支持**：该应用支持调用CUDA独显加速模型推理，如果需要使用CUDA加速，请确保系统支持CUDA 12.0及以上版本，并安装了CUDA运行时。*注意：带有CUDA加速的版本打包了`cuDNN`库，因此体积较大。*
 
@@ -26,6 +26,7 @@ PocketRAG是一个轻量的本地化RAG（检索-增强-生成）应用。不需
 #### 环境要求
 
 ##### Windows：
+- x86_64
 - Visual Studio with C++工具链
 - CMake
 - Ninja
@@ -34,6 +35,7 @@ PocketRAG是一个轻量的本地化RAG（检索-增强-生成）应用。不需
 为了使用MSVC工具链，请确保在**Visual Studio Developer PowerShell**中执行以下操作。
 
 ##### MacOS：
+- aarch64(Apple Silicon)
 - llvm/clang++编译器
 - CMake
 - Ninja
@@ -73,8 +75,8 @@ PocketRAG是一个轻量的本地化RAG（检索-增强-生成）应用。不需
 
     **可选参数**：
     - `--cuda`：构建使用CUDA加速的版本，默认构建不使用CUDA加速。
-    - `--win [target]`：为Windows指定构建的目标格式，支持`nsis`, `msi`, `portable`。默认将以全部格式打包。
-    - `--mac [target]`：为Mac指定构建的目标格式，支持`dmg`, `zip`。默认将以全部格式打包。
+    - `--win [target]`：为Windows指定构建的目标格式，支持`nsis`, `msi`, `portable`，推荐`nsis`。默认将以全部格式打包。
+    - `--mac [target]`：为Mac指定构建的目标格式，支持`dmg`, `zip`，推荐`dmg`。默认将以全部格式打包。
 
     例如：`npm run build -- --cuda --win nsis` 将构建一个使用CUDA加速的Windows NSIS安装包。
 
