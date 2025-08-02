@@ -49,6 +49,7 @@ async function build() {
     await runCommand('node', [path.join(__dirname, 'buildKernel.js'), ...kernelArgs]);
     
     console.log('\n📦 Packaging application...\n');
+    electronBuilderArgs.push('-p never'); // Prevents auto-publishing
     await runCommand('electron-builder', electronBuilderArgs);
     
     console.log('\n✅ Build completed!\n');

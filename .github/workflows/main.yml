@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build-windows:
@@ -58,7 +59,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,7 +87,9 @@ jobs:
           ../vcpkg/vcpkg install
 
       - name: Build
-        run: npm run build -- --mac dmg
+        run: |
+          export LDFLAGS="-lc++ -stdlib=libc++"
+          npm run build -- --mac dmg
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
