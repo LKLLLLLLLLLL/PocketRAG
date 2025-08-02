@@ -60,6 +60,9 @@ models/
 # version file generated automatically
 electron/public/version.json
 
+# electron-builder configuration files
+electron-builder-cuda.json
+
 # ------------- node.ignore --------------------
 # Logs
 logs
